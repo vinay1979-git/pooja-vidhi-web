@@ -26,7 +26,9 @@ import {
   Lightbulb,
   ChevronDown,
   ChevronUp,
-  Users
+  Users,
+  SearchCheck,
+  AlertCircle
 } from 'lucide-react';
 import { Pooja, PoojaStep, ArchanaItem } from '@/types/pooja';
 import { fetchPanchangamData, PanchangamData } from '@/actions/getSankalpam';
@@ -59,12 +61,22 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   const [sankalpamData, setSankalpamData] = useState({
     devoteeName: 'Devotee',
     gotra: 'Kashyapa',
-    place: 'Chennai, TN',
+  });
+
+  // Geolocation & Nominatim Geocoding State
+  const [locationQuery, setLocationQuery] = useState<string>('Chennai, TN');
+  const [resolvedGeo, setResolvedGeo] = useState<{
+    lat: number;
+    lon: number;
+    displayName: string;
+  } | null>({
     lat: 13.0827,
     lon: 80.2707,
+    displayName: 'Chennai, Tamil Nadu, India',
   });
 
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
   const [locationStatus, setLocationStatus] = useState<string>('');
   const [panchangamData, setPanchangamData] = useState<PanchangamData | null>(null);
 
@@ -76,23 +88,24 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
   // Fetch Panchangam Data from Server Action
   const loadPanchangam = useCallback(async () => {
+    if (!resolvedGeo) return;
     try {
       const data = await fetchPanchangamData(
         sankalpamDate,
-        sankalpamData.lat,
-        sankalpamData.lon
+        resolvedGeo.lat,
+        resolvedGeo.lon
       );
       setPanchangamData(data);
     } catch (e) {
       console.error('Failed to load Panchangam data:', e);
     }
-  }, [sankalpamDate, sankalpamData.lat, sankalpamData.lon]);
+  }, [sankalpamDate, resolvedGeo]);
 
   useEffect(() => {
     loadPanchangam();
   }, [loadPanchangam]);
 
-  // Geolocation detection handler
+  // Reverse Geocoding (Detect Location Button)
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
       setLocationStatus('Geolocation is not supported by your browser.');
@@ -100,28 +113,127 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     }
 
     setIsDetectingLocation(true);
-    setLocationStatus('Detecting coordinates...');
+    setLocationStatus('Detecting coordinates via GPS...');
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
-        setSankalpamData((prev) => ({
-          ...prev,
-          lat,
-          lon,
-          place: `Lat: ${lat.toFixed(2)}°, Lon: ${lon.toFixed(2)}°`,
-        }));
-        setIsDetectingLocation(false);
-        setLocationStatus('Location detected successfully!');
+
+        try {
+          // OpenStreetMap Nominatim Reverse Geocoding API
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
+            {
+              headers: {
+                'Accept-Language': 'en',
+              },
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            const address = data.address || {};
+            const city =
+              address.city ||
+              address.town ||
+              address.village ||
+              address.suburb ||
+              address.county ||
+              address.state ||
+              'Detected Place';
+
+            const fullDisplayName = data.display_name || city;
+
+            setLocationQuery(city);
+            setResolvedGeo({
+              lat: Number(lat),
+              lon: Number(lon),
+              displayName: fullDisplayName,
+            });
+            setLocationStatus('Location detected & reverse geocoded!');
+          } else {
+            // Fallback if API rate limited
+            setLocationQuery(`Lat ${lat.toFixed(2)}, Lon ${lon.toFixed(2)}`);
+            setResolvedGeo({
+              lat: Number(lat),
+              lon: Number(lon),
+              displayName: `GPS Coords (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+            });
+            setLocationStatus('GPS detected (offline fallback).');
+          }
+        } catch (err) {
+          console.warn('Reverse geocoding fetch error:', err);
+          setLocationQuery(`Lat ${lat.toFixed(2)}, Lon ${lon.toFixed(2)}`);
+          setResolvedGeo({
+            lat: Number(lat),
+            lon: Number(lon),
+            displayName: `GPS Coords (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+          });
+          setLocationStatus('GPS coordinates captured.');
+        } finally {
+          setIsDetectingLocation(false);
+        }
       },
       (error) => {
         console.warn('Geolocation error:', error);
         setIsDetectingLocation(false);
-        setLocationStatus('Location access denied. Using manual fallback.');
+        setLocationStatus('Location permission denied. Please enter city & click Verify.');
       },
       { timeout: 10000 }
     );
+  };
+
+  // Forward Geocoding (Manual Entry Validation)
+  const handleVerifyLocation = async () => {
+    if (!locationQuery.trim()) {
+      setLocationStatus('Please enter a city or town name.');
+      return;
+    }
+
+    setIsVerifyingLocation(true);
+    setLocationStatus('Verifying location with OpenStreetMap...');
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          locationQuery.trim()
+        )}&limit=1`,
+        {
+          headers: {
+            'Accept-Language': 'en',
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          const result = data[0];
+          const mainName = result.display_name.split(',')[0];
+          const lat = parseFloat(result.lat);
+          const lon = parseFloat(result.lon);
+
+          setLocationQuery(mainName);
+          setResolvedGeo({
+            lat,
+            lon,
+            displayName: result.display_name,
+          });
+          setLocationStatus('Coordinates verified successfully!');
+        } else {
+          setResolvedGeo(null);
+          setLocationStatus('Location not found. Please try a major city name.');
+        }
+      } else {
+        setLocationStatus('Geocoding service unavailable. Try again later.');
+      }
+    } catch (err) {
+      console.warn('Forward geocoding error:', err);
+      setLocationStatus('Network error while verifying location.');
+    } finally {
+      setIsVerifyingLocation(false);
+    }
   };
 
   // Helper to check if step is allowed for current performerGender
@@ -195,7 +307,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
   // Handle Step Navigation with Gender-aware skipping
   const goToStep = async (newIndex: number) => {
-    if (newIndex >= 0 && !panchangamData) {
+    if (newIndex >= 0 && (!panchangamData || !resolvedGeo)) {
       await loadPanchangam();
     }
     setDirection(newIndex > currentStepIndex ? 1 : -1);
@@ -204,6 +316,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   };
 
   const handleNextStep = () => {
+    if (!resolvedGeo) return;
+
     if (currentStepIndex === -1) {
       // Find first valid step
       const firstValidIdx = steps.findIndex(isStepAvailableForGender);
@@ -422,21 +536,27 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     {pooja.title_en}
                   </h2>
                   <p className="text-stone-300 text-sm md:text-base max-w-2xl leading-relaxed">
-                    Welcome to the sacred ritual. Select performer, check Samagri items, configure Sankalpam, and view philosophical meanings.
+                    Welcome to the sacred ritual. Select performer, check Samagri items, verify location coordinates for Sankalpam, and view philosophical meanings.
                   </p>
                 </div>
 
                 <button
-                  onClick={() => goToStep(0)}
-                  className="w-full md:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 font-bold text-lg shadow-lg shadow-amber-600/30 transition-all hover:scale-105 flex items-center justify-center gap-3 shrink-0"
+                  onClick={handleNextStep}
+                  disabled={!resolvedGeo}
+                  className={`w-full md:w-auto px-8 py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-3 shrink-0 transition-all ${
+                    resolvedGeo
+                      ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 shadow-amber-600/30 hover:scale-105 cursor-pointer'
+                      : 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50 border border-stone-700'
+                  }`}
+                  title={!resolvedGeo ? 'Please detect or verify your location coordinates first' : 'Start Pooja'}
                 >
-                  <Flame className="w-6 h-6 fill-stone-950" /> Start Pooja
+                  <Flame className="w-6 h-6 fill-current" /> Start Pooja
                   <ChevronRight className="w-5 h-5 stroke-[3]" />
                 </button>
               </div>
             </div>
 
-            {/* SANKALPAM & PERFORMER GENDER CONFIGURATION CARD */}
+            {/* SANKALPAM & NOMINATIM GEOLOCATION CONFIGURATION CARD */}
             <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-amber-950/20 to-stone-950 border border-amber-500/40 p-6 shadow-xl space-y-6">
               <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
                 <div className="flex items-center gap-3">
@@ -445,9 +565,9 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-amber-200">
-                      Sankalpam & Performer Settings (சங்கல்ப அமைப்புகள்)
+                      Sankalpam & Location Geocoding (சங்கல்ப அமைப்புகள்)
                     </h3>
-                    <p className="text-xs text-stone-400">Configure performer type, date, location, and devotee details</p>
+                    <p className="text-xs text-stone-400">Verified coordinates ensure accurate spacetime ritual alignment</p>
                   </div>
                 </div>
 
@@ -512,34 +632,71 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   />
                 </div>
 
-                {/* Location Detection */}
+                {/* Location Geocoding Input & Detect/Verify Buttons */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
-                      <MapPin className="w-4 h-4 text-amber-400" /> Location / இடம்
+                      <MapPin className="w-4 h-4 text-amber-400" /> City / Location / இடம்
                     </label>
+
                     <button
                       onClick={handleDetectLocation}
                       disabled={isDetectingLocation}
-                      className="text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"
+                      className="text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 bg-amber-500/10 px-2.5 py-1 rounded border border-amber-500/20"
                     >
                       {isDetectingLocation ? (
                         <>
-                          <Loader2 className="w-3 h-3 animate-spin" /> Detecting...
+                          <Loader2 className="w-3 h-3 animate-spin text-amber-400" /> Detecting...
                         </>
                       ) : (
-                        '📍 Detect Location'
+                        '📍 Detect GPS Location'
                       )}
                     </button>
                   </div>
-                  <input
-                    type="text"
-                    placeholder="Enter city or coordinates"
-                    value={sankalpamData.place}
-                    onChange={(e) => setSankalpamData({ ...sankalpamData, place: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
-                  />
-                  {locationStatus && <p className="text-xs text-amber-400/80">{locationStatus}</p>}
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter city name (e.g. Chennai, Madurai)"
+                      value={locationQuery}
+                      onChange={(e) => {
+                        setLocationQuery(e.target.value);
+                        setResolvedGeo(null); // Require re-verification if user changes input
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleVerifyLocation();
+                      }}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                    />
+
+                    <button
+                      onClick={handleVerifyLocation}
+                      disabled={isVerifyingLocation}
+                      className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition-colors shrink-0 shadow"
+                    >
+                      {isVerifyingLocation ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <SearchCheck className="w-4 h-4" />
+                      )}
+                      Verify
+                    </button>
+                  </div>
+
+                  {/* VERIFIED COORDINATES DISPLAY DIRECTLY BELOW */}
+                  {resolvedGeo ? (
+                    <p className="text-xs font-semibold text-amber-400 flex items-center gap-1.5 pt-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      Verified Coordinates: Lat {resolvedGeo.lat.toFixed(4)}, Lon {resolvedGeo.lon.toFixed(4)}
+                    </p>
+                  ) : (
+                    <p className="text-xs font-medium text-amber-500/90 flex items-center gap-1 pt-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      Location not verified yet. Please click &quot;Verify&quot; or &quot;Detect GPS Location&quot; to enable Start Pooja.
+                    </p>
+                  )}
+
+                  {locationStatus && <p className="text-xs text-stone-400 italic pt-0.5">{locationStatus}</p>}
                 </div>
 
                 {/* Devotee Name */}
@@ -710,9 +867,14 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
             <div className="flex justify-center pt-4">
               <button
                 onClick={handleNextStep}
-                className="w-full max-w-md py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 font-bold text-lg shadow-xl shadow-amber-600/30 transition-all hover:scale-105 flex items-center justify-center gap-3"
+                disabled={!resolvedGeo}
+                className={`w-full max-w-md py-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center gap-3 transition-all ${
+                  resolvedGeo
+                    ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 shadow-amber-600/30 hover:scale-105 cursor-pointer'
+                    : 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50 border border-stone-700'
+                }`}
               >
-                <Flame className="w-6 h-6 fill-stone-950" /> Begin First Step (படி 1)
+                <Flame className="w-6 h-6 fill-current" /> Begin First Step (படி 1)
                 <ChevronRight className="w-5 h-5 stroke-[3]" />
               </button>
             </div>
@@ -1036,7 +1198,12 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
           <button
             onClick={handleNextStep}
-            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 font-bold text-sm shadow-md shadow-amber-600/30 transition-all flex items-center gap-2"
+            disabled={!resolvedGeo && currentStepIndex === -1}
+            className={`px-6 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 ${
+              !resolvedGeo && currentStepIndex === -1
+                ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50 border border-stone-700'
+                : 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 shadow-amber-600/30'
+            }`}
           >
             <span>
               {currentStepIndex === -1
