@@ -1,0 +1,732 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  CheckCircle2,
+  Circle,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  RotateCcw,
+  BookOpen,
+  Languages,
+  Utensils,
+  Flower2,
+  Award,
+  Flame,
+  Check,
+  Globe,
+  Info
+} from 'lucide-react';
+import { Pooja, PoojaStep, SamagriItem, NaivedyamItem, ArchanaItem } from '@/types/pooja';
+
+interface PoojaViewerProps {
+  pooja: Pooja;
+  steps: PoojaStep[];
+}
+
+export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
+  // Navigation & Language States
+  const [currentStepIndex, setCurrentStepIndex] = useState<number>(-1); // -1 = Samagri / Prep
+  const [instructionLang, setInstructionLang] = useState<'en' | 'ta'>('en');
+  const [mantraLang, setMantraLang] = useState<'sanskrit' | 'tamil' | 'translit'>('sanskrit');
+  const [direction, setDirection] = useState<number>(1);
+
+  // Preparation Checklist State
+  const [checkedSamagri, setCheckedSamagri] = useState<Record<string, boolean>>({});
+
+  // Dynamic Sankalpam State
+  const [sankalpamData, setSankalpamData] = useState({
+    devoteeName: '',
+    gotra: '',
+    place: 'Your Location',
+  });
+
+  // Archana Progress State
+  const [archanaProgress, setArchanaProgress] = useState<Record<string, number>>({});
+
+  // Pooja Complete Summary State
+  const [isCompleted, setIsCompleted] = useState(false);
+
+  // Parse Samagri items consistently
+  const parsedSamagriList = useMemo(() => {
+    return (pooja.samagri_list || []).map((item, idx) => {
+      if (typeof item === 'string') {
+        return { id: `samagri-${idx}`, item_en: item, item_ta: item, required: true };
+      }
+      return {
+        id: `samagri-${idx}`,
+        item_en: item.item_en || '',
+        item_ta: item.item_ta || item.item_en || '',
+        quantity: item.quantity,
+        required: item.required ?? true,
+      };
+    });
+  }, [pooja.samagri_list]);
+
+  // Parse Naivedyam items consistently
+  const parsedNaivedyamList = useMemo(() => {
+    return (pooja.naivedyam_suggestions || []).map((item, idx) => {
+      if (typeof item === 'string') {
+        return { id: `naivedyam-${idx}`, name_en: item, name_ta: item };
+      }
+      return {
+        id: `naivedyam-${idx}`,
+        name_en: item.name_en,
+        name_ta: item.name_ta || item.name_en,
+        description_en: item.description_en,
+        description_ta: item.description_ta,
+      };
+    });
+  }, [pooja.naivedyam_suggestions]);
+
+  // Toggle Samagri check
+  const toggleSamagri = (id: string) => {
+    setCheckedSamagri((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const checkAllSamagri = () => {
+    const allChecked: Record<string, boolean> = {};
+    parsedSamagriList.forEach((item) => {
+      allChecked[item.id] = true;
+    });
+    setCheckedSamagri(allChecked);
+  };
+
+  const resetSamagri = () => {
+    setCheckedSamagri({});
+  };
+
+  const samagriCompletedCount = useMemo(() => {
+    return parsedSamagriList.filter((item) => checkedSamagri[item.id]).length;
+  }, [parsedSamagriList, checkedSamagri]);
+
+  // Handle Step Navigation
+  const goToStep = (newIndex: number) => {
+    setDirection(newIndex > currentStepIndex ? 1 : -1);
+    setCurrentStepIndex(newIndex);
+    if (isCompleted) setIsCompleted(false);
+  };
+
+  const handleNextStep = () => {
+    if (currentStepIndex < steps.length - 1) {
+      goToStep(currentStepIndex + 1);
+    } else {
+      setIsCompleted(true);
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (currentStepIndex > -1) {
+      goToStep(currentStepIndex - 1);
+    }
+  };
+
+  const currentStep = steps[currentStepIndex];
+
+  // Slide Animation Variants for Framer Motion
+  const slideVariants = {
+    enter: (dir: number) => ({
+      x: dir > 0 ? 100 : -100,
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (dir: number) => ({
+      x: dir < 0 ? 100 : -100,
+      opacity: 0,
+    }),
+  };
+
+  return (
+    <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-sans selection:bg-amber-500 selection:text-stone-950 pb-24">
+      {/* Top Banner / Sacred Header */}
+      <header className="sticky top-0 z-40 bg-stone-900/90 backdrop-blur-md border-b border-amber-500/20 shadow-xl">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          {/* Title in English and Tamil */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => goToStep(-1)}
+              className="p-2 rounded-lg bg-stone-800 hover:bg-amber-900/40 text-amber-400 transition-colors border border-amber-500/20"
+              title="Return to Preparation"
+            >
+              <Flame className="w-5 h-5 fill-amber-500/30" />
+            </button>
+            <div>
+              <h1 className="text-lg md:text-xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-300 bg-clip-text text-transparent tracking-wide">
+                {pooja.title_en}
+              </h1>
+              <p className="text-xs md:text-sm text-amber-400/90 font-medium tracking-wide">
+                {pooja.title_ta}
+              </p>
+            </div>
+          </div>
+
+          {/* Language Controls */}
+          <div className="flex items-center gap-2 text-xs flex-wrap">
+            {/* Instruction Lang Toggle */}
+            <div className="flex items-center bg-stone-950 rounded-lg p-1 border border-stone-800">
+              <span className="px-2 text-stone-400 flex items-center gap-1 font-medium">
+                <Globe className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">Instruction:</span>
+              </span>
+              <button
+                onClick={() => setInstructionLang('en')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                  instructionLang === 'en'
+                    ? 'bg-amber-500 text-stone-950 shadow-sm'
+                    : 'text-stone-300 hover:text-white'
+                }`}
+              >
+                English
+              </button>
+              <button
+                onClick={() => setInstructionLang('ta')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                  instructionLang === 'ta'
+                    ? 'bg-amber-500 text-stone-950 shadow-sm'
+                    : 'text-stone-300 hover:text-white'
+                }`}
+              >
+                தமிழ்
+              </button>
+            </div>
+
+            {/* Mantra Script Toggle */}
+            <div className="flex items-center bg-stone-950 rounded-lg p-1 border border-stone-800">
+              <span className="px-2 text-stone-400 flex items-center gap-1 font-medium">
+                <Languages className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">Mantra:</span>
+              </span>
+              <button
+                onClick={() => setMantraLang('sanskrit')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                  mantraLang === 'sanskrit'
+                    ? 'bg-amber-500 text-stone-950 shadow-sm'
+                    : 'text-stone-300 hover:text-white'
+                }`}
+              >
+                संस्कृतम्
+              </button>
+              <button
+                onClick={() => setMantraLang('tamil')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                  mantraLang === 'tamil'
+                    ? 'bg-amber-500 text-stone-950 shadow-sm'
+                    : 'text-stone-300 hover:text-white'
+                }`}
+              >
+                தமிழ்
+              </button>
+              <button
+                onClick={() => setMantraLang('translit')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                  mantraLang === 'translit'
+                    ? 'bg-amber-500 text-stone-950 shadow-sm'
+                    : 'text-stone-300 hover:text-white'
+                }`}
+              >
+                Eng
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Step Progress Bar */}
+        {steps.length > 0 && (
+          <div className="w-full bg-stone-950 h-1.5 overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-amber-600 via-amber-400 to-amber-500 h-full transition-all duration-500"
+              style={{
+                width: `${
+                  currentStepIndex === -1
+                    ? 0
+                    : ((currentStepIndex + 1) / steps.length) * 100
+                }%`,
+              }}
+            />
+          </div>
+        )}
+      </header>
+
+      {/* Main Content Area */}
+      <main className="max-w-4xl w-full mx-auto px-4 pt-6 flex-1">
+        {/* VIEW 1: PREPARATION SCREEN (Samagri & Naivedyam) */}
+        {currentStepIndex === -1 && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="space-y-8"
+          >
+            {/* Intro Welcome Card */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-950/40 via-stone-900 to-stone-900 border border-amber-500/30 p-6 md:p-8 shadow-2xl">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold uppercase tracking-wider">
+                    <Sparkles className="w-3.5 h-3.5" /> Ritual Preparation / தயாரிப்பு
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-amber-100">
+                    {pooja.title_en}
+                  </h2>
+                  <p className="text-stone-300 text-sm md:text-base max-w-2xl leading-relaxed">
+                    Welcome to the sacred ritual. Prepare your altar, gather your Samagri items, and prepare the holy Naivedyam offerings before commencing the step-by-step mantras.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => goToStep(0)}
+                  className="w-full md:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 font-bold text-lg shadow-lg shadow-amber-600/30 transition-all hover:scale-105 flex items-center justify-center gap-3 shrink-0"
+                >
+                  <Flame className="w-6 h-6 fill-stone-950" /> Start Pooja
+                  <ChevronRight className="w-5 h-5 stroke-[3]" />
+                </button>
+              </div>
+            </div>
+
+            {/* Samagri Checklist Section */}
+            <div className="rounded-2xl bg-stone-900/80 border border-stone-800 p-6 shadow-xl space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                    <BookOpen className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-stone-100 flex items-center gap-2">
+                      Pooja Samagri Checklist
+                    </h3>
+                    <p className="text-xs text-stone-400">
+                      পূজা সামগ্রী список • Collected {samagriCompletedCount} of {parsedSamagriList.length} items
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs">
+                  <button
+                    onClick={checkAllSamagri}
+                    className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-amber-950 text-amber-300 border border-stone-700 transition-colors flex items-center gap-1 font-medium"
+                  >
+                    <Check className="w-3.5 h-3.5" /> Check All
+                  </button>
+                  <button
+                    onClick={resetSamagri}
+                    className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700 transition-colors flex items-center gap-1 font-medium"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Reset
+                  </button>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-semibold text-stone-400">
+                  <span>Preparation Progress</span>
+                  <span>{Math.round((samagriCompletedCount / (parsedSamagriList.length || 1)) * 100)}%</span>
+                </div>
+                <div className="w-full bg-stone-950 rounded-full h-2 overflow-hidden border border-stone-800">
+                  <div
+                    className="bg-amber-500 h-full transition-all duration-300"
+                    style={{ width: `${(samagriCompletedCount / (parsedSamagriList.length || 1)) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Samagri Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                {parsedSamagriList.map((item) => {
+                  const isChecked = !!checkedSamagri[item.id];
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => toggleSamagri(item.id)}
+                      className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${
+                        isChecked
+                          ? 'bg-amber-950/30 border-amber-500/40 text-amber-200'
+                          : 'bg-stone-950/60 border-stone-800/80 text-stone-300 hover:border-stone-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="text-amber-400">
+                          {isChecked ? (
+                            <CheckCircle2 className="w-5 h-5 fill-amber-500 text-stone-950" />
+                          ) : (
+                            <Circle className="w-5 h-5 text-stone-600" />
+                          )}
+                        </div>
+                        <div>
+                          <p className={`text-sm font-semibold ${isChecked ? 'line-through opacity-80' : ''}`}>
+                            {instructionLang === 'ta' && item.item_ta ? item.item_ta : item.item_en}
+                          </p>
+                          {instructionLang === 'en' && item.item_ta && (
+                            <p className="text-xs text-amber-400/80 font-medium">{item.item_ta}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {item.quantity && (
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-stone-800 text-stone-400 border border-stone-700">
+                          {item.quantity}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Naivedyam Suggestions Card Section */}
+            <div className="rounded-2xl bg-stone-900/80 border border-stone-800 p-6 shadow-xl space-y-6">
+              <div className="flex items-center gap-3 border-b border-stone-800 pb-4">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                  <Utensils className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-stone-100">
+                    Naivedyam Suggestions (நைவேத்தியம்)
+                  </h3>
+                  <p className="text-xs text-stone-400">Sacred food offerings recommended for this pooja</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {parsedNaivedyamList.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-4 rounded-xl bg-stone-950/70 border border-amber-500/20 hover:border-amber-500/40 transition-colors flex flex-col justify-between gap-3 shadow-md"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Flower2 className="w-4 h-4 text-amber-400 shrink-0" />
+                        <h4 className="font-bold text-amber-200 text-base">
+                          {instructionLang === 'ta' && item.name_ta ? item.name_ta : item.name_en}
+                        </h4>
+                      </div>
+                      {item.name_ta && instructionLang === 'en' && (
+                        <p className="text-xs text-amber-400/90 font-medium pl-6">{item.name_ta}</p>
+                      )}
+                    </div>
+
+                    {(item.description_en || item.description_ta) && (
+                      <p className="text-xs text-stone-400 leading-relaxed border-t border-stone-800/80 pt-2">
+                        {instructionLang === 'ta' && item.description_ta
+                          ? item.description_ta
+                          : item.description_en}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Bottom Start Action */}
+            <div className="flex justify-center pt-4">
+              <button
+                onClick={() => goToStep(0)}
+                className="w-full max-w-md py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 font-bold text-lg shadow-xl shadow-amber-600/30 transition-all hover:scale-105 flex items-center justify-center gap-3"
+              >
+                <Flame className="w-6 h-6 fill-stone-950" /> Begin First Step (படி 1)
+                <ChevronRight className="w-5 h-5 stroke-[3]" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* VIEW 2: STEP-BY-STEP FLOW */}
+        {currentStepIndex >= 0 && currentStep && !isCompleted && (
+          <div className="relative min-h-[500px]">
+            <AnimatePresence custom={direction} mode="wait">
+              <motion.div
+                key={currentStep.id || currentStepIndex}
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.35, ease: 'easeInOut' }}
+                className="space-y-6"
+              >
+                {/* Step Header Card */}
+                <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-stone-900 to-stone-950 border border-amber-500/30 p-6 shadow-2xl space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-extrabold text-xs tracking-wider uppercase flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" /> Step {currentStepIndex + 1} of {steps.length}
+                    </span>
+
+                    {/* Step Jump Select */}
+                    <select
+                      value={currentStepIndex}
+                      onChange={(e) => goToStep(Number(e.target.value))}
+                      className="bg-stone-950 text-amber-300 text-xs font-semibold px-3 py-1.5 rounded-lg border border-amber-500/30 focus:outline-none"
+                    >
+                      {steps.map((s, idx) => (
+                        <option key={s.id || idx} value={idx}>
+                          Step {idx + 1}: {s.step_title_en}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-extrabold text-amber-100">
+                      {currentStep.step_title_en}
+                    </h2>
+                    {currentStep.step_title_ta && (
+                      <p className="text-base text-amber-400 font-semibold mt-1">
+                        {currentStep.step_title_ta}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Instruction */}
+                  <div className="bg-stone-950/80 rounded-xl p-4 border border-stone-800 text-stone-200 text-sm md:text-base leading-relaxed flex items-start gap-3">
+                    <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium">
+                        {instructionLang === 'ta' && currentStep.instruction_ta
+                          ? currentStep.instruction_ta
+                          : currentStep.instruction_en}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dynamic Sankalpam Helper (if flag set) */}
+                {currentStep.is_dynamic_sankalpam && (
+                  <div className="rounded-2xl bg-amber-950/20 border border-amber-500/40 p-6 shadow-xl space-y-4">
+                    <div className="flex items-center gap-2 text-amber-400 font-bold text-base border-b border-amber-500/20 pb-3">
+                      <Flame className="w-5 h-5" /> Dynamic Sankalpam Helper / சங்கல்பம்
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs text-amber-300 font-medium">Devotee Name</label>
+                        <input
+                          type="text"
+                          placeholder="Enter your name"
+                          value={sankalpamData.devoteeName}
+                          onChange={(e) => setSankalpamData({ ...sankalpamData, devoteeName: e.target.value })}
+                          className="w-full mt-1 px-3 py-2 rounded-lg bg-stone-900 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-amber-300 font-medium">Gotra (Gothram)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Bharadwaja"
+                          value={sankalpamData.gotra}
+                          onChange={(e) => setSankalpamData({ ...sankalpamData, gotra: e.target.value })}
+                          className="w-full mt-1 px-3 py-2 rounded-lg bg-stone-900 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-amber-300 font-medium">Location</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Chennai"
+                          value={sankalpamData.place}
+                          onChange={(e) => setSankalpamData({ ...sankalpamData, place: e.target.value })}
+                          className="w-full mt-1 px-3 py-2 rounded-lg bg-stone-900 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-stone-950 p-4 rounded-xl border border-amber-500/20 text-xs md:text-sm text-amber-200/90 font-serif italic">
+                      &quot;...Mamaopaatta-samasta-duritakshayadvaara shri parameshwara prityartham,{' '}
+                      <span className="text-amber-400 underline">{sankalpamData.gotra || '[Gotram]'}</span> gotrodbhavasya{' '}
+                      <span className="text-amber-400 underline">{sankalpamData.devoteeName || '[Your Name]'}</span> nama dheyasya...&quot;
+                    </div>
+                  </div>
+                )}
+
+                {/* Mantra Presentation Section */}
+                {(currentStep.mantra_sanskrit || currentStep.mantra_tamil || currentStep.mantra_translit) && (
+                  <div className="rounded-2xl bg-gradient-to-br from-stone-900 to-amber-950/30 border border-amber-500/40 p-6 md:p-8 shadow-2xl space-y-6">
+                    <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+                          <Languages className="w-5 h-5" />
+                        </span>
+                        <h3 className="text-lg font-bold text-amber-200 uppercase tracking-wider">
+                          Sacred Mantra / வேதம் & ஸ்லோகம்
+                        </h3>
+                      </div>
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        {mantraLang === 'sanskrit' ? 'Sanskrit Script' : mantraLang === 'tamil' ? 'Tamil Script' : 'English Transliteration'}
+                      </span>
+                    </div>
+
+                    {/* Mantra Script Box */}
+                    <div className="p-6 md:p-8 rounded-xl bg-stone-950/90 border border-amber-500/30 text-center space-y-4 shadow-inner">
+                      <p className="text-xl md:text-2xl lg:text-3xl font-serif leading-relaxed text-amber-300 tracking-wide">
+                        {mantraLang === 'sanskrit' && (currentStep.mantra_sanskrit || currentStep.mantra_translit)}
+                        {mantraLang === 'tamil' && (currentStep.mantra_tamil || currentStep.mantra_sanskrit || currentStep.mantra_translit)}
+                        {mantraLang === 'translit' && (currentStep.mantra_translit || currentStep.mantra_sanskrit)}
+                      </p>
+
+                      {currentStep.meaning_en && (
+                        <div className="pt-4 border-t border-stone-800/80">
+                          <p className="text-xs text-amber-400/80 font-bold uppercase tracking-widest mb-1">
+                            Meaning / அர்த்தம்
+                          </p>
+                          <p className="text-sm md:text-base text-stone-300 italic max-w-2xl mx-auto leading-relaxed">
+                            &quot;{currentStep.meaning_en}&quot;
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Archana List Section (if present) */}
+                {currentStep.archana_list && currentStep.archana_list.length > 0 && (
+                  <div className="rounded-2xl bg-stone-900 border border-amber-500/30 p-6 shadow-2xl space-y-4">
+                    <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+                      <div className="flex items-center gap-2">
+                        <Flower2 className="w-5 h-5 text-amber-400" />
+                        <h3 className="text-lg font-bold text-amber-200">
+                          Archana Namavali ({currentStep.archana_list.length} Names)
+                        </h3>
+                      </div>
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-stone-800 text-stone-300">
+                        {Object.keys(archanaProgress).length} offered
+                      </span>
+                    </div>
+
+                    {/* Scrollable list */}
+                    <div className="max-h-96 overflow-y-auto pr-2 space-y-2.5 divide-y divide-stone-800/60">
+                      {currentStep.archana_list.map((item: ArchanaItem, idx: number) => {
+                        const isOffered = !!archanaProgress[`archana-${idx}`];
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() =>
+                              setArchanaProgress((prev) => ({
+                                ...prev,
+                                [`archana-${idx}`]: isOffered ? 0 : 1,
+                              }))
+                            }
+                            className={`pt-2.5 pb-2.5 px-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                              isOffered ? 'bg-amber-950/30 border border-amber-500/30' : 'hover:bg-stone-950/60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs font-mono font-bold w-7 text-amber-400/80">
+                                #{item.number || idx + 1}
+                              </span>
+                              <div>
+                                <p className="text-sm md:text-base font-bold text-amber-100">
+                                  {mantraLang === 'tamil' && item.tamil ? item.tamil : item.sanskrit}
+                                </p>
+                                {item.translit && (
+                                  <p className="text-xs text-stone-400 font-medium">{item.translit}</p>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
+                                isOffered
+                                  ? 'bg-amber-500 text-stone-950'
+                                  : 'bg-stone-800 text-amber-300 hover:bg-amber-900/50'
+                              }`}
+                            >
+                              🌸 {isOffered ? 'Offered' : 'Offer Flower'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* POOJA COMPLETE SUMMARY CARD */}
+        {isCompleted && (
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="rounded-2xl bg-gradient-to-br from-amber-950 via-stone-900 to-stone-900 border-2 border-amber-500 p-8 md:p-12 text-center space-y-6 shadow-2xl"
+          >
+            <div className="w-20 h-20 mx-auto rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-amber-400 shadow-xl">
+              <Award className="w-10 h-10 animate-bounce" />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-3xl md:text-4xl font-extrabold text-amber-200">
+                Pooja Sampoornam! (பூஜை பூர்த்தி)
+              </h2>
+              <p className="text-stone-300 text-base max-w-xl mx-auto">
+                May the divine blessings of {pooja.title_en} fill your life with peace, prosperity, health, and wisdom.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-stone-950/80 border border-amber-500/30 max-w-md mx-auto text-amber-300 font-serif italic text-sm">
+              &quot;Om Shanti Shanti Shantih&quot; • &quot;ஓம் சாந்தி சாந்தி சாந்திஃ&quot;
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+              <button
+                onClick={() => goToStep(-1)}
+                className="px-6 py-3 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold border border-stone-700 transition-colors flex items-center gap-2"
+              >
+                <RotateCcw className="w-5 h-5 text-amber-400" /> Start Again
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </main>
+
+      {/* ANCHORED BOTTOM NAVIGATION BAR */}
+      <footer className="fixed bottom-0 left-0 right-0 z-40 bg-stone-900/95 backdrop-blur-md border-t border-amber-500/20 py-3 px-4 shadow-2xl">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          <button
+            onClick={handlePrevStep}
+            disabled={currentStepIndex <= -1}
+            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+              currentStepIndex <= -1
+                ? 'opacity-40 bg-stone-800 text-stone-500 cursor-not-allowed'
+                : 'bg-stone-800 hover:bg-amber-950 text-amber-300 border border-amber-500/30'
+            }`}
+          >
+            <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
+            <span>Previous</span>
+          </button>
+
+          {/* Center Indicator */}
+          <div className="text-xs font-semibold text-amber-400/90 text-center hidden sm:block">
+            {currentStepIndex === -1 ? (
+              <span>Preparation Checklist</span>
+            ) : (
+              <span>
+                Step {currentStepIndex + 1} of {steps.length}
+              </span>
+            )}
+          </div>
+
+          <button
+            onClick={handleNextStep}
+            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 font-bold text-sm shadow-md shadow-amber-600/30 transition-all flex items-center gap-2"
+          >
+            <span>
+              {currentStepIndex === -1
+                ? 'Start Pooja'
+                : currentStepIndex === steps.length - 1
+                ? 'Complete Pooja'
+                : 'Next Step'}
+            </span>
+            <ChevronRight className="w-5 h-5 stroke-[2.5]" />
+          </button>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default PoojaViewer;
