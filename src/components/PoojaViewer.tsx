@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2,
@@ -408,15 +409,17 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
       {/* Top Banner / Sacred Header */}
       <header className="sticky top-0 z-40 bg-stone-900/90 backdrop-blur-md border-b border-amber-500/20 shadow-xl">
         <div className="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-          {/* Title in English and Tamil */}
+          {/* Back to Catalog Link & Title */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => goToStep(-1)}
-              className="p-2 rounded-lg bg-stone-800 hover:bg-amber-900/40 text-amber-400 transition-colors border border-amber-500/20"
-              title="Return to Preparation"
+            <Link
+              href="/"
+              className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-amber-950 text-amber-300 transition-colors border border-amber-500/30 text-xs font-bold flex items-center gap-1 shrink-0 shadow-sm"
+              title="Return to Pooja Catalog"
             >
-              <Flame className="w-5 h-5 fill-amber-500/30" />
-            </button>
+              <ChevronLeft className="w-4 h-4 stroke-[3]" />
+              <span>Catalog</span>
+            </Link>
+
             <div>
               <h1 className="text-lg md:text-xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-300 bg-clip-text text-transparent tracking-wide">
                 {pooja.title_en}
@@ -927,13 +930,13 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     )}
                   </div>
 
-                  {/* Instruction */}
+                  {/* Instruction with Robust Language Fallback */}
                   <div className="bg-stone-950/80 rounded-xl p-4 border border-stone-800 text-stone-200 text-sm md:text-base leading-relaxed flex items-start gap-3">
                     <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium">
-                        {instructionLang === 'ta' && currentStep.instruction_ta
-                          ? currentStep.instruction_ta
+                        {instructionLang === 'ta'
+                          ? currentStep.instruction_ta || currentStep.instruction_en
                           : currentStep.instruction_en}
                       </p>
                     </div>
@@ -1022,7 +1025,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   </div>
                 )}
 
-                {/* Mantra Presentation Section */}
+                {/* Mantra Presentation Section with Robust Language Fallbacks */}
                 {(currentStep.mantra_sanskrit || currentStep.mantra_tamil || currentStep.mantra_translit) && (
                   <div className="rounded-2xl bg-gradient-to-br from-stone-900 to-amber-950/30 border border-amber-500/40 p-6 md:p-8 shadow-2xl space-y-6">
                     <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
@@ -1043,14 +1046,20 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     <div className="p-6 md:p-8 rounded-xl bg-stone-950/90 border border-amber-500/30 text-center space-y-4 shadow-inner">
                       <p className="text-xl md:text-2xl lg:text-3xl font-serif leading-relaxed text-amber-300 tracking-wide">
                         {mantraLang === 'sanskrit' &&
-                          getDynamicMantra(currentStep.mantra_sanskrit || currentStep.mantra_translit, 'sanskrit')}
+                          getDynamicMantra(
+                            currentStep.mantra_sanskrit || currentStep.mantra_translit || currentStep.mantra_tamil,
+                            'sanskrit'
+                          )}
                         {mantraLang === 'tamil' &&
                           getDynamicMantra(
                             currentStep.mantra_tamil || currentStep.mantra_sanskrit || currentStep.mantra_translit,
                             'tamil'
                           )}
                         {mantraLang === 'translit' &&
-                          getDynamicMantra(currentStep.mantra_translit || currentStep.mantra_sanskrit, 'translit')}
+                          getDynamicMantra(
+                            currentStep.mantra_translit || currentStep.mantra_sanskrit || currentStep.mantra_tamil,
+                            'translit'
+                          )}
                       </p>
 
                       {currentStep.meaning_en && (
