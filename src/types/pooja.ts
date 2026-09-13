@@ -27,11 +27,14 @@ export interface Pooja {
   id: string;
   title_en: string;
   title_ta: string;
-  samagri_list: (string | SamagriItem)[];
-  naivedyam_suggestions: (string | NaivedyamItem)[];
+  samagri_list?: (string | SamagriItem)[];
+  naivedyam_suggestions?: (string | NaivedyamItem)[];
   description_en?: string;
   description_ta?: string;
   duration_mins?: number;
+  image_url?: string;
+  category?: string;
+  deity?: string;
 }
 
 export interface PoojaStep {
@@ -48,4 +51,6 @@ export interface PoojaStep {
   meaning_en?: string | null;
   is_dynamic_sankalpam?: boolean | null;
   archana_list?: ArchanaItem[] | null;
+  gender_target?: 'all' | 'male' | 'female';
+  philosophy_en?: string;
 }

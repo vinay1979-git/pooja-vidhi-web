@@ -22,7 +22,11 @@ import {
   MapPin,
   User,
   Compass,
-  Loader2
+  Loader2,
+  Lightbulb,
+  ChevronDown,
+  ChevronUp,
+  Users
 } from 'lucide-react';
 import { Pooja, PoojaStep, ArchanaItem } from '@/types/pooja';
 import { fetchPanchangamData, PanchangamData } from '@/actions/getSankalpam';
@@ -38,6 +42,12 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   const [instructionLang, setInstructionLang] = useState<'en' | 'ta'>('en');
   const [mantraLang, setMantraLang] = useState<'sanskrit' | 'tamil' | 'translit'>('sanskrit');
   const [direction, setDirection] = useState<number>(1);
+
+  // Performer Gender State ('male' | 'female' | 'couple')
+  const [performerGender, setPerformerGender] = useState<'male' | 'female' | 'couple'>('male');
+
+  // Philosophy Accordion Toggle State
+  const [showPhilosophy, setShowPhilosophy] = useState<boolean>(true);
 
   // Preparation Checklist State
   const [checkedSamagri, setCheckedSamagri] = useState<Record<string, boolean>>({});
@@ -114,6 +124,22 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     );
   };
 
+  // Helper to check if step is allowed for current performerGender
+  const isStepAvailableForGender = useCallback(
+    (step: PoojaStep) => {
+      if (!step.gender_target || step.gender_target === 'all' || performerGender === 'couple') {
+        return true;
+      }
+      return step.gender_target === performerGender;
+    },
+    [performerGender]
+  );
+
+  // Filtered steps available for active gender selection
+  const availableSteps = useMemo(() => {
+    return steps.filter(isStepAvailableForGender);
+  }, [steps, isStepAvailableForGender]);
+
   // Parse Samagri items consistently
   const parsedSamagriList = useMemo(() => {
     return (pooja.samagri_list || []).map((item, idx) => {
@@ -167,7 +193,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     return parsedSamagriList.filter((item) => checkedSamagri[item.id]).length;
   }, [parsedSamagriList, checkedSamagri]);
 
-  // Handle Step Navigation
+  // Handle Step Navigation with Gender-aware skipping
   const goToStep = async (newIndex: number) => {
     if (newIndex >= 0 && !panchangamData) {
       await loadPanchangam();
@@ -178,16 +204,41 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   };
 
   const handleNextStep = () => {
-    if (currentStepIndex < steps.length - 1) {
-      goToStep(currentStepIndex + 1);
+    if (currentStepIndex === -1) {
+      // Find first valid step
+      const firstValidIdx = steps.findIndex(isStepAvailableForGender);
+      goToStep(firstValidIdx >= 0 ? firstValidIdx : 0);
+      return;
+    }
+
+    // Find next valid step index
+    let nextIdx = currentStepIndex + 1;
+    while (nextIdx < steps.length && !isStepAvailableForGender(steps[nextIdx])) {
+      nextIdx++;
+    }
+
+    if (nextIdx < steps.length) {
+      goToStep(nextIdx);
     } else {
       setIsCompleted(true);
     }
   };
 
   const handlePrevStep = () => {
-    if (currentStepIndex > -1) {
-      goToStep(currentStepIndex - 1);
+    if (currentStepIndex <= 0) {
+      goToStep(-1);
+      return;
+    }
+
+    let prevIdx = currentStepIndex - 1;
+    while (prevIdx >= 0 && !isStepAvailableForGender(steps[prevIdx])) {
+      prevIdx--;
+    }
+
+    if (prevIdx >= 0) {
+      goToStep(prevIdx);
+    } else {
+      goToStep(-1);
     }
   };
 
@@ -371,7 +422,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     {pooja.title_en}
                   </h2>
                   <p className="text-stone-300 text-sm md:text-base max-w-2xl leading-relaxed">
-                    Welcome to the sacred ritual. Prepare your altar, check off Samagri items, configure your personal Sankalpam, and prepare Naivedyam before commencing.
+                    Welcome to the sacred ritual. Select performer, check Samagri items, configure Sankalpam, and view philosophical meanings.
                   </p>
                 </div>
 
@@ -385,7 +436,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               </div>
             </div>
 
-            {/* SANKALPAM CONFIGURATION SECTION CARD */}
+            {/* SANKALPAM & PERFORMER GENDER CONFIGURATION CARD */}
             <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-amber-950/20 to-stone-950 border border-amber-500/40 p-6 shadow-xl space-y-6">
               <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
                 <div className="flex items-center gap-3">
@@ -394,9 +445,9 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-amber-200">
-                      Sankalpam Configuration (சங்கல்ப அமைப்புகள்)
+                      Sankalpam & Performer Settings (சங்கல்ப அமைப்புகள்)
                     </h3>
-                    <p className="text-xs text-stone-400">Configure ritual date, location, and devotee details</p>
+                    <p className="text-xs text-stone-400">Configure performer type, date, location, and devotee details</p>
                   </div>
                 </div>
 
@@ -407,8 +458,47 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 )}
               </div>
 
+              {/* Performer Gender Toggle */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-amber-400" /> Performed By / வழிபாடு செய்பவர்
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setPerformerGender('male')}
+                    className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border ${
+                      performerGender === 'male'
+                        ? 'bg-amber-500 text-stone-950 border-amber-400 shadow-md'
+                        : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
+                    }`}
+                  >
+                    Male (ஆண்)
+                  </button>
+                  <button
+                    onClick={() => setPerformerGender('female')}
+                    className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border ${
+                      performerGender === 'female'
+                        ? 'bg-amber-500 text-stone-950 border-amber-400 shadow-md'
+                        : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
+                    }`}
+                  >
+                    Female (பெண்)
+                  </button>
+                  <button
+                    onClick={() => setPerformerGender('couple')}
+                    className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border ${
+                      performerGender === 'couple'
+                        ? 'bg-amber-500 text-stone-950 border-amber-400 shadow-md'
+                        : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
+                    }`}
+                  >
+                    Couple (தம்பதி)
+                  </button>
+                </div>
+              </div>
+
               {/* Input Form Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 {/* Date Picker */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
@@ -480,35 +570,6 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   />
                 </div>
               </div>
-
-              {/* Panchangam Preview Chips */}
-              {panchangamData && (
-                <div className="pt-3 border-t border-stone-800">
-                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">
-                    Today’s Calculated Panchangam
-                  </p>
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    <span className="px-3 py-1 rounded-lg bg-stone-950 border border-amber-500/30 text-amber-300 font-medium">
-                      ☀️ {panchangamData.ayana.translit}
-                    </span>
-                    <span className="px-3 py-1 rounded-lg bg-stone-950 border border-amber-500/30 text-amber-300 font-medium">
-                      🌺 {panchangamData.masa.translit}
-                    </span>
-                    <span className="px-3 py-1 rounded-lg bg-stone-950 border border-amber-500/30 text-amber-300 font-medium">
-                      🌙 {panchangamData.paksha.translit}
-                    </span>
-                    <span className="px-3 py-1 rounded-lg bg-stone-950 border border-amber-500/30 text-amber-300 font-medium">
-                      ✨ {panchangamData.tithi.translit}
-                    </span>
-                    <span className="px-3 py-1 rounded-lg bg-stone-950 border border-amber-500/30 text-amber-300 font-medium">
-                      ⭐ {panchangamData.nakshatra.translit}
-                    </span>
-                    <span className="px-3 py-1 rounded-lg bg-stone-950 border border-amber-500/30 text-amber-300 font-medium">
-                      📅 {panchangamData.vasara.translit}
-                    </span>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Samagri Checklist Section */}
@@ -648,7 +709,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
             {/* Bottom Start Action */}
             <div className="flex justify-center pt-4">
               <button
-                onClick={() => goToStep(0)}
+                onClick={handleNextStep}
                 className="w-full max-w-md py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 font-bold text-lg shadow-xl shadow-amber-600/30 transition-all hover:scale-105 flex items-center justify-center gap-3"
               >
                 <Flame className="w-6 h-6 fill-stone-950" /> Begin First Step (படி 1)
@@ -686,8 +747,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       className="bg-stone-950 text-amber-300 text-xs font-semibold px-3 py-1.5 rounded-lg border border-amber-500/30 focus:outline-none"
                     >
                       {steps.map((s, idx) => (
-                        <option key={s.id || idx} value={idx}>
-                          Step {idx + 1}: {s.step_title_en}
+                        <option key={s.id || idx} value={idx} disabled={!isStepAvailableForGender(s)}>
+                          Step {idx + 1}: {s.step_title_en} {!isStepAvailableForGender(s) ? '(Skipped)' : ''}
                         </option>
                       ))}
                     </select>
@@ -716,6 +777,48 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     </div>
                   </div>
                 </div>
+
+                {/* PHILOSOPHY & SIGNIFICANCE EXPANDABLE ACCORDION CARD (FOR NOVICES) */}
+                {currentStep.philosophy_en && (
+                  <div className="rounded-2xl bg-gradient-to-r from-amber-950/30 via-stone-900 to-stone-950 border border-amber-500/30 overflow-hidden shadow-xl">
+                    <button
+                      onClick={() => setShowPhilosophy(!showPhilosophy)}
+                      className="w-full px-6 py-4 flex items-center justify-between gap-3 text-left hover:bg-amber-950/20 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
+                          <Lightbulb className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-amber-200 text-sm md:text-base">
+                            Spiritual Significance / Why We Do This (தத்துவ விளக்கம்)
+                          </h4>
+                          <p className="text-xs text-stone-400">Philosophical roots & symbolic meaning for seekers</p>
+                        </div>
+                      </div>
+
+                      <div className="text-amber-400">
+                        {showPhilosophy ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                      </div>
+                    </button>
+
+                    <AnimatePresence>
+                      {showPhilosophy && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="px-6 pb-6 pt-2 border-t border-amber-500/20 text-stone-300 text-xs md:text-sm leading-relaxed italic"
+                        >
+                          <blockquote className="border-l-2 border-amber-400 pl-4 py-1 text-amber-100/90 font-serif">
+                            &quot;{currentStep.philosophy_en}&quot;
+                          </blockquote>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
 
                 {/* Dynamic Sankalpam Helper Card */}
                 {currentStep.is_dynamic_sankalpam && panchangamData && (
@@ -923,10 +1026,10 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
           {/* Center Indicator */}
           <div className="text-xs font-semibold text-amber-400/90 text-center hidden sm:block">
             {currentStepIndex === -1 ? (
-              <span>Preparation & Sankalpam</span>
+              <span>Preparation & Settings</span>
             ) : (
               <span>
-                Step {currentStepIndex + 1} of {steps.length}
+                Step {currentStepIndex + 1} of {steps.length} ({availableSteps.length} active)
               </span>
             )}
           </div>
