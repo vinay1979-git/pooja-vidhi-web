@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2,
@@ -17,9 +17,15 @@ import {
   Flame,
   Check,
   Globe,
-  Info
+  Info,
+  Calendar,
+  MapPin,
+  User,
+  Compass,
+  Loader2
 } from 'lucide-react';
-import { Pooja, PoojaStep, SamagriItem, NaivedyamItem, ArchanaItem } from '@/types/pooja';
+import { Pooja, PoojaStep, ArchanaItem } from '@/types/pooja';
+import { fetchPanchangamData, PanchangamData } from '@/actions/getSankalpam';
 
 interface PoojaViewerProps {
   pooja: Pooja;
@@ -36,18 +42,77 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   // Preparation Checklist State
   const [checkedSamagri, setCheckedSamagri] = useState<Record<string, boolean>>({});
 
-  // Dynamic Sankalpam State
+  // Sankalpam Configuration State
+  const [sankalpamDate, setSankalpamDate] = useState<string>(
+    new Date().toISOString().split('T')[0]
+  );
   const [sankalpamData, setSankalpamData] = useState({
-    devoteeName: '',
-    gotra: '',
-    place: 'Your Location',
+    devoteeName: 'Devotee',
+    gotra: 'Kashyapa',
+    place: 'Chennai, TN',
+    lat: 13.0827,
+    lon: 80.2707,
   });
+
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<string>('');
+  const [panchangamData, setPanchangamData] = useState<PanchangamData | null>(null);
 
   // Archana Progress State
   const [archanaProgress, setArchanaProgress] = useState<Record<string, number>>({});
 
   // Pooja Complete Summary State
   const [isCompleted, setIsCompleted] = useState(false);
+
+  // Fetch Panchangam Data from Server Action
+  const loadPanchangam = useCallback(async () => {
+    try {
+      const data = await fetchPanchangamData(
+        sankalpamDate,
+        sankalpamData.lat,
+        sankalpamData.lon
+      );
+      setPanchangamData(data);
+    } catch (e) {
+      console.error('Failed to load Panchangam data:', e);
+    }
+  }, [sankalpamDate, sankalpamData.lat, sankalpamData.lon]);
+
+  useEffect(() => {
+    loadPanchangam();
+  }, [loadPanchangam]);
+
+  // Geolocation detection handler
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setIsDetectingLocation(true);
+    setLocationStatus('Detecting coordinates...');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        setSankalpamData((prev) => ({
+          ...prev,
+          lat,
+          lon,
+          place: `Lat: ${lat.toFixed(2)}°, Lon: ${lon.toFixed(2)}°`,
+        }));
+        setIsDetectingLocation(false);
+        setLocationStatus('Location detected successfully!');
+      },
+      (error) => {
+        console.warn('Geolocation error:', error);
+        setIsDetectingLocation(false);
+        setLocationStatus('Location access denied. Using manual fallback.');
+      },
+      { timeout: 10000 }
+    );
+  };
 
   // Parse Samagri items consistently
   const parsedSamagriList = useMemo(() => {
@@ -103,7 +168,10 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   }, [parsedSamagriList, checkedSamagri]);
 
   // Handle Step Navigation
-  const goToStep = (newIndex: number) => {
+  const goToStep = async (newIndex: number) => {
+    if (newIndex >= 0 && !panchangamData) {
+      await loadPanchangam();
+    }
     setDirection(newIndex > currentStepIndex ? 1 : -1);
     setCurrentStepIndex(newIndex);
     if (isCompleted) setIsCompleted(false);
@@ -124,6 +192,35 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   };
 
   const currentStep = steps[currentStepIndex];
+
+  // Dynamic Mantra Inserter Helper for Sankalpam
+  const getDynamicMantra = useCallback(
+    (originalText: string | null | undefined, script: 'sanskrit' | 'tamil' | 'translit') => {
+      if (!originalText) return '';
+      if (!panchangamData) return originalText;
+
+      const p = panchangamData;
+      let dynamicText = '';
+
+      if (script === 'sanskrit') {
+        dynamicText = `${p.samvatsara.sanskrit} ${p.ayana.sanskrit} ${p.ritu.sanskrit} ${p.masa.sanskrit} ${p.paksha.sanskrit} ${p.tithi.sanskrit} ${p.vasara.sanskrit} ${p.nakshatra.sanskrit} नक्षत्र युक्तायाम्, ${sankalpamData.gotra || 'काश्यप'} गोत्रोत्भवस्य ${sankalpamData.devoteeName || 'भक्त'} नामधेयस्य`;
+      } else if (script === 'tamil') {
+        dynamicText = `${p.samvatsara.tamil}, ${p.ayana.tamil}, ${p.ritu.tamil}, ${p.masa.tamil}, ${p.paksha.tamil}, ${p.tithi.tamil}, ${p.vasara.tamil}, ${p.nakshatra.tamil}, ${sankalpamData.gotra || 'காஸ்யப'} கோத்ரத்து ${sankalpamData.devoteeName || 'பக்தர்'} அவர்களுக்கு`;
+      } else {
+        dynamicText = `${p.samvatsara.translit}, ${p.ayana.translit}, ${p.ritu.translit}, ${p.masa.translit}, ${p.paksha.translit}, ${p.tithi.translit}, ${p.vasara.translit}, ${p.nakshatra.translit}, ${sankalpamData.gotra || 'Kashyapa'} Gotra ${sankalpamData.devoteeName || 'Devotee'}`;
+      }
+
+      if (originalText.includes('[DYNAMIC_PANCHANGAM_DATA]')) {
+        return originalText.replace('[DYNAMIC_PANCHANGAM_DATA]', dynamicText);
+      }
+      if (originalText.includes('[DYNAMIC_SANKALPAM]')) {
+        return originalText.replace('[DYNAMIC_SANKALPAM]', dynamicText);
+      }
+
+      return originalText;
+    },
+    [panchangamData, sankalpamData]
+  );
 
   // Slide Animation Variants for Framer Motion
   const slideVariants = {
@@ -254,7 +351,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
       {/* Main Content Area */}
       <main className="max-w-4xl w-full mx-auto px-4 pt-6 flex-1">
-        {/* VIEW 1: PREPARATION SCREEN (Samagri & Naivedyam) */}
+        {/* VIEW 1: PREPARATION SCREEN (Samagri & Naivedyam & Sankalpam Config) */}
         {currentStepIndex === -1 && (
           <motion.div
             initial={{ opacity: 0, y: 15 }}
@@ -274,7 +371,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     {pooja.title_en}
                   </h2>
                   <p className="text-stone-300 text-sm md:text-base max-w-2xl leading-relaxed">
-                    Welcome to the sacred ritual. Prepare your altar, gather your Samagri items, and prepare the holy Naivedyam offerings before commencing the step-by-step mantras.
+                    Welcome to the sacred ritual. Prepare your altar, check off Samagri items, configure your personal Sankalpam, and prepare Naivedyam before commencing.
                   </p>
                 </div>
 
@@ -286,6 +383,132 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   <ChevronRight className="w-5 h-5 stroke-[3]" />
                 </button>
               </div>
+            </div>
+
+            {/* SANKALPAM CONFIGURATION SECTION CARD */}
+            <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-amber-950/20 to-stone-950 border border-amber-500/40 p-6 shadow-xl space-y-6">
+              <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                    <Compass className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-amber-200">
+                      Sankalpam Configuration (சங்கல்ப அமைப்புகள்)
+                    </h3>
+                    <p className="text-xs text-stone-400">Configure ritual date, location, and devotee details</p>
+                  </div>
+                </div>
+
+                {panchangamData && (
+                  <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" /> Panchangam Loaded
+                  </span>
+                )}
+              </div>
+
+              {/* Input Form Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Date Picker */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-amber-400" /> Pooja Date / நாள்
+                  </label>
+                  <input
+                    type="date"
+                    value={sankalpamDate}
+                    onChange={(e) => setSankalpamDate(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                {/* Location Detection */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-amber-400" /> Location / இடம்
+                    </label>
+                    <button
+                      onClick={handleDetectLocation}
+                      disabled={isDetectingLocation}
+                      className="text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"
+                    >
+                      {isDetectingLocation ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" /> Detecting...
+                        </>
+                      ) : (
+                        '📍 Detect Location'
+                      )}
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Enter city or coordinates"
+                    value={sankalpamData.place}
+                    onChange={(e) => setSankalpamData({ ...sankalpamData, place: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                  />
+                  {locationStatus && <p className="text-xs text-amber-400/80">{locationStatus}</p>}
+                </div>
+
+                {/* Devotee Name */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-amber-400" /> Devotee Name / பக்தர் பெயர்
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Ramesh Kumar"
+                    value={sankalpamData.devoteeName}
+                    onChange={(e) => setSankalpamData({ ...sankalpamData, devoteeName: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                {/* Gotra */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                    <Flame className="w-4 h-4 text-amber-400" /> Gotra (Gothram) / கோத்ரம்
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Kashyapa / Bharadwaja"
+                    value={sankalpamData.gotra}
+                    onChange={(e) => setSankalpamData({ ...sankalpamData, gotra: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              {/* Panchangam Preview Chips */}
+              {panchangamData && (
+                <div className="pt-3 border-t border-stone-800">
+                  <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2">
+                    Today’s Calculated Panchangam
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="px-3 py-1 rounded-lg bg-stone-950 border border-amber-500/30 text-amber-300 font-medium">
+                      ☀️ {panchangamData.ayana.translit}
+                    </span>
+                    <span className="px-3 py-1 rounded-lg bg-stone-950 border border-amber-500/30 text-amber-300 font-medium">
+                      🌺 {panchangamData.masa.translit}
+                    </span>
+                    <span className="px-3 py-1 rounded-lg bg-stone-950 border border-amber-500/30 text-amber-300 font-medium">
+                      🌙 {panchangamData.paksha.translit}
+                    </span>
+                    <span className="px-3 py-1 rounded-lg bg-stone-950 border border-amber-500/30 text-amber-300 font-medium">
+                      ✨ {panchangamData.tithi.translit}
+                    </span>
+                    <span className="px-3 py-1 rounded-lg bg-stone-950 border border-amber-500/30 text-amber-300 font-medium">
+                      ⭐ {panchangamData.nakshatra.translit}
+                    </span>
+                    <span className="px-3 py-1 rounded-lg bg-stone-950 border border-amber-500/30 text-amber-300 font-medium">
+                      📅 {panchangamData.vasara.translit}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Samagri Checklist Section */}
@@ -300,7 +523,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       Pooja Samagri Checklist
                     </h3>
                     <p className="text-xs text-stone-400">
-                      পূজা সামগ্রী список • Collected {samagriCompletedCount} of {parsedSamagriList.length} items
+                      Collected {samagriCompletedCount} of {parsedSamagriList.length} items
                     </p>
                   </div>
                 </div>
@@ -494,50 +717,42 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   </div>
                 </div>
 
-                {/* Dynamic Sankalpam Helper (if flag set) */}
-                {currentStep.is_dynamic_sankalpam && (
+                {/* Dynamic Sankalpam Helper Card */}
+                {currentStep.is_dynamic_sankalpam && panchangamData && (
                   <div className="rounded-2xl bg-amber-950/20 border border-amber-500/40 p-6 shadow-xl space-y-4">
-                    <div className="flex items-center gap-2 text-amber-400 font-bold text-base border-b border-amber-500/20 pb-3">
-                      <Flame className="w-5 h-5" /> Dynamic Sankalpam Helper / சங்கல்பம்
+                    <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+                      <div className="flex items-center gap-2 text-amber-400 font-bold text-base">
+                        <Flame className="w-5 h-5" /> Dynamic Sankalpam (சங்கல்பம்)
+                      </div>
+                      <span className="text-xs text-amber-300 font-mono">
+                        {sankalpamData.devoteeName} ({sankalpamData.gotra})
+                      </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="text-xs text-amber-300 font-medium">Devotee Name</label>
-                        <input
-                          type="text"
-                          placeholder="Enter your name"
-                          value={sankalpamData.devoteeName}
-                          onChange={(e) => setSankalpamData({ ...sankalpamData, devoteeName: e.target.value })}
-                          className="w-full mt-1 px-3 py-2 rounded-lg bg-stone-900 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-amber-300 font-medium">Gotra (Gothram)</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Bharadwaja"
-                          value={sankalpamData.gotra}
-                          onChange={(e) => setSankalpamData({ ...sankalpamData, gotra: e.target.value })}
-                          className="w-full mt-1 px-3 py-2 rounded-lg bg-stone-900 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-amber-300 font-medium">Location</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Chennai"
-                          value={sankalpamData.place}
-                          onChange={(e) => setSankalpamData({ ...sankalpamData, place: e.target.value })}
-                          className="w-full mt-1 px-3 py-2 rounded-lg bg-stone-900 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="bg-stone-950 p-4 rounded-xl border border-amber-500/20 text-xs md:text-sm text-amber-200/90 font-serif italic">
-                      &quot;...Mamaopaatta-samasta-duritakshayadvaara shri parameshwara prityartham,{' '}
-                      <span className="text-amber-400 underline">{sankalpamData.gotra || '[Gotram]'}</span> gotrodbhavasya{' '}
-                      <span className="text-amber-400 underline">{sankalpamData.devoteeName || '[Your Name]'}</span> nama dheyasya...&quot;
+                    <div className="bg-stone-950 p-4 rounded-xl border border-amber-500/20 text-xs md:text-sm text-amber-200/90 font-serif italic leading-relaxed">
+                      &quot;
+                      {mantraLang === 'sanskrit' && (
+                        <>
+                          {panchangamData.samvatsara.sanskrit} {panchangamData.ayana.sanskrit} {panchangamData.ritu.sanskrit} {panchangamData.masa.sanskrit} {panchangamData.paksha.sanskrit} {panchangamData.tithi.sanskrit} {panchangamData.vasara.sanskrit} {panchangamData.nakshatra.sanskrit} नक्षत्र युक्तायाम्,{' '}
+                          <span className="text-amber-400 underline font-bold">{sankalpamData.gotra}</span> गोत्रोत्भवस्य{' '}
+                          <span className="text-amber-400 underline font-bold">{sankalpamData.devoteeName}</span> नामधेयस्य...
+                        </>
+                      )}
+                      {mantraLang === 'tamil' && (
+                        <>
+                          {panchangamData.samvatsara.tamil}, {panchangamData.ayana.tamil}, {panchangamData.ritu.tamil}, {panchangamData.masa.tamil}, {panchangamData.paksha.tamil}, {panchangamData.tithi.tamil}, {panchangamData.vasara.tamil}, {panchangamData.nakshatra.tamil},{' '}
+                          <span className="text-amber-400 underline font-bold">{sankalpamData.gotra}</span> கோத்ரத்து{' '}
+                          <span className="text-amber-400 underline font-bold">{sankalpamData.devoteeName}</span> அவர்களுக்கு...
+                        </>
+                      )}
+                      {mantraLang === 'translit' && (
+                        <>
+                          {panchangamData.samvatsara.translit}, {panchangamData.ayana.translit}, {panchangamData.ritu.translit}, {panchangamData.masa.translit}, {panchangamData.paksha.translit}, {panchangamData.tithi.translit}, {panchangamData.vasara.translit}, {panchangamData.nakshatra.translit},{' '}
+                          <span className="text-amber-400 underline font-bold">{sankalpamData.gotra}</span> Gotra{' '}
+                          <span className="text-amber-400 underline font-bold">{sankalpamData.devoteeName}</span>...
+                        </>
+                      )}
+                      &quot;
                     </div>
                   </div>
                 )}
@@ -562,9 +777,15 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     {/* Mantra Script Box */}
                     <div className="p-6 md:p-8 rounded-xl bg-stone-950/90 border border-amber-500/30 text-center space-y-4 shadow-inner">
                       <p className="text-xl md:text-2xl lg:text-3xl font-serif leading-relaxed text-amber-300 tracking-wide">
-                        {mantraLang === 'sanskrit' && (currentStep.mantra_sanskrit || currentStep.mantra_translit)}
-                        {mantraLang === 'tamil' && (currentStep.mantra_tamil || currentStep.mantra_sanskrit || currentStep.mantra_translit)}
-                        {mantraLang === 'translit' && (currentStep.mantra_translit || currentStep.mantra_sanskrit)}
+                        {mantraLang === 'sanskrit' &&
+                          getDynamicMantra(currentStep.mantra_sanskrit || currentStep.mantra_translit, 'sanskrit')}
+                        {mantraLang === 'tamil' &&
+                          getDynamicMantra(
+                            currentStep.mantra_tamil || currentStep.mantra_sanskrit || currentStep.mantra_translit,
+                            'tamil'
+                          )}
+                        {mantraLang === 'translit' &&
+                          getDynamicMantra(currentStep.mantra_translit || currentStep.mantra_sanskrit, 'translit')}
                       </p>
 
                       {currentStep.meaning_en && (
@@ -702,7 +923,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
           {/* Center Indicator */}
           <div className="text-xs font-semibold text-amber-400/90 text-center hidden sm:block">
             {currentStepIndex === -1 ? (
-              <span>Preparation Checklist</span>
+              <span>Preparation & Sankalpam</span>
             ) : (
               <span>
                 Step {currentStepIndex + 1} of {steps.length}
