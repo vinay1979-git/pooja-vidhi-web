@@ -96,8 +96,8 @@ export const TempleBell: React.FC = () => {
         title="Ring Temple Bell (Audio)"
         className={`relative group flex items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-full shadow-2xl transition-all duration-300 ${
           isRinging
-            ? 'bg-amber-400 text-amber-950 ring-4 ring-amber-300 shadow-amber-500/50'
-            : 'bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 text-amber-950 hover:from-amber-400 hover:to-amber-600 shadow-amber-600/40 ring-2 ring-amber-300/40'
+            ? 'bg-amber-400 text-ink-inverse ring-4 ring-amber-300 shadow-amber-500/50'
+            : 'bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 text-ink-inverse hover:from-amber-400 hover:to-amber-600 shadow-amber-600/40 ring-2 ring-amber-300/40'
         }`}
       >
         <motion.div

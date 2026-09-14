@@ -22,12 +22,12 @@ export default async function CatalogHomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100 font-sans selection:bg-amber-500 selection:text-stone-950 pb-20">
+    <div className="min-h-screen bg-stone-950 text-stone-100 font-sans selection:bg-amber-500 selection:text-ink-inverse pb-20">
       {/* Top Divine Navigation Bar */}
       <header className="sticky top-0 z-40 bg-stone-900/90 backdrop-blur-md border-b border-amber-500/20 shadow-xl">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-stone-950 shadow-lg shadow-amber-600/30">
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-ink-inverse shadow-lg shadow-amber-600/30">
               <Flame className="w-6 h-6 fill-stone-950" />
             </div>
             <div>
@@ -141,7 +141,7 @@ export default async function CatalogHomePage() {
                 {/* Bottom Action Link */}
                 <div className="pt-6 border-t border-stone-800/80 flex items-center justify-between text-xs font-bold text-amber-400 group-hover:text-amber-300 transition-colors">
                   <span>Begin Vidhi (பூஜை தொடங்கு)</span>
-                  <div className="p-2 rounded-lg bg-stone-800 group-hover:bg-amber-500 group-hover:text-stone-950 transition-colors">
+                  <div className="p-2 rounded-lg bg-stone-800 group-hover:bg-amber-500 group-hover:text-ink-inverse transition-colors">
                     <ArrowRight className="w-4 h-4" />
                   </div>
                 </div>

@@ -128,3 +128,135 @@
     @apply font-sans;
   }
 }
+/* =============================================================================
+   Divine Design System
+   =============================================================================
+   Two themes. Rather than rewrite 1,200 lines of Tailwind classes, the stone
+   and amber colour scales are redefined per theme, so every existing
+   bg-stone-900 / text-amber-400 / border-amber-500/40 flips automatically and
+   opacity modifiers keep working.
+
+   stone = neutral ground and text.  amber = saffron and gold accent.
+
+   One class had to be split out first: text-stone-950 meant "dark ink on a gold
+   button", which must stay dark in both themes, while bg-stone-950 means "page
+   ground", which must go white. Those are now text-ink-inverse and bg-stone-950.
+   ========================================================================== */
+
+@theme {
+  /* next/font exposes each face as a CSS variable from layout.tsx. */
+  --font-display: var(--font-cinzel), Georgia, "Times New Roman", serif;
+  --font-body: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-deva: var(--font-noto-deva), "Noto Sans Devanagari", serif;
+  --font-tamil: var(--font-noto-tamil), "Noto Sans Tamil", serif;
+}
+
+/* --- dark: temple sanctum. warm maroon-black, lamplight gold ---------------- */
+:root,
+[data-theme="dark"] {
+  --color-stone-950: #120a08;
+  --color-stone-900: #1c110d;
+  --color-stone-800: #301d16;
+  --color-stone-700: #482b20;
+  --color-stone-600: #613c2d;
+  --color-stone-500: #8b6a55;
+  --color-stone-400: #b2917a;
+  --color-stone-300: #dac1aa;
+  --color-stone-200: #ecdac6;
+  --color-stone-100: #f8eee2;
+
+  --color-amber-950: #2b1307;
+  --color-amber-900: #48210b;
+  --color-amber-700: #a96b16;
+  --color-amber-600: #c9881d;
+  --color-amber-500: #e9a43e;
+  --color-amber-400: #f3bd61;
+  --color-amber-300: #f9d492;
+  --color-amber-200: #fce6bd;
+  --color-amber-100: #fef3dd;
+
+  --ink-inverse: #140b06;
+  --halo: 0 0 0 1px rgb(233 164 62 / 0.10), 0 18px 50px -24px rgb(0 0 0 / 0.9);
+  --sheen: radial-gradient(
+    120% 90% at 50% -10%,
+    rgb(233 164 62 / 0.14) 0%,
+    rgb(233 164 62 / 0.04) 38%,
+    transparent 70%
+  );
+}
+
+/* --- light: morning pooja room. bright, warm, still saffron ---------------- */
+[data-theme="light"] {
+  --color-stone-950: #fffdf8;
+  --color-stone-900: #fbf4e8;
+  --color-stone-800: #eddfc6;
+  --color-stone-700: #dcc6a2;
+  --color-stone-600: #a68d6f;
+  --color-stone-500: #8a7157;
+  --color-stone-400: #6d5842;
+  --color-stone-300: #4a3827;
+  --color-stone-200: #332416;
+  --color-stone-100: #241810;
+
+  --color-amber-950: #fdf3e2;
+  --color-amber-900: #f7e5c6;
+  --color-amber-700: #964d0c;
+  --color-amber-600: #b85f10;
+  --color-amber-500: #dc7a17;
+  --color-amber-400: #a8620d;
+  --color-amber-300: #8e5209;
+  --color-amber-200: #7a4508;
+  --color-amber-100: #653706;
+
+  --ink-inverse: #2a1607;
+  --halo: 0 0 0 1px rgb(220 122 23 / 0.16), 0 14px 40px -26px rgb(90 50 10 / 0.45);
+  --sheen: radial-gradient(
+    120% 90% at 50% -10%,
+    rgb(220 122 23 / 0.10) 0%,
+    rgb(220 122 23 / 0.03) 38%,
+    transparent 70%
+  );
+}
+
+/* Dark ink on a saffron fill. Stays dark in both themes. */
+.text-ink-inverse {
+  color: var(--ink-inverse);
+}
+
+/* Typography roles. Scripts get their own faces so Tamil and Devanagari stop
+   falling back to a Latin serif. */
+[data-theme] h1,
+[data-theme] h2,
+h1,
+h2 {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-stone-950);
+}
+:lang(ta),
+.font-tamil {
+  font-family: var(--font-tamil);
+}
+.font-deva {
+  font-family: var(--font-deva);
+}
+
+/* Depth, so the dark theme reads as a lit room rather than a flat sheet. */
+.divine-sheen {
+  background-image: var(--sheen);
+}
+.divine-halo {
+  box-shadow: var(--halo);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
