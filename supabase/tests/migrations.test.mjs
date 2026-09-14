@@ -173,8 +173,34 @@ await step('0004_drop_legacy.sql', () => db.exec(sql(`${MIG}/0004_drop_legacy.sq
 await assert('samagri_list dropped',
   "select count(*) from information_schema.columns where table_name='poojas' and column_name='samagri_list'", 0);
 
-// --- 8. What is still missing ------------------------------------------------
-console.log('\n[8] remaining content gaps');
+// --- 8. Generated Tamil and transliteration ----------------------------------
+console.log('\n[8] 0005 generated scripts');
+await step('0005_generate_scripts.sql', () => db.exec(sql(`${MIG}/0005_generate_scripts.sql`)));
+await assert('mantra_tamil filled where a Devanagari source exists',
+  'select count(*) from pooja_steps where mantra_sanskrit is not null and mantra_tamil is null', 0);
+await assert('mantra_translit filled likewise',
+  'select count(*) from pooja_steps where mantra_sanskrit is not null and mantra_translit is null', 0);
+await assert('archana Tamil regenerated',
+  'select count(*) from archana_items where invoked_name_ta is null', 0);
+await assert('scripts_generated flagged',
+  'select count(*) from pooja_steps where mantra_tamil is not null and scripts_generated = false', 0);
+
+// The sankalpam template must survive transliteration intact.
+const tpl = await one(
+  `select mantra_tamil from pooja_steps where is_dynamic_sankalpam = true limit 1`);
+const keptPlaceholder = String(tpl.mantra_tamil ?? '').includes('[DYNAMIC_PANCHANGAM_DATA]');
+if (!keptPlaceholder) failed = true;
+console.log(`  ${keptPlaceholder ? 'ok   ' : 'FAIL '} sankalpam placeholder survived transliteration`);
+
+// Dandas are liturgical punctuation, not sentence periods.
+const danda = await one(
+  `select count(*) c from pooja_steps where mantra_sanskrit like '%।%' and mantra_tamil not like '%।%'`);
+const keptDanda = Number(danda.c) === 0;
+if (!keptDanda) failed = true;
+console.log(`  ${keptDanda ? 'ok   ' : 'FAIL '} danda preserved rather than turned into a period`);
+
+// --- 9. What is still missing ------------------------------------------------
+console.log('\n[9] remaining content gaps');
 const gaps = await one(`select
   count(*) filter (where mantra_tamil   is null) as tamil,
   count(*) filter (where step_title_ta  is null) as title_ta,
