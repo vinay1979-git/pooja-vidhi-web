@@ -1,7 +1,6 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { PoojaViewer } from '@/components/PoojaViewer';
-import { TempleBell } from '@/components/TempleBell';
 import { getPooja, getSteps } from '@/lib/queries';
 
 interface PageProps {
@@ -22,7 +21,6 @@ export default async function PoojaDetailPage({ params }: PageProps) {
   return (
     <div className="relative min-h-screen bg-stone-950">
       <PoojaViewer pooja={pooja} steps={steps} />
-      <TempleBell />
     </div>
   );
 }

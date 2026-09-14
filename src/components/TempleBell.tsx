@@ -1,121 +1,155 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
-import { Bell, Volume2, Sparkles } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Bell, BellOff } from 'lucide-react';
+
+/**
+ * Temple bell.
+ *
+ * Previously a single chime per click. A household pooja bell is rung
+ * continuously while the upachara is offered, so this now rings repeatedly
+ * until it is stopped, like holding the bell in your left hand.
+ *
+ * Synthesised rather than sampled: zero network, zero latency, no asset to
+ * ship. A struck bell is a set of inharmonic partials over a fast attack and a
+ * long exponential decay, which is what the partial table below reproduces.
+ */
+
+// Ratios of a struck bell's partials to the strike note. Deliberately
+// inharmonic: whole-number ratios would sound like an organ, not a bell.
+const PARTIALS: { ratio: number; gain: number; decay: number }[] = [
+  { ratio: 0.5, gain: 0.32, decay: 3.4 }, // hum
+  { ratio: 1.0, gain: 0.5, decay: 2.6 }, // strike note
+  { ratio: 1.19, gain: 0.26, decay: 2.0 },
+  { ratio: 1.56, gain: 0.22, decay: 1.5 },
+  { ratio: 2.0, gain: 0.18, decay: 1.1 }, // nominal
+  { ratio: 2.66, gain: 0.12, decay: 0.8 },
+  { ratio: 3.42, gain: 0.08, decay: 0.55 },
+  { ratio: 4.5, gain: 0.05, decay: 0.35 },
+];
+
+const BASE_HZ = 587.33; // D5
+const STRIKE_INTERVAL_MS = 620; // roughly the rate of a hand-held pooja bell
 
 export const TempleBell: React.FC = () => {
   const [isRinging, setIsRinging] = useState(false);
-  const [showRipples, setShowRipples] = useState<number[]>([]);
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  const ctxRef = useRef<AudioContext | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const ringingRef = useRef(false);
 
-  const playTempleBellSound = useCallback(() => {
-    try {
-      // Initialize AudioContext lazily on user interaction
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
-        audioCtxRef.current = new AudioCtx();
-      } else if (audioCtxRef.current.state === 'suspended') {
-        audioCtxRef.current.resume();
-      }
+  const strike = useCallback(() => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+    const now = ctx.currentTime;
 
-      const ctx = audioCtxRef.current;
-      const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.connect(ctx.destination);
+    // Slight variation per strike so a held ring does not sound like a loop.
+    const jitter = 0.94 + Math.random() * 0.12;
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(0.22 * jitter, now + 0.004);
 
-      // Master output gain node
-      const masterGain = ctx.createGain();
-      masterGain.gain.setValueAtTime(0.7, now);
-      masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 3.5);
-      masterGain.connect(ctx.destination);
+    let longest = 0;
+    for (const p of PARTIALS) {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = BASE_HZ * p.ratio * jitter;
 
-      // Bell harmonics frequencies (fundamental: ~587.33 Hz - D5)
-      // Metallic temple bell spectrum harmonics ratio
-      const baseFreq = 587.33; 
-      const overtones = [
-        { ratio: 1.0, gain: 0.8, decay: 3.5 },
-        { ratio: 2.76, gain: 0.5, decay: 2.2 },
-        { ratio: 5.40, gain: 0.3, decay: 1.2 },
-        { ratio: 8.93, gain: 0.2, decay: 0.8 },
-        { ratio: 11.2, gain: 0.1, decay: 0.4 },
-      ];
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(p.gain, now + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + p.decay);
 
-      overtones.forEach(({ ratio, gain, decay }) => {
-        const osc = ctx.createOscillator();
-        const gainNode = ctx.createGain();
+      osc.connect(g);
+      g.connect(master);
+      osc.start(now);
+      osc.stop(now + p.decay + 0.05);
+      longest = Math.max(longest, p.decay);
+    }
 
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(baseFreq * ratio, now);
+    // Release the gain node once the tail has died, or a long ring leaks nodes.
+    window.setTimeout(() => master.disconnect(), (longest + 0.2) * 1000);
+  }, []);
 
-        gainNode.gain.setValueAtTime(gain, now);
-        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + decay);
-
-        osc.connect(gainNode);
-        gainNode.connect(masterGain);
-
-        osc.start(now);
-        osc.stop(now + decay + 0.1);
-      });
-    } catch (e) {
-      console.error('AudioContext synthesis failed:', e);
+  const stop = useCallback(() => {
+    ringingRef.current = false;
+    setIsRinging(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
   }, []);
 
-  const handleRingBell = () => {
+  const start = useCallback(async () => {
+    if (!ctxRef.current) {
+      const Ctor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      if (!Ctor) return;
+      ctxRef.current = new Ctor();
+    }
+    // Browsers start the context suspended until a user gesture.
+    if (ctxRef.current.state === 'suspended') await ctxRef.current.resume();
+
+    ringingRef.current = true;
     setIsRinging(true);
-    playTempleBellSound();
+    strike();
+    timerRef.current = setInterval(() => {
+      if (!ringingRef.current) return;
+      strike();
+    }, STRIKE_INTERVAL_MS);
+  }, [strike]);
 
-    const id = Date.now();
-    setShowRipples((prev) => [...prev.slice(-3), id]);
+  const toggle = useCallback(() => {
+    if (ringingRef.current) stop();
+    else void start();
+  }, [start, stop]);
 
-    setTimeout(() => {
-      setIsRinging(false);
-    }, 800);
-  };
+  // Stop on unmount and when the tab is hidden: a bell ringing from a
+  // backgrounded tab is a good way to get the app closed.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.hidden) stop();
+    };
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      stop();
+      ctxRef.current?.close();
+      ctxRef.current = null;
+    };
+  }, [stop]);
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-center select-none">
-      {/* Soundwave animation ripples */}
-      <AnimatePresence>
-        {showRipples.map((rippleId) => (
-          <motion.div
-            key={rippleId}
-            initial={{ scale: 0.8, opacity: 0.8 }}
-            animate={{ scale: 2.4, opacity: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.2, ease: 'easeOut' }}
-            className="absolute inset-0 rounded-full bg-amber-400/40 pointer-events-none"
-          />
-        ))}
-      </AnimatePresence>
-
-      <motion.button
-        whileHover={{ scale: 1.08 }}
-        whileTap={{ scale: 0.92 }}
-        onClick={handleRingBell}
-        aria-label="Ring Temple Bell"
-        title="Ring Temple Bell (Audio)"
-        className={`relative group flex items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-full shadow-2xl transition-all duration-300 ${
+    <button
+      onClick={toggle}
+      aria-pressed={isRinging}
+      aria-label={isRinging ? 'Stop the bell' : 'Ring the temple bell'}
+      title={isRinging ? 'Stop the bell' : 'Ring the temple bell'}
+      className={`fixed bottom-24 right-5 z-40 w-14 h-14 rounded-full flex items-center justify-center
+        border shadow-2xl transition-colors
+        ${
           isRinging
-            ? 'bg-amber-400 text-ink-inverse ring-4 ring-amber-300 shadow-amber-500/50'
-            : 'bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 text-ink-inverse hover:from-amber-400 hover:to-amber-600 shadow-amber-600/40 ring-2 ring-amber-300/40'
+            ? 'bg-amber-500 border-amber-400 text-ink-inverse'
+            : 'bg-stone-900 border-amber-500/40 text-amber-400 hover:border-amber-400'
         }`}
-      >
-        <motion.div
-          animate={isRinging ? { rotate: [0, -25, 25, -20, 20, -10, 10, 0] } : { rotate: 0 }}
-          transition={{ duration: 0.8, ease: 'easeInOut' }}
-          className="relative flex items-center justify-center"
-        >
-          <Bell className="w-7 h-7 md:w-8 md:h-8 fill-amber-950/20 stroke-[2.2]" />
-          <Sparkles className="absolute -top-1 -right-1 w-3.5 h-3.5 text-amber-200 animate-pulse" />
-        </motion.div>
-
-        {/* Tooltip */}
-        <span className="absolute right-full mr-3 whitespace-nowrap bg-stone-900/90 text-amber-200 text-xs font-semibold px-3 py-1.5 rounded-lg shadow-md border border-amber-500/30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center gap-1.5 backdrop-blur-md">
-          <Volume2 className="w-3.5 h-3.5 text-amber-400" /> Ring Temple Bell (மணி அடித்தல்)
-        </span>
-      </motion.button>
-    </div>
+    >
+      {/* Expanding rings while it sounds, so it is obvious it is still going. */}
+      {isRinging && (
+        <>
+          <span className="absolute inset-0 rounded-full border border-amber-400/70 animate-ping" />
+          <span
+            className="absolute inset-0 rounded-full border border-amber-400/40 animate-ping"
+            style={{ animationDelay: '0.3s' }}
+          />
+        </>
+      )}
+      {isRinging ? (
+        <BellOff className="w-6 h-6 relative" />
+      ) : (
+        <Bell className="w-6 h-6 relative" />
+      )}
+    </button>
   );
 };
-
-export default TempleBell;

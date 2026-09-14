@@ -36,23 +36,64 @@ function toLegacyGender(rule: GenderRule | null): 'all' | 'male' | 'female' {
   }
 }
 
+// recipe_note_ta arrives with migration 0007. Selecting a column that does not
+// exist yet fails the whole query, so the app would break between deploying the
+// code and running the migration. Ask for it, and fall back to the older shape
+// if Postgres says it is not there (42703). Purely additive display data, so
+// degrading is correct; a genuinely broken query still throws below.
+const POOJA_SELECT = (withTamilNotes: boolean) => `
+  id, title_en, title_ta, description_en, description_ta, duration_mins,
+  ritual_class, deity_id, eligibility,
+  samagri_items ( seq, item_en, item_ta, quantity, category, is_required ),
+  naivedyam_items ( tier, seq, name_en, name_ta, recipe_note${
+    withTamilNotes ? ', recipe_note_ta' : ''
+  }, prohibition_basis, reason_en )`;
+
 export async function getPooja(poojaId: string): Promise<Pooja | null> {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('poojas')
-    .select(
-      `id, title_en, title_ta, description_en, description_ta, duration_mins,
-       ritual_class, deity_id, eligibility,
-       samagri_items ( seq, item_en, item_ta, quantity, category, is_required ),
-       naivedyam_items ( tier, seq, name_en, name_ta, recipe_note, prohibition_basis, reason_en )`,
-    )
+    .select(POOJA_SELECT(true))
     .eq('id', poojaId)
     .single();
 
-  if (error || !data) return null;
+  if (error?.code === '42703') {
+    ({ data, error } = await supabase
+      .from('poojas')
+      .select(POOJA_SELECT(false))
+      .eq('id', poojaId)
+      .single());
+  }
 
-  const samagri: SamagriItem[] = (data.samagri_items ?? [])
+  // A failed query and a missing row are different problems and must not look
+  // the same. Returning null for both turned "column does not exist" into a
+  // 404, which is exactly the silent-failure pattern this file was written to
+  // remove. PGRST116 is PostgREST's "no rows" for .single().
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    throw new Error(
+      `Loading pooja "${poojaId}" failed: ${error.message}` +
+        (error.hint ? ` (${error.hint})` : '') +
+        '. If this names a missing column, a migration in supabase/migrations has not been run yet.',
+    );
+  }
+  if (!data) return null;
+
+  // The select string is built at runtime, which defeats supabase-js's generic
+  // inference. Name the shape once here rather than casting at every use.
+  const row = data as unknown as {
+    id: string;
+    title_en: string;
+    title_ta: string;
+    description_en: string | null;
+    description_ta: string | null;
+    duration_mins: number | null;
+    samagri_items?: Record<string, unknown>[];
+    naivedyam_items?: Record<string, unknown>[];
+  };
+
+  const samagri: SamagriItem[] = (row.samagri_items ?? [])
     .slice()
-    .sort((a: { seq: number }, b: { seq: number }) => a.seq - b.seq)
+    .sort((a: Record<string, unknown>, b: Record<string, unknown>) => (a.seq as number) - (b.seq as number))
     .map((s: Record<string, unknown>) => ({
       item_en: String(s.item_en ?? ''),
       item_ta: (s.item_ta as string) ?? undefined,
@@ -64,7 +105,7 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
   // Primary first, then secondary. 'avoid' is not an offering, so it is carried
   // separately rather than mixed into the suggestion list.
   const tierRank: Record<string, number> = { primary: 0, secondary: 1, avoid: 2 };
-  const naivedyamRows = (data.naivedyam_items ?? [])
+  const naivedyamRows = (row.naivedyam_items ?? [])
     .slice()
     .sort(
       (a: Record<string, unknown>, b: Record<string, unknown>) =>
@@ -78,15 +119,16 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
       name_en: String(n.name_en ?? ''),
       name_ta: (n.name_ta as string) ?? undefined,
       description_en: (n.recipe_note as string) ?? undefined,
+      description_ta: (n.recipe_note_ta as string) ?? undefined,
     }));
 
   return {
-    id: data.id,
-    title_en: data.title_en,
-    title_ta: data.title_ta,
-    description_en: data.description_en ?? undefined,
-    description_ta: data.description_ta ?? undefined,
-    duration_mins: data.duration_mins ?? undefined,
+    id: row.id,
+    title_en: row.title_en,
+    title_ta: row.title_ta,
+    description_en: row.description_en ?? undefined,
+    description_ta: row.description_ta ?? undefined,
+    duration_mins: row.duration_mins ?? undefined,
     samagri_list: samagri,
     naivedyam_suggestions: naivedyam,
     naivedyam_avoid: naivedyamRows
@@ -115,7 +157,14 @@ export async function getSteps(poojaId: string): Promise<PoojaStep[]> {
     .eq('pooja_id', poojaId)
     .order('step_number', { ascending: true });
 
-  if (error || !data) return [];
+  if (error) {
+    throw new Error(
+      `Loading steps for "${poojaId}" failed: ${error.message}` +
+        (error.hint ? ` (${error.hint})` : '') +
+        '. If this names a missing column, a migration in supabase/migrations has not been run yet.',
+    );
+  }
+  if (!data) return [];
 
   return data.map((s: Record<string, unknown>) => {
     const archana: ArchanaItem[] = ((s.archana_items as Record<string, unknown>[]) ?? [])

@@ -211,6 +211,16 @@ await assert('Tamil is not just a copy of the English',
 await assert('drafts flagged for vaidika review',
   'select count(*) from pooja_steps where source_ref is null', 0);
 
+// --- 9b. Tamil for the preparation screen -------------------------------------
+console.log('\n[9b] 0007 Tamil prep items');
+await step('0007_tamil_prep_items.sql', () => db.exec(sql(`${MIG}/0007_tamil_prep_items.sql`)));
+await assert('every samagri item has Tamil',
+  'select count(*) from samagri_items where item_ta is null', 0);
+await assert('every naivedyam item has Tamil',
+  'select count(*) from naivedyam_items where name_ta is null', 0);
+await assert('recipe_note_ta column exists',
+  "select count(*) from information_schema.columns where table_name='naivedyam_items' and column_name='recipe_note_ta'", 1);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 const gaps = await one(`select

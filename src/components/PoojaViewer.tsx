@@ -467,7 +467,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   instructionLang === 'en'
                     ? 'bg-amber-500 text-ink-inverse shadow-sm'
-                    : 'text-stone-300 hover:text-white'
+                    : 'text-stone-300 hover:text-stone-100'
                 }`}
               >
                 English
@@ -477,7 +477,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   instructionLang === 'ta'
                     ? 'bg-amber-500 text-ink-inverse shadow-sm'
-                    : 'text-stone-300 hover:text-white'
+                    : 'text-stone-300 hover:text-stone-100'
                 }`}
               >
                 தமிழ்
@@ -510,7 +510,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   mantraLang === 'sanskrit'
                     ? 'bg-amber-500 text-ink-inverse shadow-sm'
-                    : 'text-stone-300 hover:text-white'
+                    : 'text-stone-300 hover:text-stone-100'
                 }`}
               >
                 संस्कृतम्
@@ -520,7 +520,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   mantraLang === 'tamil'
                     ? 'bg-amber-500 text-ink-inverse shadow-sm'
-                    : 'text-stone-300 hover:text-white'
+                    : 'text-stone-300 hover:text-stone-100'
                 }`}
               >
                 தமிழ்
@@ -530,7 +530,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   mantraLang === 'translit'
                     ? 'bg-amber-500 text-ink-inverse shadow-sm'
-                    : 'text-stone-300 hover:text-white'
+                    : 'text-stone-300 hover:text-stone-100'
                 }`}
               >
                 Eng
@@ -913,12 +913,33 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                           )}
                         </div>
                         <div>
-                          <p className={`text-sm font-semibold ${isChecked ? 'line-through opacity-80' : ''}`}>
-                            {instructionLang === 'ta' && item.item_ta ? item.item_ta : item.item_en}
-                          </p>
-                          {instructionLang === 'en' && item.item_ta && (
-                            <p className="text-xs text-amber-400/80 font-medium">{item.item_ta}</p>
-                          )}
+                          {(() => {
+                            const wantsTamil = instructionLang === 'ta' && Boolean(item.item_ta);
+                            const primary = wantsTamil ? item.item_ta : item.item_en;
+                            const secondary = wantsTamil ? item.item_en : item.item_ta;
+                            return (
+                              <>
+                                <p
+                                  className={`text-sm font-semibold ${wantsTamil ? 'font-tamil' : ''} ${
+                                    isChecked ? 'line-through opacity-80' : ''
+                                  }`}
+                                  lang={wantsTamil ? 'ta' : 'en'}
+                                >
+                                  {primary}
+                                </p>
+                                {secondary && secondary !== primary && (
+                                  <p
+                                    className={`text-xs text-amber-400/80 font-medium ${
+                                      wantsTamil ? '' : 'font-tamil'
+                                    }`}
+                                    lang={wantsTamil ? 'en' : 'ta'}
+                                  >
+                                    {secondary}
+                                  </p>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
 
@@ -956,13 +977,33 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <Flower2 className="w-4 h-4 text-amber-400 shrink-0" />
-                        <h4 className="font-bold text-amber-200 text-base">
-                          {instructionLang === 'ta' && item.name_ta ? item.name_ta : item.name_en}
-                        </h4>
+                        {(() => {
+                          const wantsTamil = instructionLang === 'ta' && Boolean(item.name_ta);
+                          return (
+                            <h4
+                              className={`font-bold text-amber-200 text-base ${wantsTamil ? 'font-tamil' : ''}`}
+                              lang={wantsTamil ? 'ta' : 'en'}
+                            >
+                              {wantsTamil ? item.name_ta : item.name_en}
+                            </h4>
+                          );
+                        })()}
                       </div>
-                      {item.name_ta && instructionLang === 'en' && (
-                        <p className="text-xs text-amber-400/90 font-medium pl-6">{item.name_ta}</p>
-                      )}
+                      {(() => {
+                        // The other language, whichever way round.
+                        const wantsTamil = instructionLang === 'ta' && Boolean(item.name_ta);
+                        const secondary = wantsTamil ? item.name_en : item.name_ta;
+                        if (!secondary || secondary === (wantsTamil ? item.name_ta : item.name_en))
+                          return null;
+                        return (
+                          <p
+                            className={`text-xs text-amber-400/90 font-medium pl-6 ${wantsTamil ? '' : 'font-tamil'}`}
+                            lang={wantsTamil ? 'en' : 'ta'}
+                          >
+                            {secondary}
+                          </p>
+                        );
+                      })()}
                     </div>
 
                     {(item.description_en || item.description_ta) && (
@@ -1196,6 +1237,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       </div>
                       {(() => {
                         const r = resolveScript(mantraLang, currentStep);
+                        // Name the script actually on screen. Saying "Tamil"
+                        // over Devanagari is what made the toggle look broken.
                         return (
                           <span
                             className={`text-xs font-semibold px-2.5 py-1 rounded-md border ${
@@ -1203,14 +1246,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                                 ? 'bg-stone-800 text-stone-300 border-stone-700'
                                 : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                             }`}
-                            title={
-                              r.isFallback
-                                ? `This step has no ${SCRIPT_LABEL[mantraLang]} text yet, so the ${r.shown ? SCRIPT_LABEL[r.shown] : ''} version is shown.`
-                                : undefined
-                            }
                           >
-                            {r.shown ? SCRIPT_LABEL[r.shown] : 'None'}
-                            {r.isFallback && ` (no ${SCRIPT_LABEL[mantraLang]} yet)`}
+                            {r.shown ? SCRIPT_LABEL[r.shown] : 'No mantra'}
                           </span>
                         );
                       })()}
@@ -1248,6 +1285,12 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                             {gloss && (
                               <p className="text-sm md:text-base text-stone-400 italic leading-relaxed max-w-2xl mx-auto">
                                 {gloss}
+                              </p>
+                            )}
+                            {r.isFallback && r.shown && (
+                              <p className="text-xs text-stone-500 pt-1">
+                                This step has no {SCRIPT_LABEL[mantraLang]} text yet.
+                                Showing {SCRIPT_LABEL[r.shown]}.
                               </p>
                             )}
                           </>

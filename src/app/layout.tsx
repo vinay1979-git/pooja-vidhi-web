@@ -3,6 +3,7 @@ import { Cinzel, Outfit, Noto_Serif_Devanagari, Noto_Serif_Tamil } from 'next/fo
 import './globals.css';
 import Script from 'next/script';
 import { PreferencesProvider } from '@/lib/preferences';
+import { TempleBell } from '@/components/TempleBell';
 
 // The Divine Design System's four faces. Previously only Geist was loaded, so
 // every line of Sanskrit and Tamil rendered in a silent Latin fallback.
@@ -66,7 +67,12 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         </Script>
       </head>
       <body className="min-h-full flex flex-col">
-        <PreferencesProvider>{children}</PreferencesProvider>
+        <PreferencesProvider>
+          {children}
+          {/* Rendered once at the root so the bell is reachable from every
+              page, not only mid-pooja. */}
+          <TempleBell />
+        </PreferencesProvider>
       </body>
     </html>
   );
