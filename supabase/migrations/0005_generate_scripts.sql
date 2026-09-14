@@ -5,18 +5,12 @@
 -- Tamil scheme: tamil_superscripted
 --
 -- Derives mantra_tamil and mantra_translit from the canonical mantra_sanskrit.
--- Devanagari stays the source of truth: Tamil cannot round-trip, because it
--- has no separate letters for ga, kha and gha.
+-- Safe to re-run: every statement is an idempotent UPDATE.
+--
+-- Corrects a transliteration library bug: the voicing superscript was being
+-- deferred past a following ra or la, so bharata came out as pa-ra(4)-ta
+-- instead of pa(4)-ra-ta. Verified with --selftest.
 -- =============================================================================
-
--- REVIEW BEFORE TRUSTING: conjunct superscript placement
--- A voiced consonant followed by "ra" puts the superscript after the ra.
--- Elsewhere it sits on the voiced letter itself. Check these against the
--- printed booklet; there are only a few.
---   "Pranayamam": ब्र -> ப்ர³
---   "Sankalpam": ब्र -> ப்ர³
---   "Avahanam & Asanam": द्र -> த்ர³
---   "Dhoopam & Deepam": घ्र -> க்ர⁴
 
 begin;
 
@@ -29,21 +23,21 @@ where pooja_id = 'ganesha_standard' and step_title_en = 'Achamanam';
 
 -- 3. Vighneshwara Dhyanam
 update public.pooja_steps set
-  mantra_tamil = 'ஶுக்லாம்பர³தர⁴ம்ʼ விஷ்ணும்ʼ ஶஶிவர்ணம்ʼ சதுர்பு⁴ஜம் । ப்ரஸந்நவத³நம்ʼ த்⁴யாயேத் ஸர்வவிக்⁴நோபஶாந்தயே ॥',
+  mantra_tamil = 'ஶுக்லாம்ப³ரத⁴ரம்ʼ விஷ்ணும்ʼ ஶஶிவர்ணம்ʼ சதுர்பு⁴ஜம் । ப்ரஸந்நவத³நம்ʼ த்⁴யாயேத் ஸர்வவிக்⁴நோபஶாந்தயே ॥',
   mantra_translit = 'śuklāmbaradharaṃ viṣṇuṃ śaśivarṇaṃ caturbhujam । prasannavadanaṃ dhyāyet sarvavighnopaśāntaye ॥',
   scripts_generated = true
 where pooja_id = 'ganesha_standard' and step_title_en = 'Vighneshwara Dhyanam';
 
 -- 4. Pranayamam
 update public.pooja_steps set
-  mantra_tamil = 'ௐ பூ⁴꞉ ௐ பு⁴வ꞉ ௐ ஸுவ꞉ ௐ மஹ꞉ ௐ ஜந꞉ ௐ தப꞉ ௐ ஸத்யம் । ௐ தத்ஸவிதுர்வரேண்யம்ʼ பர்⁴கோ³ தே³வஸ்ய தீ⁴மஹி தி⁴யோ யோ ந꞉ ப்ரசோத³யாத் ॥ ஓமாபோ ஜ்யோதீ ரஸோ(அ)ம்ருʼதம்ʼ ப்ர³ஹ்ம பூர்⁴பு⁴வஸ்ஸுவரோம் ॥',
+  mantra_tamil = 'ௐ பூ⁴꞉ ௐ பு⁴வ꞉ ௐ ஸுவ꞉ ௐ மஹ꞉ ௐ ஜந꞉ ௐ தப꞉ ௐ ஸத்யம் । ௐ தத்ஸவிதுர்வரேண்யம்ʼ ப⁴ர்கோ³ தே³வஸ்ய தீ⁴மஹி தி⁴யோ யோ ந꞉ ப்ரசோத³யாத் ॥ ஓமாபோ ஜ்யோதீ ரஸோ(அ)ம்ருʼதம்ʼ ப்³ரஹ்ம பூ⁴ர்பு⁴வஸ்ஸுவரோம் ॥',
   mantra_translit = 'oṃ bhūḥ oṃ bhuvaḥ oṃ suvaḥ oṃ mahaḥ oṃ janaḥ oṃ tapaḥ oṃ satyam । oṃ tatsaviturvareṇyaṃ bhargo devasya dhīmahi dhiyo yo naḥ pracodayāt ॥ omāpo jyotī raso''mṛtaṃ brahma bhūrbhuvassuvarom ॥',
   scripts_generated = true
 where pooja_id = 'ganesha_standard' and step_title_en = 'Pranayamam';
 
 -- 5. Sankalpam
 update public.pooja_steps set
-  mantra_tamil = 'ஶுபே⁴ ஶோப⁴நே முஹூர்தே ஆத்³ய ப்ர³ஹ்மண꞉ த்³விதீய பரார்தே⁴ ஶ்வேத வராஹ கல்பே வைவஸ்வத மந்வந்தரே அஷ்டாவிம்ʼஶதிதமே கலியுகே³ ப்ரத²மே பாதே³ ஜம்பூ³த்³வீபே பர⁴த வர்ஷே பர⁴த க²ண்டே³ ... [DYNAMIC_PANCHANGAM_DATA] ... மம உபாத்த ஸமஸ்த துரி³த க்ஷயத்³வாரா ஶ்ரீ பரமேஶ்வர ப்ரீத்யர்த²ம்ʼ ஶ்ரீ மஹாக³ணபதி பூஜாம் கரிஷ்யே ॥',
+  mantra_tamil = 'ஶுபே⁴ ஶோப⁴நே முஹூர்தே ஆத்³ய ப்³ரஹ்மண꞉ த்³விதீய பரார்தே⁴ ஶ்வேத வராஹ கல்பே வைவஸ்வத மந்வந்தரே அஷ்டாவிம்ʼஶதிதமே கலியுகே³ ப்ரத²மே பாதே³ ஜம்பூ³த்³வீபே ப⁴ரத வர்ஷே ப⁴ரத க²ண்டே³ ... [DYNAMIC_PANCHANGAM_DATA] ... மம உபாத்த ஸமஸ்த து³ரித க்ஷயத்³வாரா ஶ்ரீ பரமேஶ்வர ப்ரீத்யர்த²ம்ʼ ஶ்ரீ மஹாக³ணபதி பூஜாம் கரிஷ்யே ॥',
   mantra_translit = 'śubhe śobhane muhūrte ādya brahmaṇaḥ dvitīya parārdhe śveta varāha kalpe vaivasvata manvantare aṣṭāviṃśatitame kaliyuge prathame pāde jambūdvīpe bharata varṣe bharata khaṇḍe ... [DYNAMIC_PANCHANGAM_DATA] ... mama upātta samasta durita kṣayadvārā śrī parameśvara prītyarthaṃ śrī mahāgaṇapati pūjām kariṣye ॥',
   scripts_generated = true
 where pooja_id = 'ganesha_standard' and step_title_en = 'Sankalpam';
@@ -64,7 +58,7 @@ where pooja_id = 'ganesha_standard' and step_title_en = 'Ghanta Pooja';
 
 -- 8. Avahanam & Asanam
 update public.pooja_steps set
-  mantra_tamil = 'அஸ்மிந் ஹரித்ரா³ பி³ம்பே³ ஶ்ரீ மஹாக³ணபதிம்ʼ ஆவாஹயாமி । ஆஸநார்தே² அக்ஷதாந் ஸமர்பயாமி ॥',
+  mantra_tamil = 'அஸ்மிந் ஹரித்³ரா பி³ம்பே³ ஶ்ரீ மஹாக³ணபதிம்ʼ ஆவாஹயாமி । ஆஸநார்தே² அக்ஷதாந் ஸமர்பயாமி ॥',
   mantra_translit = 'asmin haridrā bimbe śrī mahāgaṇapatiṃ āvāhayāmi । āsanārthe akṣatān samarpayāmi ॥',
   scripts_generated = true
 where pooja_id = 'ganesha_standard' and step_title_en = 'Avahanam & Asanam';
@@ -99,7 +93,7 @@ where pooja_id = 'ganesha_standard' and step_title_en = 'Anga Pooja';
 
 -- 13. Dhoopam & Deepam
 update public.pooja_steps set
-  mantra_tamil = 'தூ⁴பமாக்ரா⁴பயாமி । ப்ரத்யக்ஷ தீ³பம்ʼ தர்³ஶயாமி । தூ⁴ப தீ³ப அநந்தரம்ʼ ஆசமநீயம்ʼ ஸமர்பயாமி ॥',
+  mantra_tamil = 'தூ⁴பமாக்⁴ராபயாமி । ப்ரத்யக்ஷ தீ³பம்ʼ த³ர்ஶயாமி । தூ⁴ப தீ³ப அநந்தரம்ʼ ஆசமநீயம்ʼ ஸமர்பயாமி ॥',
   mantra_translit = 'dhūpamāghrāpayāmi । pratyakṣa dīpaṃ darśayāmi । dhūpa dīpa anantaraṃ ācamanīyaṃ samarpayāmi ॥',
   scripts_generated = true
 where pooja_id = 'ganesha_standard' and step_title_en = 'Dhoopam & Deepam';
@@ -113,7 +107,7 @@ where pooja_id = 'ganesha_standard' and step_title_en = 'Naivedyam';
 
 -- 15. Karpura Neerajanam
 update public.pooja_steps set
-  mantra_tamil = 'கர்பூர நீராஜநம்ʼ ஸந்ததம்ʼ தர்³ஶயாமி ।',
+  mantra_tamil = 'கர்பூர நீராஜநம்ʼ ஸந்ததம்ʼ த³ர்ஶயாமி ।',
   mantra_translit = 'karpūra nīrājanaṃ santataṃ darśayāmi ।',
   scripts_generated = true
 where pooja_id = 'ganesha_standard' and step_title_en = 'Karpura Neerajanam';
@@ -132,7 +126,7 @@ update public.pooja_steps set
   scripts_generated = true
 where pooja_id = 'ganesha_standard' and step_title_en = 'Kshama Prarthana & Conclusion';
 
--- 20 archana items, regenerated for consistency.
+-- 20 archana items.
 update public.archana_items set
   invoked_name_ta = 'ௐ ஸுமுகா²ய நம꞉',
   invoked_name_translit = 'oṃ sumukhāya namaḥ'
@@ -162,7 +156,7 @@ where seq = 4 and pooja_step_id = (
   where pooja_id = 'ganesha_standard'
     and step_title_en = 'Pushpa Pooja (Archana)');
 update public.archana_items set
-  invoked_name_ta = 'ௐ லம்போ³தரா³ய நம꞉',
+  invoked_name_ta = 'ௐ லம்போ³த³ராய நம꞉',
   invoked_name_translit = 'oṃ lambodarāya namaḥ'
 where seq = 5 and pooja_step_id = (
   select id from public.pooja_steps
@@ -204,7 +198,7 @@ where seq = 10 and pooja_step_id = (
   where pooja_id = 'ganesha_standard'
     and step_title_en = 'Pushpa Pooja (Archana)');
 update public.archana_items set
-  invoked_name_ta = 'ௐ பால⁴சந்த்ரா³ய நம꞉',
+  invoked_name_ta = 'ௐ பா⁴லசந்த்³ராய நம꞉',
   invoked_name_translit = 'oṃ bhālacandrāya namaḥ'
 where seq = 11 and pooja_step_id = (
   select id from public.pooja_steps
@@ -275,7 +269,3 @@ where seq = 20 and pooja_step_id = (
     and step_title_en = 'Pushpa Pooja (Archana)');
 
 commit;
-
--- Verify:
---   select count(*) from pooja_steps where mantra_tamil is null;  -- expect 2
---   select count(*) from archana_items where invoked_name_ta is null;  -- expect 0
