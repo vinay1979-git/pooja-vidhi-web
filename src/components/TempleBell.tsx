@@ -4,32 +4,37 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, BellOff } from 'lucide-react';
 
 /**
- * Temple bell.
+ * The pooja bell.
  *
- * Previously a single chime per click. A household pooja bell is rung
- * continuously while the upachara is offered, so this now rings repeatedly
- * until it is stopped, like holding the bell in your left hand.
+ * Rung continuously while the upachara is offered, as it is held in the left
+ * hand at home, rather than one chime per click.
  *
  * Synthesised rather than sampled: zero network, zero latency, no asset to
- * ship. A struck bell is a set of inharmonic partials over a fast attack and a
- * long exponential decay, which is what the partial table below reproduces.
+ * ship, and the timbre stays adjustable.
  */
 
-// Ratios of a struck bell's partials to the strike note. Deliberately
-// inharmonic: whole-number ratios would sound like an organ, not a bell.
+// A small brass pooja hand bell, not a temple or church bell.
+//
+// The difference is mostly the hum partial and the decay. A large bell has a
+// strong partial an octave BELOW the strike note and rings for seconds, which
+// is what gives it that cathedral body. A little hand bell has almost no hum,
+// its energy sits in the bright upper partials, and it dies away in well under
+// a second. It is also shaken rather than struck, so the strikes come fast and
+// slightly unevenly, and the clapper rebounds off the far wall of the bell.
 const PARTIALS: { ratio: number; gain: number; decay: number }[] = [
-  { ratio: 0.5, gain: 0.32, decay: 3.4 }, // hum
-  { ratio: 1.0, gain: 0.5, decay: 2.6 }, // strike note
-  { ratio: 1.19, gain: 0.26, decay: 2.0 },
-  { ratio: 1.56, gain: 0.22, decay: 1.5 },
-  { ratio: 2.0, gain: 0.18, decay: 1.1 }, // nominal
-  { ratio: 2.66, gain: 0.12, decay: 0.8 },
-  { ratio: 3.42, gain: 0.08, decay: 0.55 },
-  { ratio: 4.5, gain: 0.05, decay: 0.35 },
+  { ratio: 1.0, gain: 0.42, decay: 0.5 }, // strike note
+  { ratio: 1.51, gain: 0.3, decay: 0.36 },
+  { ratio: 2.14, gain: 0.26, decay: 0.27 },
+  { ratio: 2.93, gain: 0.19, decay: 0.2 },
+  { ratio: 3.81, gain: 0.13, decay: 0.15 },
+  { ratio: 5.17, gain: 0.08, decay: 0.1 },
+  { ratio: 6.72, gain: 0.05, decay: 0.07 },
 ];
 
-const BASE_HZ = 587.33; // D5
-const STRIKE_INTERVAL_MS = 620; // roughly the rate of a hand-held pooja bell
+const BASE_HZ = 1760; // A6. Small bells sit far above a temple bell's D5.
+const STRIKE_INTERVAL_MS = 165; // shaken, not tolled
+const REBOUND_MS = 62; // clapper coming back off the opposite wall
+const REBOUND_GAIN = 0.45;
 
 export const TempleBell: React.FC = () => {
   const [isRinging, setIsRinging] = useState(false);
@@ -37,17 +42,23 @@ export const TempleBell: React.FC = () => {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ringingRef = useRef(false);
 
-  const strike = useCallback(() => {
+  const strike = useCallback((scale = 1) => {
     const ctx = ctxRef.current;
     if (!ctx) return;
     const now = ctx.currentTime;
 
     const master = ctx.createGain();
-    master.connect(ctx.destination);
-    // Slight variation per strike so a held ring does not sound like a loop.
-    const jitter = 0.94 + Math.random() * 0.12;
+    // Roll off the low end so it reads as small brass rather than boomy.
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 900;
+    master.connect(hp);
+    hp.connect(ctx.destination);
+
+    // Vary each strike so a held ring does not sound like a loop.
+    const jitter = 0.97 + Math.random() * 0.06;
     master.gain.setValueAtTime(0.0001, now);
-    master.gain.exponentialRampToValueAtTime(0.22 * jitter, now + 0.004);
+    master.gain.exponentialRampToValueAtTime(0.16 * scale * jitter, now + 0.002);
 
     let longest = 0;
     for (const p of PARTIALS) {
@@ -57,19 +68,31 @@ export const TempleBell: React.FC = () => {
       osc.frequency.value = BASE_HZ * p.ratio * jitter;
 
       g.gain.setValueAtTime(0.0001, now);
-      g.gain.exponentialRampToValueAtTime(p.gain, now + 0.006);
+      // Very fast attack: a small bell has almost no strike transient.
+      g.gain.exponentialRampToValueAtTime(p.gain, now + 0.002);
       g.gain.exponentialRampToValueAtTime(0.0001, now + p.decay);
 
       osc.connect(g);
       g.connect(master);
       osc.start(now);
-      osc.stop(now + p.decay + 0.05);
+      osc.stop(now + p.decay + 0.03);
       longest = Math.max(longest, p.decay);
     }
 
-    // Release the gain node once the tail has died, or a long ring leaks nodes.
-    window.setTimeout(() => master.disconnect(), (longest + 0.2) * 1000);
+    // Release the nodes once the tail has died, or a long ring leaks them.
+    window.setTimeout(() => {
+      master.disconnect();
+      hp.disconnect();
+    }, (longest + 0.15) * 1000);
   }, []);
+
+  // One shake: the strike, then the clapper rebounding off the far wall.
+  const shake = useCallback(() => {
+    strike(1);
+    window.setTimeout(() => {
+      if (ringingRef.current) strike(REBOUND_GAIN);
+    }, REBOUND_MS);
+  }, [strike]);
 
   const stop = useCallback(() => {
     ringingRef.current = false;
@@ -94,12 +117,12 @@ export const TempleBell: React.FC = () => {
 
     ringingRef.current = true;
     setIsRinging(true);
-    strike();
+    shake();
     timerRef.current = setInterval(() => {
       if (!ringingRef.current) return;
-      strike();
+      shake();
     }, STRIKE_INTERVAL_MS);
-  }, [strike]);
+  }, [shake]);
 
   const toggle = useCallback(() => {
     if (ringingRef.current) stop();
@@ -125,8 +148,8 @@ export const TempleBell: React.FC = () => {
     <button
       onClick={toggle}
       aria-pressed={isRinging}
-      aria-label={isRinging ? 'Stop the bell' : 'Ring the temple bell'}
-      title={isRinging ? 'Stop the bell' : 'Ring the temple bell'}
+      aria-label={isRinging ? 'Stop the bell' : 'Ring the pooja bell'}
+      title={isRinging ? 'Stop the bell' : 'Ring the pooja bell'}
       className={`fixed bottom-24 right-5 z-40 w-14 h-14 rounded-full flex items-center justify-center
         border shadow-2xl transition-colors
         ${
