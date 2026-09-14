@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Cinzel, Outfit, Noto_Serif_Devanagari, Noto_Serif_Tamil } from 'next/font/google';
 import './globals.css';
+import Script from 'next/script';
 import { PreferencesProvider } from '@/lib/preferences';
 
 // The Divine Design System's four faces. Previously only Geist was loaded, so
@@ -41,9 +42,9 @@ export const metadata: Metadata = {
 const THEME_BOOTSTRAP = `
 try {
   var p = JSON.parse(localStorage.getItem('pooja-vidhi:prefs') || '{}');
-  document.documentElement.setAttribute('data-theme', p.theme === 'light' ? 'light' : 'dark');
+  document.documentElement.setAttribute('data-theme', p.theme === 'dark' ? 'dark' : 'light');
 } catch (e) {
-  document.documentElement.setAttribute('data-theme', 'dark');
+  document.documentElement.setAttribute('data-theme', 'light');
 }
 `;
 
@@ -51,12 +52,18 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html
       lang="en"
-      data-theme="dark"
+      data-theme="light"
       suppressHydrationWarning
       className={`${cinzel.variable} ${outfit.variable} ${notoDevanagari.variable} ${notoTamil.variable} h-full antialiased`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+        {/* next/script rather than a raw tag: React warns that scripts inside a
+            component tree are not executed on client navigation, and
+            beforeInteractive is what guarantees this runs ahead of first paint
+            so a stored dark theme does not flash light. */}
+        <Script id="theme-bootstrap" strategy="beforeInteractive">
+          {THEME_BOOTSTRAP}
+        </Script>
       </head>
       <body className="min-h-full flex flex-col">
         <PreferencesProvider>{children}</PreferencesProvider>

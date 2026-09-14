@@ -199,8 +199,20 @@ const keptDanda = Number(danda.c) === 0;
 if (!keptDanda) failed = true;
 console.log(`  ${keptDanda ? 'ok   ' : 'FAIL '} danda preserved rather than turned into a period`);
 
-// --- 9. What is still missing ------------------------------------------------
-console.log('\n[9] remaining content gaps');
+// --- 9. Tamil titles and instructions -----------------------------------------
+console.log('\n[9] 0006 Tamil content');
+await step('0006_tamil_content.sql', () => db.exec(sql(`${MIG}/0006_tamil_content.sql`)));
+await assert('every step has a Tamil title',
+  'select count(*) from pooja_steps where step_title_ta is null', 0);
+await assert('every step has a Tamil instruction',
+  'select count(*) from pooja_steps where instruction_ta is null', 0);
+await assert('Tamil is not just a copy of the English',
+  'select count(*) from pooja_steps where instruction_ta = instruction_en', 0);
+await assert('drafts flagged for vaidika review',
+  'select count(*) from pooja_steps where source_ref is null', 0);
+
+// --- 10. What is still missing -----------------------------------------------
+console.log('\n[10] remaining content gaps');
 const gaps = await one(`select
   count(*) filter (where mantra_tamil   is null) as tamil,
   count(*) filter (where step_title_ta  is null) as title_ta,

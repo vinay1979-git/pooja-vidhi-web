@@ -1045,11 +1045,32 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   <div className="bg-stone-950/80 rounded-xl p-4 border border-stone-800 text-stone-200 text-sm md:text-base leading-relaxed flex items-start gap-3">
                     <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-medium">
-                        {instructionLang === 'ta'
-                          ? currentStep.instruction_ta || currentStep.instruction_en
-                          : currentStep.instruction_en}
-                      </p>
+                      {(() => {
+                        const wantsTamil = instructionLang === 'ta';
+                        const tamil = currentStep.instruction_ta;
+                        const usingFallback = wantsTamil && !tamil;
+                        return (
+                          <>
+                            <p
+                              className={`font-medium ${wantsTamil && tamil ? 'font-tamil' : ''}`}
+                              lang={wantsTamil && tamil ? 'ta' : 'en'}
+                            >
+                              {wantsTamil && tamil ? tamil : currentStep.instruction_en}
+                            </p>
+                            {/* Say so rather than quietly showing English under a
+                                Tamil setting, which reads as a broken toggle. */}
+                            {usingFallback && (
+                              <p className="mt-1.5 text-xs text-stone-400 italic">
+                                <span lang="ta">
+                                  இந்தப் படிக்கு தமிழ் விளக்கம் இன்னும் இல்லை. ஆங்கிலம் காட்டப்படுகிறது.
+                                </span>
+                                <span className="not-italic"> · </span>
+                                No Tamil instruction for this step yet.
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -1172,23 +1193,41 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
                     {/* Mantra Script Box */}
                     <div className="p-6 md:p-8 rounded-xl bg-stone-950/90 border border-amber-500/30 text-center space-y-4 shadow-inner">
-                      <p className="text-xl md:text-2xl lg:text-3xl font-serif leading-relaxed text-amber-300 tracking-wide">
-                        {mantraLang === 'sanskrit' &&
-                          getDynamicMantra(
-                            currentStep.mantra_sanskrit || currentStep.mantra_translit || currentStep.mantra_tamil,
-                            'sanskrit'
-                          )}
-                        {mantraLang === 'tamil' &&
-                          getDynamicMantra(
-                            currentStep.mantra_tamil || currentStep.mantra_sanskrit || currentStep.mantra_translit,
-                            'tamil'
-                          )}
-                        {mantraLang === 'translit' &&
-                          getDynamicMantra(
-                            currentStep.mantra_translit || currentStep.mantra_sanskrit || currentStep.mantra_tamil,
-                            'translit'
-                          )}
-                      </p>
+                      {(() => {
+                        const r = resolveScript(mantraLang, currentStep);
+                        const main = getDynamicMantra(r.text, r.shown ?? 'sanskrit');
+                        // When the mantra is in Devanagari or Tamil, always carry
+                        // the roman transliteration underneath. Most of the
+                        // diaspora audience can follow the sounds but not the
+                        // script, and having to switch tabs to read along defeats
+                        // the point of chanting with the app.
+                        const showGloss =
+                          r.shown !== 'translit' && Boolean(currentStep.mantra_translit);
+                        const gloss = showGloss
+                          ? getDynamicMantra(currentStep.mantra_translit, 'translit')
+                          : null;
+                        return (
+                          <>
+                            <p
+                              className={`text-xl md:text-2xl lg:text-3xl leading-relaxed text-amber-300 tracking-wide ${
+                                r.shown === 'tamil'
+                                  ? 'font-tamil'
+                                  : r.shown === 'sanskrit'
+                                    ? 'font-deva'
+                                    : 'font-serif'
+                              }`}
+                              lang={r.shown === 'tamil' ? 'ta' : r.shown === 'sanskrit' ? 'sa' : 'en'}
+                            >
+                              {main}
+                            </p>
+                            {gloss && (
+                              <p className="text-sm md:text-base text-stone-400 italic leading-relaxed max-w-2xl mx-auto">
+                                {gloss}
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
 
                       {currentStep.meaning_en && (
                         <div className="pt-4 border-t border-stone-800/80">

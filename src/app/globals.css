@@ -236,7 +236,10 @@ body {
   font-family: var(--font-body);
   background-color: var(--color-stone-950);
 }
-:lang(ta),
+/* Scoped to elements that declare the language themselves. :lang(ta) matches
+   inherited language, so with html lang="ta" it would put the Tamil face on
+   every Latin character on the page, including the transliteration gloss. */
+[lang="ta"]:not(html),
 .font-tamil {
   font-family: var(--font-tamil);
 }

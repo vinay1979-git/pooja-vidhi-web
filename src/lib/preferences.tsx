@@ -41,7 +41,7 @@ const KEY = 'pooja-vidhi:prefs';
 const DEFAULTS = {
   instructionLang: 'en' as InstructionLang,
   mantraScript: 'sanskrit' as MantraScript,
-  theme: 'dark' as Theme,
+  theme: 'light' as Theme,
 };
 
 const Ctx = createContext<Preferences | null>(null);
@@ -58,7 +58,7 @@ function read(): typeof DEFAULTS {
         p.mantraScript === 'tamil' || p.mantraScript === 'translit'
           ? p.mantraScript
           : 'sanskrit',
-      theme: p.theme === 'light' ? 'light' : 'dark',
+      theme: p.theme === 'dark' ? 'dark' : 'light',
     };
   } catch {
     // Private windows and blocked site data both throw here.
