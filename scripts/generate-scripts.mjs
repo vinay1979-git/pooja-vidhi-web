@@ -28,8 +28,13 @@ const EXTRACT = REPO + '/DB Extract';
 const args = process.argv.slice(2);
 const emit = args.includes('--emit');
 const selftest = args.includes('--selftest');
+// Plain Tamil by default. The superscripted scheme is phonetically exact but
+// reads as cluttered to a Tamil reader, and the roman transliteration now shown
+// beneath every mantra already carries the exact pronunciation, so the
+// superscripts were buying precision the page provides anyway. Pass
+// --scheme=tamil_superscripted to go back.
 const scheme = (
-  args.find((a) => a.startsWith('--scheme=')) || '--scheme=tamil_superscripted'
+  args.find((a) => a.startsWith('--scheme=')) || '--scheme=tamil'
 ).split('=')[1];
 
 const out = emit ? console.log : () => {};
@@ -78,6 +83,14 @@ function fixSuperscripts(text) {
 // ---------------------------------------------------------------------------
 const PROTECTED = /(\[[A-Z0-9_]+\]|[।॥])/;
 
+// Tidy two artefacts of the plain Tamil scheme.
+//  - visarga comes out as aytham; Tamil Sanskrit print uses a raised colon,
+//    which is also what the archana rows already used.
+//  - vocalic r and rr are marked with an ASCII apostrophe (kRShNa -> kru'Shna).
+//    Tamil devotional print writes these plain, and a stray quote in the middle
+//    of a mantra just looks like a typo.
+const tidyTamil = (t) => t.replace(/௃|௄/g, '').replace(/ஃ/g, '꞉').replace(/'/g, '');
+
 function transliterate(text, to) {
   if (!text) return null;
   return String(text)
@@ -85,7 +98,7 @@ function transliterate(text, to) {
     .map((part) => {
       if (part === '' || PROTECTED.test(part)) return part;
       const done = Sanscript.t(part, 'devanagari', to);
-      return to.startsWith('tamil') ? fixSuperscripts(done) : done;
+      return to.startsWith('tamil') ? tidyTamil(fixSuperscripts(done)) : done;
     })
     .join('');
 }

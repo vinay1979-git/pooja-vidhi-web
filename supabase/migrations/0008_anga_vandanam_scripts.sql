@@ -13,7 +13,7 @@ begin;
 
 update public.pooja_steps set
   mantra_sanskrit = 'ॐ केशवाय नमः । ॐ नारायणाय नमः । ॐ माधवाय नमः । ॐ गोविन्दाय नमः । ॐ विष्णवे नमः । ॐ मधुसूदनाय नमः । ॐ त्रिविक्रमाय नमः । ॐ वामनाय नमः । ॐ श्रीधराय नमः । ॐ हृषीकेशाय नमः । ॐ पद्मनाभाय नमः । ॐ दामोदराय नमः ॥',
-  mantra_tamil = 'ௐ கேஶவாய நம꞉ । ௐ நாராயணாய நம꞉ । ௐ மாத⁴வாய நம꞉ । ௐ கோ³விந்தா³ய நம꞉ । ௐ விஷ்ணவே நம꞉ । ௐ மது⁴ஸூத³நாய நம꞉ । ௐ த்ரிவிக்ரமாய நம꞉ । ௐ வாமநாய நம꞉ । ௐ ஶ்ரீத⁴ராய நம꞉ । ௐ ஹ்ருʼஷீகேஶாய நம꞉ । ௐ பத்³மநாபா⁴ய நம꞉ । ௐ தா³மோத³ராய நம꞉ ॥',
+  mantra_tamil = 'ௐ கேஶவாய நம꞉ । ௐ நாராயணாய நம꞉ । ௐ மாதவாய நம꞉ । ௐ கோவிந்தாய நம꞉ । ௐ விஷ்ணவே நம꞉ । ௐ மதுஸூதநாய நம꞉ । ௐ த்ரிவிக்ரமாய நம꞉ । ௐ வாமநாய நம꞉ । ௐ ஶ்ரீதராய நம꞉ । ௐ ஹ்ருஷீகேஶாய நம꞉ । ௐ பத்மநாபாய நம꞉ । ௐ தாமோதராய நம꞉ ॥',
   mantra_translit = 'oṃ keśavāya namaḥ । oṃ nārāyaṇāya namaḥ । oṃ mādhavāya namaḥ । oṃ govindāya namaḥ । oṃ viṣṇave namaḥ । oṃ madhusūdanāya namaḥ । oṃ trivikramāya namaḥ । oṃ vāmanāya namaḥ । oṃ śrīdharāya namaḥ । oṃ hṛṣīkeśāya namaḥ । oṃ padmanābhāya namaḥ । oṃ dāmodarāya namaḥ ॥',
   scripts_generated = true
 where pooja_id = 'ganesha_standard' and step_title_en = 'Anga Vandanam';

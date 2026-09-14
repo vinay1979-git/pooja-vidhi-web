@@ -27,6 +27,15 @@ function fixSuperscripts(text) {
   return cur;
 }
 
+// Tidy two artefacts of the plain Tamil scheme.
+//  - visarga comes out as aytham; Tamil Sanskrit print uses a raised colon,
+//    which is also what the archana rows already used.
+//  - vocalic r and rr are marked with an ASCII apostrophe (kRShNa -> kru'Shna).
+//    Tamil devotional print writes these plain, and a stray quote in the middle
+//    of a mantra just looks like a typo.
+const tidyTamil = (t) => t.replace(/௃|௄/g, '').replace(/ஃ/g, '꞉').replace(/'/g, '');
+const TAMIL_SCHEME = 'tamil';
+
 const PROTECTED = /(\[[A-Z0-9_]+\]|[।॥])/;
 function transliterate(text, to) {
   return String(text)
@@ -34,7 +43,7 @@ function transliterate(text, to) {
     .map((part) => {
       if (part === '' || PROTECTED.test(part)) return part;
       const done = Sanscript.t(part, 'devanagari', to);
-      return to.startsWith('tamil') ? fixSuperscripts(done) : done;
+      return to.startsWith('tamil') ? tidyTamil(fixSuperscripts(done)) : done;
     })
     .join('');
 }
@@ -56,7 +65,7 @@ const out = emit ? console.log : () => {};
 for (const r of ROWS) {
   console.error(`${r.step}`);
   console.error(`  deva   ${r.deva.slice(0, 70)}...`);
-  console.error(`  tamil  ${transliterate(r.deva, 'tamil_superscripted').slice(0, 70)}...`);
+  console.error(`  tamil  ${transliterate(r.deva, TAMIL_SCHEME).slice(0, 70)}...`);
   console.error(`  iast   ${transliterate(r.deva, 'iast').slice(0, 70)}...`);
 }
 
@@ -77,7 +86,7 @@ out('');
 for (const r of ROWS) {
   out(`update public.pooja_steps set
   mantra_sanskrit = ${q(r.deva)},
-  mantra_tamil = ${q(transliterate(r.deva, 'tamil_superscripted'))},
+  mantra_tamil = ${q(transliterate(r.deva, TAMIL_SCHEME))},
   mantra_translit = ${q(transliterate(r.deva, 'iast'))},
   scripts_generated = true
 where pooja_id = 'ganesha_standard' and step_title_en = ${q(r.step)};`);

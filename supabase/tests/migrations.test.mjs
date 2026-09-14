@@ -184,6 +184,14 @@ await assert('archana Tamil regenerated',
   'select count(*) from archana_items where invoked_name_ta is null', 0);
 await assert('scripts_generated flagged',
   'select count(*) from pooja_steps where mantra_tamil is not null and scripts_generated = false', 0);
+// Plain Tamil: no voicing superscripts, no aytham standing in for visarga, and
+// no stray ASCII apostrophe from the vocalic-r marker.
+await assert('no voicing superscripts in Tamil',
+  "select count(*) from pooja_steps where mantra_tamil ~ '[²³⁴]'", 0);
+await assert('no apostrophe artefacts in Tamil',
+  "select count(*) from pooja_steps where mantra_tamil like '%''%'", 0);
+await assert('no superscripts in archana Tamil',
+  "select count(*) from archana_items where invoked_name_ta ~ '[²³⁴]'", 0);
 
 // The sankalpam template must survive transliteration intact.
 const tpl = await one(
