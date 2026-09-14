@@ -1,49 +1,35 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  CheckCircle2,
-  Circle,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
-  RotateCcw,
-  BookOpen,
-  Languages,
-  Utensils,
-  Flower2,
-  Award,
-  Flame,
-  Check,
-  Globe,
-  Info,
-  Calendar,
-  MapPin,
-  User,
-  Compass,
-  Loader2,
-  Lightbulb,
-  ChevronDown,
-  ChevronUp,
-  Users,
-  SearchCheck,
-  AlertCircle
-} from 'lucide-react';
+import { AlertCircle, Award, BookOpen, Calendar, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, Compass, Flame, Flower2, Globe, Info, Languages, Lightbulb, Loader2, MapPin, Moon, RotateCcw, SearchCheck, Sparkles, Sun, User, Users, Utensils } from 'lucide-react';
 import { Pooja, PoojaStep, ArchanaItem } from '@/types/pooja';
 import { fetchPanchangamData, PanchangamData } from '@/actions/getSankalpam';
+import { usePreferences, resolveScript, SCRIPT_LABEL } from '@/lib/preferences';
 
 interface PoojaViewerProps {
   pooja: Pooja;
   steps: PoojaStep[];
 }
 
+// Suggestions start once the query is long enough to be worth a lookup.
+const MIN_LOCATION_CHARS = 3;
+
 export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   // Navigation & Language States
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(-1); // -1 = Samagri / Prep
-  const [instructionLang, setInstructionLang] = useState<'en' | 'ta'>('en');
-  const [mantraLang, setMantraLang] = useState<'sanskrit' | 'tamil' | 'translit'>('sanskrit');
+  // Language and theme live in a persisted context, not here. Holding them in
+  // component state meant every navigation remounted this component and reset
+  // the choice back to English and Sanskrit.
+  const {
+    instructionLang,
+    setInstructionLang,
+    mantraScript: mantraLang,
+    setMantraScript: setMantraLang,
+    theme,
+    toggleTheme,
+  } = usePreferences();
   const [direction, setDirection] = useState<number>(1);
 
   // Performer Gender State ('male' | 'female' | 'couple')
@@ -79,6 +65,20 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
   const [locationStatus, setLocationStatus] = useState<string>('');
+  // Several places share a name, so the user has to choose rather than the app
+  // silently taking the first hit.
+  const [geoCandidates, setGeoCandidates] = useState<
+    { label: string; city: string | null; state: string | null; country: string | null; lat: number; lon: number; osmId: string }[]
+  >([]);
+  // Typeahead. Suggestions appear as you type rather than after pressing Verify.
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  // Set right after a pick, so committing a place does not immediately re-search
+  // the text we just wrote into the input. Starts true because the default
+  // location is already resolved and does not need looking up on mount.
+  const suppressSearch = useRef(true);
+  const searchAbort = useRef<AbortController | null>(null);
+
   const [panchangamData, setPanchangamData] = useState<PanchangamData | null>(null);
 
   // Archana Progress State
@@ -91,16 +91,24 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   const loadPanchangam = useCallback(async () => {
     if (!resolvedGeo) return;
     try {
+      // Pass the resolved place and the performer through, so the sentence is
+      // complete rather than a skeleton the UI glues together afterwards.
       const data = await fetchPanchangamData(
         sankalpamDate,
         resolvedGeo.lat,
-        resolvedGeo.lon
+        resolvedGeo.lon,
+        {
+          place: resolvedGeo.displayName,
+          gotra: sankalpamData.gotra,
+          name: sankalpamData.devoteeName,
+          gender: performerGender === 'female' ? 'female' : 'male',
+        }
       );
       setPanchangamData(data);
     } catch (e) {
       console.error('Failed to load Panchangam data:', e);
     }
-  }, [sankalpamDate, resolvedGeo]);
+  }, [sankalpamDate, resolvedGeo, sankalpamData, performerGender]);
 
   useEffect(() => {
     loadPanchangam();
@@ -122,56 +130,36 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
         const lon = position.coords.longitude;
 
         try {
-          // OpenStreetMap Nominatim Reverse Geocoding API
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
-            {
-              headers: {
-                'Accept-Language': 'en',
-              },
-            }
-          );
+          // Through our route, so the OSM usage policy is respected and the
+          // result comes back already shaped as city / state / country.
+          const response = await fetch(`/api/geocode?lat=${lat}&lon=${lon}`);
+          const data = await response.json();
+          const place = (data.places ?? [])[0];
 
-          if (response.ok) {
-            const data = await response.json();
-            const address = data.address || {};
-            const city =
-              address.city ||
-              address.town ||
-              address.village ||
-              address.suburb ||
-              address.county ||
-              address.state ||
-              'Detected Place';
-
-            const fullDisplayName = data.display_name || city;
-
-            setLocationQuery(city);
-            setResolvedGeo({
-              lat: Number(lat),
-              lon: Number(lon),
-              displayName: fullDisplayName,
-            });
-            setLocationStatus('Location detected & reverse geocoded!');
+          if (place) {
+            setLocationQuery(place.label);
+            setResolvedGeo({ lat: Number(lat), lon: Number(lon), displayName: place.label });
+            setLocationStatus('');
           } else {
-            // Fallback if API rate limited
-            setLocationQuery(`Lat ${lat.toFixed(2)}, Lon ${lon.toFixed(2)}`);
+            // Coordinates are what the Sankalpam needs, so keep them even when
+            // we cannot put a name to the place.
+            setLocationQuery(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
             setResolvedGeo({
               lat: Number(lat),
               lon: Number(lon),
-              displayName: `GPS Coords (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+              displayName: `GPS ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
             });
-            setLocationStatus('GPS detected (offline fallback).');
+            setLocationStatus('Coordinates captured, but the place could not be named.');
           }
         } catch (err) {
-          console.warn('Reverse geocoding fetch error:', err);
-          setLocationQuery(`Lat ${lat.toFixed(2)}, Lon ${lon.toFixed(2)}`);
+          console.warn('Reverse geocoding error:', err);
+          setLocationQuery(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
           setResolvedGeo({
             lat: Number(lat),
             lon: Number(lon),
-            displayName: `GPS Coords (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+            displayName: `GPS ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
           });
-          setLocationStatus('GPS coordinates captured.');
+          setLocationStatus('Coordinates captured; naming the place failed.');
         } finally {
           setIsDetectingLocation(false);
         }
@@ -193,48 +181,92 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     }
 
     setIsVerifyingLocation(true);
-    setLocationStatus('Verifying location with OpenStreetMap...');
+    setGeoCandidates([]);
+    setLocationStatus('Looking up location...');
 
     try {
+      // Server route, not Nominatim directly: it sends an identifying
+      // User-Agent, caches, and holds to one request per second.
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          locationQuery.trim()
-        )}&limit=1`,
-        {
-          headers: {
-            'Accept-Language': 'en',
-          },
-        }
+        `/api/geocode?q=${encodeURIComponent(locationQuery.trim())}`
       );
+      const data = await response.json();
+      const places = data.places ?? [];
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.length > 0) {
-          const result = data[0];
-          const mainName = result.display_name.split(',')[0];
-          const lat = parseFloat(result.lat);
-          const lon = parseFloat(result.lon);
-
-          setLocationQuery(mainName);
-          setResolvedGeo({
-            lat,
-            lon,
-            displayName: result.display_name,
-          });
-          setLocationStatus('Coordinates verified successfully!');
-        } else {
-          setResolvedGeo(null);
-          setLocationStatus('Location not found. Please try a major city name.');
-        }
+      if (places.length === 0) {
+        setResolvedGeo(null);
+        setLocationStatus('No match. Try adding the state or country, e.g. "Chennai, India".');
+      } else if (places.length === 1) {
+        applyPlace(places[0]);
       } else {
-        setLocationStatus('Geocoding service unavailable. Try again later.');
+        setGeoCandidates(places);
+        setLocationStatus(`${places.length} places share that name. Pick the right one.`);
       }
     } catch (err) {
-      console.warn('Forward geocoding error:', err);
-      setLocationStatus('Network error while verifying location.');
+      console.warn('Geocoding error:', err);
+      setLocationStatus('Network error while looking up the location.');
     } finally {
       setIsVerifyingLocation(false);
     }
+  };
+
+  // Look up as the user types: debounced, so a word typed at speed costs one
+  // request rather than one per keystroke, and the previous request is aborted
+  // so a slow earlier response cannot overwrite a newer one.
+  useEffect(() => {
+    if (suppressSearch.current) {
+      suppressSearch.current = false;
+      return;
+    }
+    const q = locationQuery.trim();
+    if (q.length < MIN_LOCATION_CHARS) {
+      setGeoCandidates([]);
+      setSuggestOpen(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      searchAbort.current?.abort();
+      const ac = new AbortController();
+      searchAbort.current = ac;
+      setIsVerifyingLocation(true);
+      try {
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`, {
+          signal: ac.signal,
+        });
+        const data = await res.json();
+        const places = data.places ?? [];
+        setGeoCandidates(places);
+        setSuggestOpen(places.length > 0);
+        setActiveSuggestion(-1);
+        setLocationStatus(
+          places.length === 0 ? 'No match. Try adding the state or country.' : ''
+        );
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          setLocationStatus('Could not reach the location service.');
+        }
+      } finally {
+        setIsVerifyingLocation(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [locationQuery]);
+
+  // Commit a chosen place. The label is what the user sees; lat and lon are what
+  // the Sankalpam is actually computed from.
+  const applyPlace = (place: {
+    label: string; city: string | null; state: string | null; country: string | null;
+    lat: number; lon: number; osmId: string;
+  }) => {
+    suppressSearch.current = true;
+    setLocationQuery(place.label);
+    setResolvedGeo({ lat: place.lat, lon: place.lon, displayName: place.label });
+    setGeoCandidates([]);
+    setSuggestOpen(false);
+    setActiveSuggestion(-1);
+    setLocationStatus('');
   };
 
   // Helper to check if step is allowed for current performerGender
@@ -405,7 +437,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   };
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-sans selection:bg-amber-500 selection:text-stone-950 pb-24">
+    <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-sans selection:bg-amber-500 selection:text-ink-inverse pb-24">
       {/* Top Banner / Sacred Header */}
       <header className="sticky top-0 z-40 bg-stone-900/90 backdrop-blur-md border-b border-amber-500/20 shadow-xl">
         <div className="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
@@ -442,8 +474,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 onClick={() => setInstructionLang('en')}
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   instructionLang === 'en'
-                    ? 'bg-amber-500 text-stone-950 shadow-sm'
-                    : 'text-stone-300 hover:text-white'
+                    ? 'bg-amber-500 text-ink-inverse shadow-sm'
+                    : 'text-stone-300 hover:text-stone-100'
                 }`}
               >
                 English
@@ -452,13 +484,28 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 onClick={() => setInstructionLang('ta')}
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   instructionLang === 'ta'
-                    ? 'bg-amber-500 text-stone-950 shadow-sm'
-                    : 'text-stone-300 hover:text-white'
+                    ? 'bg-amber-500 text-ink-inverse shadow-sm'
+                    : 'text-stone-300 hover:text-stone-100'
                 }`}
               >
                 தமிழ்
               </button>
             </div>
+
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              className="flex items-center gap-1.5 bg-stone-950 rounded-lg px-2.5 py-1.5 border border-stone-800 text-stone-300 hover:text-amber-300 hover:border-amber-500/40 transition-colors font-semibold"
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
+              ) : (
+                <Moon className="w-3.5 h-3.5 text-amber-400" />
+              )}
+              <span className="hidden md:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+            </button>
 
             {/* Mantra Script Toggle */}
             <div className="flex items-center bg-stone-950 rounded-lg p-1 border border-stone-800">
@@ -470,8 +517,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 onClick={() => setMantraLang('sanskrit')}
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   mantraLang === 'sanskrit'
-                    ? 'bg-amber-500 text-stone-950 shadow-sm'
-                    : 'text-stone-300 hover:text-white'
+                    ? 'bg-amber-500 text-ink-inverse shadow-sm'
+                    : 'text-stone-300 hover:text-stone-100'
                 }`}
               >
                 संस्कृतम्
@@ -480,8 +527,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 onClick={() => setMantraLang('tamil')}
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   mantraLang === 'tamil'
-                    ? 'bg-amber-500 text-stone-950 shadow-sm'
-                    : 'text-stone-300 hover:text-white'
+                    ? 'bg-amber-500 text-ink-inverse shadow-sm'
+                    : 'text-stone-300 hover:text-stone-100'
                 }`}
               >
                 தமிழ்
@@ -490,8 +537,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 onClick={() => setMantraLang('translit')}
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   mantraLang === 'translit'
-                    ? 'bg-amber-500 text-stone-950 shadow-sm'
-                    : 'text-stone-300 hover:text-white'
+                    ? 'bg-amber-500 text-ink-inverse shadow-sm'
+                    : 'text-stone-300 hover:text-stone-100'
                 }`}
               >
                 Eng
@@ -548,7 +595,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   disabled={!resolvedGeo}
                   className={`w-full md:w-auto px-8 py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-3 shrink-0 transition-all ${
                     resolvedGeo
-                      ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 shadow-amber-600/30 hover:scale-105 cursor-pointer'
+                      ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-ink-inverse shadow-amber-600/30 hover:scale-105 cursor-pointer'
                       : 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50 border border-stone-700'
                   }`}
                   title={!resolvedGeo ? 'Please detect or verify your location coordinates first' : 'Start Pooja'}
@@ -591,7 +638,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     onClick={() => setPerformerGender('male')}
                     className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border ${
                       performerGender === 'male'
-                        ? 'bg-amber-500 text-stone-950 border-amber-400 shadow-md'
+                        ? 'bg-amber-500 text-ink-inverse border-amber-400 shadow-md'
                         : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
                     }`}
                   >
@@ -601,7 +648,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     onClick={() => setPerformerGender('female')}
                     className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border ${
                       performerGender === 'female'
-                        ? 'bg-amber-500 text-stone-950 border-amber-400 shadow-md'
+                        ? 'bg-amber-500 text-ink-inverse border-amber-400 shadow-md'
                         : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
                     }`}
                   >
@@ -611,7 +658,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     onClick={() => setPerformerGender('couple')}
                     className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border ${
                       performerGender === 'couple'
-                        ? 'bg-amber-500 text-stone-950 border-amber-400 shadow-md'
+                        ? 'bg-amber-500 text-ink-inverse border-amber-400 shadow-md'
                         : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
                     }`}
                   >
@@ -658,24 +705,92 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   </div>
 
                   <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Enter city name (e.g. Chennai, Madurai)"
-                      value={locationQuery}
-                      onChange={(e) => {
-                        setLocationQuery(e.target.value);
-                        setResolvedGeo(null); // Require re-verification if user changes input
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleVerifyLocation();
-                      }}
-                      className="flex-1 px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
-                    />
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder="Start typing a city, e.g. Chennai"
+                        value={locationQuery}
+                        role="combobox"
+                        aria-expanded={suggestOpen}
+                        aria-autocomplete="list"
+                        aria-controls="location-suggestions"
+                        autoComplete="off"
+                        onChange={(e) => {
+                          setLocationQuery(e.target.value);
+                          setResolvedGeo(null);
+                        }}
+                        onFocus={() => {
+                          if (geoCandidates.length) setSuggestOpen(true);
+                        }}
+                        onBlur={() => {
+                          // Delayed so a click on a suggestion registers first.
+                          setTimeout(() => setSuggestOpen(false), 150);
+                        }}
+                        onKeyDown={(e) => {
+                          if (!suggestOpen || geoCandidates.length === 0) {
+                            if (e.key === 'Enter') handleVerifyLocation();
+                            return;
+                          }
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setActiveSuggestion((i) => (i + 1) % geoCandidates.length);
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setActiveSuggestion((i) =>
+                              i <= 0 ? geoCandidates.length - 1 : i - 1
+                            );
+                          } else if (e.key === 'Enter') {
+                            e.preventDefault();
+                            applyPlace(geoCandidates[activeSuggestion >= 0 ? activeSuggestion : 0]);
+                          } else if (e.key === 'Escape') {
+                            setSuggestOpen(false);
+                          }
+                        }}
+                        className="w-full px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                      />
+
+                      {isVerifyingLocation && (
+                        <Loader2 className="w-4 h-4 animate-spin text-amber-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                      )}
+
+                      {suggestOpen && geoCandidates.length > 0 && (
+                        <ul
+                          id="location-suggestions"
+                          role="listbox"
+                          className="absolute z-30 left-0 right-0 mt-1 rounded-xl border border-amber-500/40 bg-stone-900 shadow-2xl overflow-hidden max-h-64 overflow-y-auto divide-y divide-stone-800"
+                        >
+                          {geoCandidates.map((place, i) => (
+                            <li key={place.osmId} role="option" aria-selected={i === activeSuggestion}>
+                              <button
+                                type="button"
+                                onMouseEnter={() => setActiveSuggestion(i)}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => applyPlace(place)}
+                                className={`w-full text-left px-3 py-2.5 transition-colors ${
+                                  i === activeSuggestion ? 'bg-stone-800' : 'hover:bg-stone-800'
+                                }`}
+                              >
+                                <span className="block text-sm font-medium text-stone-100">
+                                  {place.city ?? place.label}
+                                </span>
+                                <span className="block text-[11px] text-stone-400">
+                                  {[place.state, place.country].filter(Boolean).join(', ')}
+                                  <span className="text-stone-500">
+                                    {'  ·  '}
+                                    {place.lat.toFixed(4)}, {place.lon.toFixed(4)}
+                                  </span>
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
 
                     <button
                       onClick={handleVerifyLocation}
                       disabled={isVerifyingLocation}
-                      className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition-colors shrink-0 shadow"
+                      className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-ink-inverse font-bold text-xs flex items-center gap-1.5 transition-colors shrink-0 shadow"
                     >
                       {isVerifyingLocation ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -690,7 +805,11 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   {resolvedGeo ? (
                     <p className="text-xs font-semibold text-amber-400 flex items-center gap-1.5 pt-1">
                       <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      Verified Coordinates: Lat {resolvedGeo.lat.toFixed(4)}, Lon {resolvedGeo.lon.toFixed(4)}
+                      <span className="font-semibold text-stone-100">{resolvedGeo.displayName}</span>
+                      <span className="text-stone-400">
+                        {'  ·  '}
+                        {resolvedGeo.lat.toFixed(4)}, {resolvedGeo.lon.toFixed(4)}
+                      </span>
                     </p>
                   ) : (
                     <p className="text-xs font-medium text-amber-500/90 flex items-center gap-1 pt-1">
@@ -796,18 +915,39 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       <div className="flex items-center gap-3">
                         <div className="text-amber-400">
                           {isChecked ? (
-                            <CheckCircle2 className="w-5 h-5 fill-amber-500 text-stone-950" />
+                            <CheckCircle2 className="w-5 h-5 fill-amber-500 text-ink-inverse" />
                           ) : (
                             <Circle className="w-5 h-5 text-stone-600" />
                           )}
                         </div>
                         <div>
-                          <p className={`text-sm font-semibold ${isChecked ? 'line-through opacity-80' : ''}`}>
-                            {instructionLang === 'ta' && item.item_ta ? item.item_ta : item.item_en}
-                          </p>
-                          {instructionLang === 'en' && item.item_ta && (
-                            <p className="text-xs text-amber-400/80 font-medium">{item.item_ta}</p>
-                          )}
+                          {(() => {
+                            const wantsTamil = instructionLang === 'ta' && Boolean(item.item_ta);
+                            const primary = wantsTamil ? item.item_ta : item.item_en;
+                            const secondary = wantsTamil ? item.item_en : item.item_ta;
+                            return (
+                              <>
+                                <p
+                                  className={`text-sm font-semibold ${wantsTamil ? 'font-tamil' : ''} ${
+                                    isChecked ? 'line-through opacity-80' : ''
+                                  }`}
+                                  lang={wantsTamil ? 'ta' : 'en'}
+                                >
+                                  {primary}
+                                </p>
+                                {secondary && secondary !== primary && (
+                                  <p
+                                    className={`text-xs text-amber-400/80 font-medium ${
+                                      wantsTamil ? '' : 'font-tamil'
+                                    }`}
+                                    lang={wantsTamil ? 'en' : 'ta'}
+                                  >
+                                    {secondary}
+                                  </p>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
 
@@ -845,13 +985,33 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <Flower2 className="w-4 h-4 text-amber-400 shrink-0" />
-                        <h4 className="font-bold text-amber-200 text-base">
-                          {instructionLang === 'ta' && item.name_ta ? item.name_ta : item.name_en}
-                        </h4>
+                        {(() => {
+                          const wantsTamil = instructionLang === 'ta' && Boolean(item.name_ta);
+                          return (
+                            <h4
+                              className={`font-bold text-amber-200 text-base ${wantsTamil ? 'font-tamil' : ''}`}
+                              lang={wantsTamil ? 'ta' : 'en'}
+                            >
+                              {wantsTamil ? item.name_ta : item.name_en}
+                            </h4>
+                          );
+                        })()}
                       </div>
-                      {item.name_ta && instructionLang === 'en' && (
-                        <p className="text-xs text-amber-400/90 font-medium pl-6">{item.name_ta}</p>
-                      )}
+                      {(() => {
+                        // The other language, whichever way round.
+                        const wantsTamil = instructionLang === 'ta' && Boolean(item.name_ta);
+                        const secondary = wantsTamil ? item.name_en : item.name_ta;
+                        if (!secondary || secondary === (wantsTamil ? item.name_ta : item.name_en))
+                          return null;
+                        return (
+                          <p
+                            className={`text-xs text-amber-400/90 font-medium pl-6 ${wantsTamil ? '' : 'font-tamil'}`}
+                            lang={wantsTamil ? 'en' : 'ta'}
+                          >
+                            {secondary}
+                          </p>
+                        );
+                      })()}
                     </div>
 
                     {(item.description_en || item.description_ta) && (
@@ -873,7 +1033,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 disabled={!resolvedGeo}
                 className={`w-full max-w-md py-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center gap-3 transition-all ${
                   resolvedGeo
-                    ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 shadow-amber-600/30 hover:scale-105 cursor-pointer'
+                    ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-ink-inverse shadow-amber-600/30 hover:scale-105 cursor-pointer'
                     : 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50 border border-stone-700'
                 }`}
               >
@@ -913,32 +1073,78 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     >
                       {steps.map((s, idx) => (
                         <option key={s.id || idx} value={idx} disabled={!isStepAvailableForGender(s)}>
-                          Step {idx + 1}: {s.step_title_en} {!isStepAvailableForGender(s) ? '(Skipped)' : ''}
+                          Step {idx + 1}:{' '}
+                          {instructionLang === 'ta' && s.step_title_ta
+                            ? s.step_title_ta
+                            : s.step_title_en}{' '}
+                          {!isStepAvailableForGender(s) ? '(Skipped)' : ''}
                         </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <h2 className="text-2xl md:text-3xl font-extrabold text-amber-100">
-                      {currentStep.step_title_en}
-                    </h2>
-                    {currentStep.step_title_ta && (
-                      <p className="text-base text-amber-400 font-semibold mt-1">
-                        {currentStep.step_title_ta}
-                      </p>
-                    )}
+                    {(() => {
+                      // Whichever language is selected leads; the other follows
+                      // underneath. Picking Tamil and still getting an English
+                      // headline is what made the toggle feel inert.
+                      const ta = currentStep.step_title_ta;
+                      const wantsTamil = instructionLang === 'ta' && Boolean(ta);
+                      return (
+                        <>
+                          <h2
+                            className={`text-2xl md:text-3xl font-extrabold text-amber-100 ${
+                              wantsTamil ? 'font-tamil' : ''
+                            }`}
+                            lang={wantsTamil ? 'ta' : 'en'}
+                          >
+                            {wantsTamil ? ta : currentStep.step_title_en}
+                          </h2>
+                          {(wantsTamil || ta) && (
+                            <p
+                              className={`text-base text-amber-400 font-semibold mt-1 ${
+                                wantsTamil ? '' : 'font-tamil'
+                              }`}
+                              lang={wantsTamil ? 'en' : 'ta'}
+                            >
+                              {wantsTamil ? currentStep.step_title_en : ta}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Instruction with Robust Language Fallback */}
                   <div className="bg-stone-950/80 rounded-xl p-4 border border-stone-800 text-stone-200 text-sm md:text-base leading-relaxed flex items-start gap-3">
                     <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-medium">
-                        {instructionLang === 'ta'
-                          ? currentStep.instruction_ta || currentStep.instruction_en
-                          : currentStep.instruction_en}
-                      </p>
+                      {(() => {
+                        const wantsTamil = instructionLang === 'ta';
+                        const tamil = currentStep.instruction_ta;
+                        const usingFallback = wantsTamil && !tamil;
+                        return (
+                          <>
+                            <p
+                              className={`font-medium ${wantsTamil && tamil ? 'font-tamil' : ''}`}
+                              lang={wantsTamil && tamil ? 'ta' : 'en'}
+                            >
+                              {wantsTamil && tamil ? tamil : currentStep.instruction_en}
+                            </p>
+                            {/* Say so rather than quietly showing English under a
+                                Tamil setting, which reads as a broken toggle. */}
+                            {usingFallback && (
+                              <p className="mt-1.5 text-xs text-stone-400 italic">
+                                <span lang="ta">
+                                  இந்தப் படிக்கு தமிழ் விளக்கம் இன்னும் இல்லை. ஆங்கிலம் காட்டப்படுகிறது.
+                                </span>
+                                <span className="not-italic"> · </span>
+                                No Tamil instruction for this step yet.
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -999,27 +1205,45 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
                     <div className="bg-stone-950 p-4 rounded-xl border border-amber-500/20 text-xs md:text-sm text-amber-200/90 font-serif italic leading-relaxed">
                       &quot;
-                      {mantraLang === 'sanskrit' && (
-                        <>
-                          {panchangamData.samvatsara.sanskrit} {panchangamData.ayana.sanskrit} {panchangamData.ritu.sanskrit} {panchangamData.masa.sanskrit} {panchangamData.paksha.sanskrit} {panchangamData.tithi.sanskrit} {panchangamData.vasara.sanskrit} {panchangamData.nakshatra.sanskrit} नक्षत्र युक्तायाम्,{' '}
-                          <span className="text-amber-400 underline font-bold">{sankalpamData.gotra}</span> गोत्रोत्भवस्य{' '}
-                          <span className="text-amber-400 underline font-bold">{sankalpamData.devoteeName}</span> नामधेयस्य...
-                        </>
-                      )}
-                      {mantraLang === 'tamil' && (
-                        <>
-                          {panchangamData.samvatsara.tamil}, {panchangamData.ayana.tamil}, {panchangamData.ritu.tamil}, {panchangamData.masa.tamil}, {panchangamData.paksha.tamil}, {panchangamData.tithi.tamil}, {panchangamData.vasara.tamil}, {panchangamData.nakshatra.tamil},{' '}
-                          <span className="text-amber-400 underline font-bold">{sankalpamData.gotra}</span> கோத்ரத்து{' '}
-                          <span className="text-amber-400 underline font-bold">{sankalpamData.devoteeName}</span> அவர்களுக்கு...
-                        </>
-                      )}
-                      {mantraLang === 'translit' && (
-                        <>
-                          {panchangamData.samvatsara.translit}, {panchangamData.ayana.translit}, {panchangamData.ritu.translit}, {panchangamData.masa.translit}, {panchangamData.paksha.translit}, {panchangamData.tithi.translit}, {panchangamData.vasara.translit}, {panchangamData.nakshatra.translit},{' '}
-                          <span className="text-amber-400 underline font-bold">{sankalpamData.gotra}</span> Gotra{' '}
-                          <span className="text-amber-400 underline font-bold">{sankalpamData.devoteeName}</span>...
-                        </>
-                      )}
+                      {(() => {
+                        // The engine now renders the whole sentence, including
+                        // the yoga, the karana, and the second tithi when it
+                        // turns during the day. Previously this was hand-glued
+                        // from a few fields and left all three out.
+                        const core =
+                          mantraLang === 'tamil'
+                            ? panchangamData.core.tamil
+                            : mantraLang === 'translit'
+                              ? panchangamData.core.translit
+                              : panchangamData.core.sanskrit;
+                        return (
+                          <>
+                            <span
+                              className={
+                                mantraLang === 'tamil'
+                                  ? 'font-tamil'
+                                  : mantraLang === 'sanskrit'
+                                    ? 'font-deva'
+                                    : ''
+                              }
+                              lang={mantraLang === 'tamil' ? 'ta' : mantraLang === 'sanskrit' ? 'sa' : 'en'}
+                            >
+                              {core}
+                            </span>
+                            {(sankalpamData.gotra || sankalpamData.devoteeName) && (
+                              <>
+                                {' '}
+                                <span className="text-amber-400 underline font-bold">
+                                  {sankalpamData.gotra}
+                                </span>{' '}
+                                <span className="text-amber-400 underline font-bold">
+                                  {sankalpamData.devoteeName}
+                                </span>
+                              </>
+                            )}
+                          </>
+                        );
+                      })()}
                       &quot;
                     </div>
                   </div>
@@ -1037,30 +1261,67 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                           Sacred Mantra / வேதம் & ஸ்லோகம்
                         </h3>
                       </div>
-                      <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                        {mantraLang === 'sanskrit' ? 'Sanskrit Script' : mantraLang === 'tamil' ? 'Tamil Script' : 'English Transliteration'}
-                      </span>
+                      {(() => {
+                        const r = resolveScript(mantraLang, currentStep);
+                        // Name the script actually on screen. Saying "Tamil"
+                        // over Devanagari is what made the toggle look broken.
+                        return (
+                          <span
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-md border ${
+                              r.isFallback
+                                ? 'bg-stone-800 text-stone-300 border-stone-700'
+                                : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                            }`}
+                          >
+                            {r.shown ? SCRIPT_LABEL[r.shown] : 'No mantra'}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {/* Mantra Script Box */}
                     <div className="p-6 md:p-8 rounded-xl bg-stone-950/90 border border-amber-500/30 text-center space-y-4 shadow-inner">
-                      <p className="text-xl md:text-2xl lg:text-3xl font-serif leading-relaxed text-amber-300 tracking-wide">
-                        {mantraLang === 'sanskrit' &&
-                          getDynamicMantra(
-                            currentStep.mantra_sanskrit || currentStep.mantra_translit || currentStep.mantra_tamil,
-                            'sanskrit'
-                          )}
-                        {mantraLang === 'tamil' &&
-                          getDynamicMantra(
-                            currentStep.mantra_tamil || currentStep.mantra_sanskrit || currentStep.mantra_translit,
-                            'tamil'
-                          )}
-                        {mantraLang === 'translit' &&
-                          getDynamicMantra(
-                            currentStep.mantra_translit || currentStep.mantra_sanskrit || currentStep.mantra_tamil,
-                            'translit'
-                          )}
-                      </p>
+                      {(() => {
+                        const r = resolveScript(mantraLang, currentStep);
+                        const main = getDynamicMantra(r.text, r.shown ?? 'sanskrit');
+                        // When the mantra is in Devanagari or Tamil, always carry
+                        // the roman transliteration underneath. Most of the
+                        // diaspora audience can follow the sounds but not the
+                        // script, and having to switch tabs to read along defeats
+                        // the point of chanting with the app.
+                        const showGloss =
+                          r.shown !== 'translit' && Boolean(currentStep.mantra_translit);
+                        const gloss = showGloss
+                          ? getDynamicMantra(currentStep.mantra_translit, 'translit')
+                          : null;
+                        return (
+                          <>
+                            <p
+                              className={`text-xl md:text-2xl lg:text-3xl leading-relaxed text-amber-300 tracking-wide ${
+                                r.shown === 'tamil'
+                                  ? 'font-tamil'
+                                  : r.shown === 'sanskrit'
+                                    ? 'font-deva'
+                                    : 'font-serif'
+                              }`}
+                              lang={r.shown === 'tamil' ? 'ta' : r.shown === 'sanskrit' ? 'sa' : 'en'}
+                            >
+                              {main}
+                            </p>
+                            {gloss && (
+                              <p className="text-sm md:text-base text-stone-400 italic leading-relaxed max-w-2xl mx-auto">
+                                {gloss}
+                              </p>
+                            )}
+                            {r.isFallback && r.shown && (
+                              <p className="text-xs text-stone-500 pt-1">
+                                This step has no {SCRIPT_LABEL[mantraLang]} text yet.
+                                Showing {SCRIPT_LABEL[r.shown]}.
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
 
                       {currentStep.meaning_en && (
                         <div className="pt-4 border-t border-stone-800/80">
@@ -1125,7 +1386,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                             <button
                               className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
                                 isOffered
-                                  ? 'bg-amber-500 text-stone-950'
+                                  ? 'bg-amber-500 text-ink-inverse'
                                   : 'bg-stone-800 text-amber-300 hover:bg-amber-900/50'
                               }`}
                             >
@@ -1211,7 +1472,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
             className={`px-6 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 ${
               !resolvedGeo && currentStepIndex === -1
                 ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50 border border-stone-700'
-                : 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-stone-950 shadow-amber-600/30'
+                : 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-ink-inverse shadow-amber-600/30'
             }`}
           >
             <span>

@@ -23,12 +23,24 @@ export interface SamagriItem {
   required?: boolean;
 }
 
+export interface NaivedyamAvoidItem {
+  name_en: string;
+  name_ta?: string;
+  reason_en?: string;
+  /** 'custom' vs 'shastra' matters: the no-deep-frying rule on Chaturthi is
+   *  widely observed but has no shastraic citation, so it is presented as custom. */
+  basis?: 'shastra' | 'custom';
+}
+
 export interface Pooja {
   id: string;
   title_en: string;
   title_ta: string;
   samagri_list?: (string | SamagriItem)[];
   naivedyam_suggestions?: (string | NaivedyamItem)[];
+  /** tier='avoid' rows. No tulasi for Ganesha; no tasting the pongal before it
+   *  is offered. Kept separate because these are not offerings. */
+  naivedyam_avoid?: NaivedyamAvoidItem[];
   description_en?: string;
   description_ta?: string;
   duration_mins?: number;
@@ -51,6 +63,20 @@ export interface PoojaStep {
   meaning_en?: string | null;
   is_dynamic_sankalpam?: boolean | null;
   archana_list?: ArchanaItem[] | null;
+  phase?: 'purvangam' | 'pradhana' | 'uttara';
+  /** Authoritative. 'filter_*' removes the screen entirely; 'variant_*' keeps it
+   *  and swaps the mantra. */
+  gender_rule?:
+    | 'all'
+    | 'filter_male_only'
+    | 'filter_female_only'
+    | 'variant_by_initiation'
+    | 'variant_by_gender';
+  /** Derived from gender_rule for the existing viewer. Only 'filter_*' maps to a
+   *  gender here; every 'variant_*' maps to 'all' so the step is never dropped. */
   gender_target?: 'all' | 'male' | 'female';
+  variant_mantra_sanskrit?: string;
+  variant_note_en?: string;
   philosophy_en?: string;
+  philosophy_ta?: string;
 }

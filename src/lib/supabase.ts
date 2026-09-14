@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
+import { env } from '@/lib/env';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// env throws on missing or placeholder values, so a misconfigured deployment
+// fails at startup instead of silently serving the hardcoded catalogue.
+export const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey);
