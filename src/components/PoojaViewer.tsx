@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, Award, BookOpen, Calendar, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, Compass, Flame, Flower2, Globe, Info, Languages, Lightbulb, Loader2, MapPin, Moon, RotateCcw, SearchCheck, Sparkles, Sun, User, Users, Utensils } from 'lucide-react';
@@ -12,6 +12,9 @@ interface PoojaViewerProps {
   pooja: Pooja;
   steps: PoojaStep[];
 }
+
+// Suggestions start once the query is long enough to be worth a lookup.
+const MIN_LOCATION_CHARS = 3;
 
 export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   // Navigation & Language States
@@ -67,6 +70,15 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   const [geoCandidates, setGeoCandidates] = useState<
     { label: string; city: string | null; state: string | null; country: string | null; lat: number; lon: number; osmId: string }[]
   >([]);
+  // Typeahead. Suggestions appear as you type rather than after pressing Verify.
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  // Set right after a pick, so committing a place does not immediately re-search
+  // the text we just wrote into the input. Starts true because the default
+  // location is already resolved and does not need looking up on mount.
+  const suppressSearch = useRef(true);
+  const searchAbort = useRef<AbortController | null>(null);
+
   const [panchangamData, setPanchangamData] = useState<PanchangamData | null>(null);
 
   // Archana Progress State
@@ -190,15 +202,62 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     }
   };
 
+  // Look up as the user types: debounced, so a word typed at speed costs one
+  // request rather than one per keystroke, and the previous request is aborted
+  // so a slow earlier response cannot overwrite a newer one.
+  useEffect(() => {
+    if (suppressSearch.current) {
+      suppressSearch.current = false;
+      return;
+    }
+    const q = locationQuery.trim();
+    if (q.length < MIN_LOCATION_CHARS) {
+      setGeoCandidates([]);
+      setSuggestOpen(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      searchAbort.current?.abort();
+      const ac = new AbortController();
+      searchAbort.current = ac;
+      setIsVerifyingLocation(true);
+      try {
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`, {
+          signal: ac.signal,
+        });
+        const data = await res.json();
+        const places = data.places ?? [];
+        setGeoCandidates(places);
+        setSuggestOpen(places.length > 0);
+        setActiveSuggestion(-1);
+        setLocationStatus(
+          places.length === 0 ? 'No match. Try adding the state or country.' : ''
+        );
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          setLocationStatus('Could not reach the location service.');
+        }
+      } finally {
+        setIsVerifyingLocation(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [locationQuery]);
+
   // Commit a chosen place. The label is what the user sees; lat and lon are what
   // the Sankalpam is actually computed from.
   const applyPlace = (place: {
     label: string; city: string | null; state: string | null; country: string | null;
     lat: number; lon: number; osmId: string;
   }) => {
+    suppressSearch.current = true;
     setLocationQuery(place.label);
     setResolvedGeo({ lat: place.lat, lon: place.lon, displayName: place.label });
     setGeoCandidates([]);
+    setSuggestOpen(false);
+    setActiveSuggestion(-1);
     setLocationStatus('');
   };
 
@@ -638,19 +697,87 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   </div>
 
                   <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Enter city name (e.g. Chennai, Madurai)"
-                      value={locationQuery}
-                      onChange={(e) => {
-                        setLocationQuery(e.target.value);
-                        setResolvedGeo(null); // Require re-verification if user changes input
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleVerifyLocation();
-                      }}
-                      className="flex-1 px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
-                    />
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder="Start typing a city, e.g. Chennai"
+                        value={locationQuery}
+                        role="combobox"
+                        aria-expanded={suggestOpen}
+                        aria-autocomplete="list"
+                        aria-controls="location-suggestions"
+                        autoComplete="off"
+                        onChange={(e) => {
+                          setLocationQuery(e.target.value);
+                          setResolvedGeo(null);
+                        }}
+                        onFocus={() => {
+                          if (geoCandidates.length) setSuggestOpen(true);
+                        }}
+                        onBlur={() => {
+                          // Delayed so a click on a suggestion registers first.
+                          setTimeout(() => setSuggestOpen(false), 150);
+                        }}
+                        onKeyDown={(e) => {
+                          if (!suggestOpen || geoCandidates.length === 0) {
+                            if (e.key === 'Enter') handleVerifyLocation();
+                            return;
+                          }
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setActiveSuggestion((i) => (i + 1) % geoCandidates.length);
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setActiveSuggestion((i) =>
+                              i <= 0 ? geoCandidates.length - 1 : i - 1
+                            );
+                          } else if (e.key === 'Enter') {
+                            e.preventDefault();
+                            applyPlace(geoCandidates[activeSuggestion >= 0 ? activeSuggestion : 0]);
+                          } else if (e.key === 'Escape') {
+                            setSuggestOpen(false);
+                          }
+                        }}
+                        className="w-full px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                      />
+
+                      {isVerifyingLocation && (
+                        <Loader2 className="w-4 h-4 animate-spin text-amber-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                      )}
+
+                      {suggestOpen && geoCandidates.length > 0 && (
+                        <ul
+                          id="location-suggestions"
+                          role="listbox"
+                          className="absolute z-30 left-0 right-0 mt-1 rounded-xl border border-amber-500/40 bg-stone-900 shadow-2xl overflow-hidden max-h-64 overflow-y-auto divide-y divide-stone-800"
+                        >
+                          {geoCandidates.map((place, i) => (
+                            <li key={place.osmId} role="option" aria-selected={i === activeSuggestion}>
+                              <button
+                                type="button"
+                                onMouseEnter={() => setActiveSuggestion(i)}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => applyPlace(place)}
+                                className={`w-full text-left px-3 py-2.5 transition-colors ${
+                                  i === activeSuggestion ? 'bg-stone-800' : 'hover:bg-stone-800'
+                                }`}
+                              >
+                                <span className="block text-sm font-medium text-stone-100">
+                                  {place.city ?? place.label}
+                                </span>
+                                <span className="block text-[11px] text-stone-400">
+                                  {[place.state, place.country].filter(Boolean).join(', ')}
+                                  <span className="text-stone-500">
+                                    {'  ·  '}
+                                    {place.lat.toFixed(4)}, {place.lon.toFixed(4)}
+                                  </span>
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
 
                     <button
                       onClick={handleVerifyLocation}
@@ -681,36 +808,6 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       Location not verified yet. Please click &quot;Verify&quot; or &quot;Detect GPS Location&quot; to enable Start Pooja.
                     </p>
-                  )}
-
-                  {geoCandidates.length > 0 && (
-                    <div className="mt-2 rounded-xl border border-amber-500/40 bg-stone-900 overflow-hidden">
-                      <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-amber-300 border-b border-stone-800">
-                        Which one?
-                      </p>
-                      <ul className="divide-y divide-stone-800">
-                        {geoCandidates.map((place) => (
-                          <li key={place.osmId}>
-                            <button
-                              type="button"
-                              onClick={() => applyPlace(place)}
-                              className="w-full text-left px-3 py-2.5 hover:bg-stone-800 transition-colors group"
-                            >
-                              <span className="block text-sm font-medium text-stone-100 group-hover:text-amber-300">
-                                {place.city ?? place.label}
-                              </span>
-                              <span className="block text-[11px] text-stone-400">
-                                {[place.state, place.country].filter(Boolean).join(', ')}
-                                <span className="text-stone-500">
-                                  {'  ·  '}
-                                  {place.lat.toFixed(4)}, {place.lon.toFixed(4)}
-                                </span>
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
                   )}
 
                   {locationStatus && <p className="text-xs text-stone-400 italic pt-0.5">{locationStatus}</p>}

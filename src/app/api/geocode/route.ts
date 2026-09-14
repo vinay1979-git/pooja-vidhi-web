@@ -20,6 +20,12 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 
 const NOMINATIM = 'https://nominatim.openstreetmap.org';
+// Nominatim's /search is not a prefix matcher, so it is useless for typeahead:
+// "Coimb" returns nothing at all, and "Chenn" returns a commune in Haiti.
+// Photon is the OSM ecosystem's autocomplete service and is built for exactly
+// this, so forward lookups go there and reverse lookups stay with Nominatim,
+// which returns the better structured address. Both are OpenStreetMap data.
+const PHOTON = 'https://photon.komoot.io';
 const USER_AGENT =
   'PoojaVidhi/0.1 (+https://github.com/vinay1979-git/pooja-vidhi-web)';
 
@@ -117,6 +123,75 @@ function toPlace(r: NominatimResult): GeoPlace {
   };
 }
 
+interface PhotonFeature {
+  properties: {
+    osm_id?: number | string;
+    osm_key?: string;
+    osm_value?: string;
+    name?: string;
+    city?: string;
+    county?: string;
+    state?: string;
+    country?: string;
+    countrycode?: string;
+  };
+  geometry: { coordinates: [number, number] };
+}
+
+// Prefer the larger settlement when Photon returns the same place at several
+// administrative levels, which it does often.
+const PLACE_RANK: Record<string, number> = {
+  city: 0,
+  town: 1,
+  municipality: 2,
+  village: 3,
+  hamlet: 4,
+  suburb: 5,
+};
+
+function fromPhoton(f: PhotonFeature): GeoPlace & { rank: number } {
+  const p = f.properties;
+  const [lon, lat] = f.geometry.coordinates;
+  const city = p.name ?? p.city ?? p.county ?? null;
+  const state = p.state ?? null;
+  const country = p.country ?? null;
+  return {
+    label: [city, state, country].filter(Boolean).join(', '),
+    city,
+    state,
+    country,
+    countryCode: p.countrycode ? p.countrycode.toUpperCase() : null,
+    lat,
+    lon,
+    osmId: String(p.osm_id ?? `${lat},${lon}`),
+    rank: PLACE_RANK[p.osm_value ?? ''] ?? 9,
+  };
+}
+
+async function photon(query: string): Promise<GeoPlace[]> {
+  const res = await throttled(() =>
+    fetch(
+      `${PHOTON}/api/?q=${encodeURIComponent(query)}&limit=12&lang=en&layer=city`,
+      { headers: { 'User-Agent': USER_AGENT } },
+    ),
+  );
+  if (!res.ok) throw new Error(`Photon responded ${res.status}`);
+  const data = (await res.json()) as { features?: PhotonFeature[] };
+
+  const byLabel = new Map<string, GeoPlace & { rank: number }>();
+  for (const f of data.features ?? []) {
+    const place = fromPhoton(f);
+    if (!place.city || !place.label) continue;
+    const existing = byLabel.get(place.label);
+    if (!existing || place.rank < existing.rank) byLabel.set(place.label, place);
+  }
+
+  return [...byLabel.values()]
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, 6)
+    .map(({ rank: _rank, ...place }) => place);
+}
+
 async function nominatim(path: string): Promise<NominatimResult[]> {
   const res = await throttled(() =>
     fetch(`${NOMINATIM}${path}`, {
@@ -157,29 +232,14 @@ export async function GET(req: NextRequest) {
     }
 
     if (q) {
-      if (q.length < 2) {
-        return NextResponse.json({ places: [] });
-      }
-      const key = `s:${q.toLowerCase()}`;
+      // Two characters is not enough to be worth a network round trip.
+      if (q.length < 2) return NextResponse.json({ places: [] });
+
+      const key = `p:${q.toLowerCase()}`;
       const hit = cached(key);
       if (hit) return NextResponse.json({ places: hit, cached: true });
 
-      // limit=5, not 1. Multiple places share a name and the user must choose.
-      const raw = await nominatim(
-        `/search?format=jsonv2&addressdetails=1&limit=5&q=${encodeURIComponent(q)}`,
-      );
-
-      // Distinct by label: OSM often returns the same settlement several times
-      // at different administrative levels.
-      const seen = new Set<string>();
-      const places = raw
-        .map(toPlace)
-        .filter((p) => {
-          if (seen.has(p.label)) return false;
-          seen.add(p.label);
-          return true;
-        });
-
+      const places = await photon(q);
       cache.set(key, { at: Date.now(), value: places });
       return NextResponse.json({ places });
     }
