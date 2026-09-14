@@ -91,16 +91,24 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   const loadPanchangam = useCallback(async () => {
     if (!resolvedGeo) return;
     try {
+      // Pass the resolved place and the performer through, so the sentence is
+      // complete rather than a skeleton the UI glues together afterwards.
       const data = await fetchPanchangamData(
         sankalpamDate,
         resolvedGeo.lat,
-        resolvedGeo.lon
+        resolvedGeo.lon,
+        {
+          place: resolvedGeo.displayName,
+          gotra: sankalpamData.gotra,
+          name: sankalpamData.devoteeName,
+          gender: performerGender === 'female' ? 'female' : 'male',
+        }
       );
       setPanchangamData(data);
     } catch (e) {
       console.error('Failed to load Panchangam data:', e);
     }
-  }, [sankalpamDate, resolvedGeo]);
+  }, [sankalpamDate, resolvedGeo, sankalpamData, performerGender]);
 
   useEffect(() => {
     loadPanchangam();
@@ -1197,27 +1205,45 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
                     <div className="bg-stone-950 p-4 rounded-xl border border-amber-500/20 text-xs md:text-sm text-amber-200/90 font-serif italic leading-relaxed">
                       &quot;
-                      {mantraLang === 'sanskrit' && (
-                        <>
-                          {panchangamData.samvatsara.sanskrit} {panchangamData.ayana.sanskrit} {panchangamData.ritu.sanskrit} {panchangamData.masa.sanskrit} {panchangamData.paksha.sanskrit} {panchangamData.tithi.sanskrit} {panchangamData.vasara.sanskrit} {panchangamData.nakshatra.sanskrit} नक्षत्र युक्तायाम्,{' '}
-                          <span className="text-amber-400 underline font-bold">{sankalpamData.gotra}</span> गोत्रोत्भवस्य{' '}
-                          <span className="text-amber-400 underline font-bold">{sankalpamData.devoteeName}</span> नामधेयस्य...
-                        </>
-                      )}
-                      {mantraLang === 'tamil' && (
-                        <>
-                          {panchangamData.samvatsara.tamil}, {panchangamData.ayana.tamil}, {panchangamData.ritu.tamil}, {panchangamData.masa.tamil}, {panchangamData.paksha.tamil}, {panchangamData.tithi.tamil}, {panchangamData.vasara.tamil}, {panchangamData.nakshatra.tamil},{' '}
-                          <span className="text-amber-400 underline font-bold">{sankalpamData.gotra}</span> கோத்ரத்து{' '}
-                          <span className="text-amber-400 underline font-bold">{sankalpamData.devoteeName}</span> அவர்களுக்கு...
-                        </>
-                      )}
-                      {mantraLang === 'translit' && (
-                        <>
-                          {panchangamData.samvatsara.translit}, {panchangamData.ayana.translit}, {panchangamData.ritu.translit}, {panchangamData.masa.translit}, {panchangamData.paksha.translit}, {panchangamData.tithi.translit}, {panchangamData.vasara.translit}, {panchangamData.nakshatra.translit},{' '}
-                          <span className="text-amber-400 underline font-bold">{sankalpamData.gotra}</span> Gotra{' '}
-                          <span className="text-amber-400 underline font-bold">{sankalpamData.devoteeName}</span>...
-                        </>
-                      )}
+                      {(() => {
+                        // The engine now renders the whole sentence, including
+                        // the yoga, the karana, and the second tithi when it
+                        // turns during the day. Previously this was hand-glued
+                        // from a few fields and left all three out.
+                        const core =
+                          mantraLang === 'tamil'
+                            ? panchangamData.core.tamil
+                            : mantraLang === 'translit'
+                              ? panchangamData.core.translit
+                              : panchangamData.core.sanskrit;
+                        return (
+                          <>
+                            <span
+                              className={
+                                mantraLang === 'tamil'
+                                  ? 'font-tamil'
+                                  : mantraLang === 'sanskrit'
+                                    ? 'font-deva'
+                                    : ''
+                              }
+                              lang={mantraLang === 'tamil' ? 'ta' : mantraLang === 'sanskrit' ? 'sa' : 'en'}
+                            >
+                              {core}
+                            </span>
+                            {(sankalpamData.gotra || sankalpamData.devoteeName) && (
+                              <>
+                                {' '}
+                                <span className="text-amber-400 underline font-bold">
+                                  {sankalpamData.gotra}
+                                </span>{' '}
+                                <span className="text-amber-400 underline font-bold">
+                                  {sankalpamData.devoteeName}
+                                </span>
+                              </>
+                            )}
+                          </>
+                        );
+                      })()}
                       &quot;
                     </div>
                   </div>
