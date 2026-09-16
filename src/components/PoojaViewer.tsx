@@ -1438,7 +1438,9 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       <div className="flex items-center gap-2">
                         <Flower2 className="w-5 h-5 text-amber-400" />
                         <h3 className="text-lg font-bold text-amber-200">
-                          Archana Namavali ({currentStep.archana_list.length} Names)
+                          {currentStep.archana_list.some((i: ArchanaItem) => i.offering_en)
+                            ? `Offerings (${currentStep.archana_list.length})`
+                            : `Archana Namavali (${currentStep.archana_list.length} Names)`}
                         </h3>
                       </div>
                       <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-stone-800 text-stone-300">
@@ -1473,6 +1475,28 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                                 </p>
                                 {item.translit && (
                                   <p className="text-xs text-stone-400 font-medium">{item.translit}</p>
+                                )}
+                                {/* The patra and durva poojas offer a different thing at
+                                    each line, so the name alone would be 21 identical rows. */}
+                                {item.offering_en && (
+                                  <p className="text-xs text-amber-300/90 font-semibold mt-1">
+                                    {instructionLang === 'ta' && item.offering_ta
+                                      ? item.offering_ta
+                                      : item.offering_en}
+                                    {item.botanical && (
+                                      <span className="text-stone-500 font-normal italic">
+                                        {' '}
+                                        · {item.botanical}
+                                      </span>
+                                    )}
+                                  </p>
+                                )}
+                                {item.is_substitutable && item.substitute_with && (
+                                  <p className="text-xs text-stone-400 mt-0.5">
+                                    {instructionLang === 'ta'
+                                      ? `கிடைக்கவில்லையெனில்: ${item.substitute_with}`
+                                      : `If unavailable: ${item.substitute_with}`}
+                                  </p>
                                 )}
                               </div>
                             </div>

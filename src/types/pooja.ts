@@ -13,6 +13,18 @@ export interface ArchanaItem {
   tamil?: string;
   translit?: string;
   meaning_en?: string;
+  /**
+   * What is physically offered at this name. Null for a plain namavali, where
+   * the same flower or akshatai is offered at every name; set for the patra and
+   * durva poojas, where each line offers a different thing.
+   */
+  offering_en?: string;
+  offering_ta?: string;
+  offering_sanskrit?: string;
+  botanical?: string;
+  /** True when the offering is hard to get and substitute_with names the stand-in. */
+  is_substitutable?: boolean;
+  substitute_with?: string;
 }
 
 export interface SamagriItem {

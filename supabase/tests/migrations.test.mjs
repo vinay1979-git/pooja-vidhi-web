@@ -115,6 +115,10 @@ for (const f of ['0001_core_tables.sql', '0002_extend_existing.sql', '0003_backf
 console.log('\n[4] assertions');
 const one = async (q) => (await db.query(q)).rows[0];
 
+const archanaCount = (title) =>
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.step_title_en = '${title}'`;
+
 const assert = async (label, q, want) => {
   const r = await one(q);
   const got = Object.values(r)[0];
@@ -250,6 +254,58 @@ await assert('Udvasanam only on the final day',
   "select count(*) from pooja_steps where step_title_en = 'Udvasanam' and 'main' = any(modes)", 0);
 await assert('new steps carry all three scripts',
   "select count(*) from pooja_steps where step_number in (18,20) and (mantra_sanskrit is null or mantra_tamil is null or mantra_translit is null)", 0);
+
+// --- 9d. Ganesha content ------------------------------------------------------
+console.log('\n[9d] 0010 Ganesha content');
+await step('0010_ganesha_content.sql', () => db.exec(sql(`${MIG}/0010_ganesha_content.sql`)));
+await assert('24 steps now', 'select count(*) from pooja_steps', 24);
+await assert('step numbers still dense',
+  'select (max(step_number)-min(step_number)+1) - count(*) from pooja_steps', 0);
+await assert('no duplicate step_number after the renumber',
+  'select count(*) from (select step_number from pooja_steps group by 1 having count(*)>1) x', 0);
+await assert('Prana Pratishtha follows Avahanam',
+  "select count(*) from pooja_steps where step_number = 9 and step_title_en = 'Prana Pratishtha'", 1);
+await assert('the four archana steps sit in video order 14-17',
+  `select count(*) from pooja_steps where (step_number, step_title_en) in
+     ((14,'Patra Pooja (21 Leaves)'),(15,'Pushpa Pooja (Shodasha Nama)'),
+      (16,'Durva Pooja (21 Names)'),(17,'Ganapathi Ashtottara Shatanamavali'))`, 4);
+await assert('Udvasanam is still last',
+  "select count(*) from pooja_steps where step_number = 24 and step_title_en = 'Udvasanam'", 1);
+await assert('108 names loaded',
+  "select count(*) from namavali_items where namavali_id = 'ganesha_ashtottara_108'", 108);
+await assert('the 108 carry all three scripts',
+  `select count(*) from namavali_items where namavali_id = 'ganesha_ashtottara_108'
+     and (name_deva is null or name_ta is null or name_translit is null)`, 0);
+await assert('no superscripts left in the Tamil names',
+  `select count(*) from namavali_items where name_ta ~ '[⁰¹²³⁴⁵⁶⁷⁸⁹]'`, 0);
+await assert('the Ashtottara step points at the namavali',
+  `select count(*) from pooja_steps where step_title_en = 'Ganapathi Ashtottara Shatanamavali'
+     and namavali_id = 'ganesha_ashtottara_108'`, 1);
+await assert('21 patra rows', archanaCount('Patra Pooja (21 Leaves)'), 21);
+await assert('16 pushpa rows, the four surplus names dropped',
+  archanaCount('Pushpa Pooja (Shodasha Nama)'), 16);
+await assert('21 durva rows', archanaCount('Durva Pooja (21 Names)'), 21);
+await assert('vinayakaya restored at pushpa 8',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.step_title_en = 'Pushpa Pooja (Shodasha Nama)' and a.seq = 8
+     and a.invoked_name_translit like '%vināyakāya%'`, 1);
+await assert('every patra leaf has a botanical',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.step_title_en = 'Patra Pooja (21 Leaves)' and botanical is null`, 0);
+await assert('the thirteen hard-to-find leaves offer a substitute',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.step_title_en = 'Patra Pooja (21 Leaves)' and is_substitutable and substitute_with is null`, 0);
+await assert('tulasi is no longer forbidden to Ganesha',
+  `select count(*) from deities where id = 'ganesha' and forbidden_offerings ? 'leaves'`, 0);
+
+console.log('\n[9e] 0010 idempotency');
+await step('0010 re-run', () => db.exec(sql(`${MIG}/0010_ganesha_content.sql`)));
+await assert('still 24 steps', 'select count(*) from pooja_steps', 24);
+await assert('still 108 names',
+  "select count(*) from namavali_items where namavali_id = 'ganesha_ashtottara_108'", 108);
+await assert('still 21 patra rows', archanaCount('Patra Pooja (21 Leaves)'), 21);
+await assert('still no duplicate step_number',
+  'select count(*) from (select step_number from pooja_steps group by 1 having count(*)>1) x', 0);
 
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');

@@ -153,7 +153,9 @@ const STEPS_SELECT = (withModes: boolean) => `
   gender_rule, variant_mantra_sanskrit, variant_note_en,
   is_dynamic_sankalpam${withModes ? ', modes' : ''},
   archana_items ( seq, invoked_name_deva, invoked_name_ta,
-                  invoked_name_translit, offering_en, botanical, meaning_en )`;
+                  invoked_name_translit, offering_deva, offering_en, offering_ta,
+                  botanical, is_substitutable, substitute_with, meaning_en ),
+  namavalis ( id, namavali_items ( seq, name_deva, name_ta, name_translit, meaning_en ) )`;
 
 export async function getSteps(poojaId: string): Promise<PoojaStep[]> {
   let { data, error } = await supabase
@@ -184,16 +186,43 @@ export async function getSteps(poojaId: string): Promise<PoojaStep[]> {
   const rows = data as unknown as Record<string, unknown>[];
 
   return rows.map((s) => {
+    const bySeq = (a: Record<string, unknown>, b: Record<string, unknown>) =>
+      (a.seq as number) - (b.seq as number);
+
     const archana: ArchanaItem[] = ((s.archana_items as Record<string, unknown>[]) ?? [])
       .slice()
-      .sort((a, b) => (a.seq as number) - (b.seq as number))
+      .sort(bySeq)
       .map((a) => ({
         number: a.seq as number,
         sanskrit: String(a.invoked_name_deva ?? ''),
         tamil: (a.invoked_name_ta as string) ?? undefined,
         translit: (a.invoked_name_translit as string) ?? undefined,
         meaning_en: (a.meaning_en as string) ?? undefined,
+        offering_sanskrit: (a.offering_deva as string) ?? undefined,
+        offering_en: (a.offering_en as string) ?? undefined,
+        offering_ta: (a.offering_ta as string) ?? undefined,
+        botanical: (a.botanical as string) ?? undefined,
+        is_substitutable: (a.is_substitutable as boolean) ?? false,
+        substitute_with: (a.substitute_with as string) ?? undefined,
       }));
+
+    // A 108-name list lives in namavali_items and is shared between poojas
+    // rather than copied per step, so it arrives through namavali_id instead of
+    // archana_items. Both render as the same numbered list.
+    const namavali: ArchanaItem[] = (
+      ((s.namavalis as Record<string, unknown>)?.namavali_items as Record<string, unknown>[]) ?? []
+    )
+      .slice()
+      .sort(bySeq)
+      .map((n) => ({
+        number: n.seq as number,
+        sanskrit: String(n.name_deva ?? ''),
+        tamil: (n.name_ta as string) ?? undefined,
+        translit: (n.name_translit as string) ?? undefined,
+        meaning_en: (n.meaning_en as string) ?? undefined,
+      }));
+
+    const list = archana.length ? archana : namavali;
 
     return {
       id: String(s.id),
@@ -211,7 +240,7 @@ export async function getSteps(poojaId: string): Promise<PoojaStep[]> {
       philosophy_en: (s.philosophy_en as string) ?? undefined,
       philosophy_ta: (s.philosophy_ta as string) ?? undefined,
       is_dynamic_sankalpam: (s.is_dynamic_sankalpam as boolean) ?? false,
-      archana_list: archana.length ? archana : null,
+      archana_list: list.length ? list : null,
       modes: ((s.modes as string[]) ?? ['main']) as PoojaStep['modes'],
       gender_rule: s.gender_rule as GenderRule,
       gender_target: toLegacyGender(s.gender_rule as GenderRule),
