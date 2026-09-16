@@ -42,3 +42,6 @@ next-env.d.ts
 
 # scratch dumps from DB inspection
 steps.json
+
+# Contains the Supabase service-role key and DB password. Never commit.
+DB Extract/
