@@ -130,3 +130,87 @@ Mantra Pushpam and before the closing.
 
 The "facing north" detail remains unattested in any written source. See the
 research note in the blueprint.
+
+---
+
+## What was built from these, and from what
+
+Migrations 0010 (Ganesha) and 0011 (Varalakshmi) were generated, not hand-written.
+The generators are `scripts/build-ganesha-content.mjs` and
+`scripts/build-varalakshmi.mjs`, and both refuse to emit if their inputs fail
+validation.
+
+### Chapter lists
+
+Both chapter lists above were re-read from YouTube rather than trusted from the
+earlier pass. The Varalakshmi list gained four chapters that pass had missed
+(INTRO, POOJA TIMINGS, ABOUT THIS YEAR, and **WHAT SHOULD WE KEEP READY** at
+2:17, which is the samagri). The Ganesha list was unchanged.
+
+**There is no Vrata Katha chapter in the Varalakshmi video.** The published
+kalpam carries the Charumati story at length; the vadyar does not read it. The
+katha is therefore not in the database. This was checked against the video's own
+chapter list, not inferred.
+
+### Namavalis
+
+`scripts/parse-namavali.mjs` builds both 108-name lists from StotraNidhi, which
+publishes each in Devanagari, Tamil and IAST as separately proofed pages. All
+three are taken as published; machine transliteration is used only to CHECK that
+the three pages are the same list in the same order, and the script exits
+non-zero rather than write a list that fails. Nothing recited is generated.
+
+Two recension traps, both recorded in the script so nobody falls into them again:
+
+- sanskritdocuments' `lakShmyaShTottarashatanAmAvaliH` is the **sahasranama-anga**
+  recension, opening *brahmajAyai, brahmasukhadAyai*. That is **not** the list
+  recited at Varalakshmi Vratham, which opens *prakRityai, vikRityai, vidyAyai*.
+- drikpanchang's 21-patra page is the **North Indian** recension (Ber, Sem,
+  Bhatakataiya, Kela, Marua, Ketaki). Sathya Vadyar's nine leaves map onto the
+  **South** list instead (chuta = maavilai, karavira = arali, shami = vanni,
+  arka = erukku, maruvaka = mari kozhundu). Useful site; wrong page for this pooja.
+
+### The 21 patra name pairing is deliberately absent
+
+The leaf list is well sourced and consistent across the South-recension sources.
+The **pairing of a Ganesha name to each leaf is not**: drikpanchang and
+templepurohit give one pairing, hindutone gives a degenerate one that just
+re-uses the leaf name as the deity name, and none agrees with another. Rather
+than pick one, the Patra Pooja offers each leaf with the deity's own mantra, and
+the step text says why. This is an open item for vaidika review.
+
+### The Varalakshmi kalpam, and why a script conversion was allowed there
+
+StotraNidhi publishes the full Vrata Kalpam **in Telugu only**. There is no
+Devanagari or Tamil page to take instead, so
+`scripts/parse-varalakshmi-kalpam.mjs` converts it — and proves every line
+survives Telugu → Devanagari → Telugu before writing anything. That is safe
+because Telugu is a complete abugida for Sanskrit. It is exactly what the
+namavali script refuses to do for **Tamil**, where the plain scheme this project
+uses folds ka/kha/ga/gha onto one letter and the conversion is not reversible.
+
+So for Varalakshmi: Devanagari and IAST are faithful re-encodings of published
+text; Tamil is generated, as everywhere else in this app, and always carries the
+transliteration beneath it.
+
+Two edits were made to the published kalpam text, both recorded in the script:
+the pranava written `ओं` is normalised to `ॐ`, and the first of the nine knots
+reads `गंथिं` where the other eight read `ग्रंथिं`.
+
+The kalpam also confirms the composition model outright. It opens by telling the
+reader to perform the shared **Pūrvāṅgam** and the **turmeric Ganapati pooja**
+first, and links to them rather than reprinting them — which is why migration
+0011 copies six purvangam steps out of the Ganesha pooja by reading its rows
+instead of retyping them.
+
+### Still not sourced
+
+- The full Haridra Ganapati vidhi includes **Vedic mantras with svara marks**
+  (asunīte, gaṇānāṃ tvā, āpo hi ṣṭhā, yajñopavītam). The app does not render
+  accents, so those are omitted rather than shown unaccented. Rendering svara is
+  an open feature question.
+- `meaning_en` is still null on every step in both poojas, so the Meaning block
+  never renders.
+- Tamil instruction drafts remain pending vaidika review.
+- "Facing north" for the arghyam remains unattested in any written source and is
+  still not encoded.

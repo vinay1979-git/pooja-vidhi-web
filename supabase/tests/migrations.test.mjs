@@ -233,6 +233,18 @@ await assert('every naivedyam item has Tamil',
 await assert('recipe_note_ta column exists',
   "select count(*) from information_schema.columns where table_name='naivedyam_items' and column_name='recipe_note_ta'", 1);
 
+// --- 9b2. Anga Vandanam scripts ----------------------------------------------
+// This ran in production but was never in the harness, so the Varalakshmi
+// migration copying Anga Vandanam across found it with no Tamil.
+console.log('\n[9b2] 0008 Anga Vandanam scripts');
+await step('0008_anga_vandanam_scripts.sql', () => db.exec(sql(`${MIG}/0008_anga_vandanam_scripts.sql`)));
+await assert('Anga Vandanam has all three scripts',
+  `select count(*) from pooja_steps where step_title_en = 'Anga Vandanam'
+     and (mantra_sanskrit is null or mantra_tamil is null or mantra_translit is null)`, 0);
+await assert('the twelve Keshavadi names are there',
+  `select count(*) from pooja_steps where step_title_en = 'Anga Vandanam'
+     and mantra_sanskrit like '%दामोदराय%'`, 1);
+
 // --- 9c. Closing steps and pooja modes ----------------------------------------
 console.log('\n[9c] 0009 closing steps and modes');
 await step('0009_closing_steps_and_modes.sql', () => db.exec(sql(`${MIG}/0009_closing_steps_and_modes.sql`)));
@@ -307,15 +319,84 @@ await assert('still 21 patra rows', archanaCount('Patra Pooja (21 Leaves)'), 21)
 await assert('still no duplicate step_number',
   'select count(*) from (select step_number from pooja_steps group by 1 having count(*)>1) x', 0);
 
+// --- 9f. Varalakshmi ----------------------------------------------------------
+console.log('\n[9f] 0011 Varalakshmi');
+await step('0011_varalakshmi.sql', () => db.exec(sql(`${MIG}/0011_varalakshmi.sql`)));
+const VL = "pooja_id = 'varalakshmi_vratham'";
+await assert('29 steps', `select count(*) from pooja_steps where ${VL}`, 29);
+await assert('step numbers are dense 1..29',
+  `select (max(step_number)-min(step_number)+1) - count(*) from pooja_steps where ${VL}`, 0);
+await assert('no duplicate step_number',
+  `select count(*) from (select step_number from pooja_steps where ${VL} group by 1 having count(*)>1) x`, 0);
+await assert('the six shared purvangam steps came across',
+  `select count(*) from pooja_steps where ${VL} and source_ref like '%shared purvangam%'`, 6);
+await assert('the shared steps carry their mantras',
+  `select coalesce(string_agg(step_title_en, ', '), '') from pooja_steps where ${VL}
+     and source_ref like '%shared purvangam%'
+     and (mantra_sanskrit is null or mantra_tamil is null)`, '');
+await assert('Pranayamam is still filtered for women',
+  `select count(*) from pooja_steps where ${VL} and step_title_en = 'Pranayamam'
+     and gender_rule = 'filter_male_only'`, 1);
+await assert('the sankalpam is the dynamic one',
+  `select count(*) from pooja_steps where ${VL} and is_dynamic_sankalpam
+     and mantra_sanskrit like '%[DYNAMIC_PANCHANGAM_DATA]%'`, 1);
+await assert('Peeta Pooja is present and day-one only',
+  `select count(*) from pooja_steps where ${VL} and step_title_en = 'Peeta Pooja'
+     and modes = '{main}'`, 1);
+await assert('the thread is tied once, not on the second day',
+  `select count(*) from pooja_steps where ${VL} and step_title_en = 'Sharadu Dharanam'
+     and 'punar' = any(modes)`, 0);
+await assert('Udvasanam is last and final-day only',
+  `select count(*) from pooja_steps where ${VL} and step_number = 29
+     and step_title_en = 'Udvasanam' and modes = '{udvasana}'`, 1);
+await assert('no Vrata Katha step',
+  `select count(*) from pooja_steps where ${VL} and step_title_en ilike '%katha%'`, 0);
+await assert('108 Lakshmi names',
+  "select count(*) from namavali_items where namavali_id = 'lakshmi_ashtottara_108'", 108);
+await assert('the Lakshmi list is the vratham recension, not the sahasranama one',
+  `select count(*) from namavali_items where namavali_id = 'lakshmi_ashtottara_108'
+     and seq = 1 and name_translit like '%prak%'`, 1);
+await assert('all 108 carry three scripts',
+  `select count(*) from namavali_items where namavali_id = 'lakshmi_ashtottara_108'
+     and (name_deva is null or name_ta is null or name_translit is null)`, 0);
+await assert('15 anga pooja rows', archanaCount('Anga Pooja') , 15);
+await assert('9 nonbu sharadu knots', archanaCount('Nonbu Sharadu Pooja'), 9);
+await assert('every knot names the knot it belongs to',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.step_title_en = 'Nonbu Sharadu Pooja' and offering_deva is null`, 0);
+await assert('samagri loaded', `select count(*) from samagri_items where ${VL}`, 21);
+await assert('thamarai poo is required',
+  `select count(*) from samagri_items where ${VL} and item_en like '%Thamarai%' and is_required`, 1);
+await assert('naivedyam loaded', `select count(*) from naivedyam_items where ${VL}`, 7);
+await assert('no Tamil superscripts anywhere in this pooja',
+  `select count(*) from pooja_steps where ${VL} and mantra_tamil ~ '[⁰¹²³⁴⁵⁶⁷⁸⁹]'`, 0);
+await assert('the Bengali characters are gone from the Ganesha step',
+  "select count(*) from pooja_steps where mantra_sanskrit like '%পূ%'", 0);
+
+console.log('\n[9g] 0011 idempotency');
+await step('0011 re-run', () => db.exec(sql(`${MIG}/0011_varalakshmi.sql`)));
+await assert('still 29 steps', `select count(*) from pooja_steps where ${VL}`, 29);
+await assert('still 108 names',
+  "select count(*) from namavali_items where namavali_id = 'lakshmi_ashtottara_108'", 108);
+await assert('still 9 knots', archanaCount('Nonbu Sharadu Pooja'), 9);
+await assert('still 21 samagri', `select count(*) from samagri_items where ${VL}`, 21);
+await assert('Ganesha pooja untouched at 24 steps',
+  "select count(*) from pooja_steps where pooja_id = 'ganesha_standard'", 24);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
-const gaps = await one(`select
-  count(*) filter (where mantra_tamil   is null) as tamil,
-  count(*) filter (where step_title_ta  is null) as title_ta,
-  count(*) filter (where meaning_en     is null) as meaning,
-  count(*) filter (where philosophy_en  is null) as philosophy
-  from pooja_steps`);
-console.log(`  missing mantra_tamil ${gaps.tamil}/18, step_title_ta ${gaps.title_ta}/18, meaning_en ${gaps.meaning}/18, philosophy_en ${gaps.philosophy}/18`);
+for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
+  const g = await one(`select
+    count(*) as total,
+    count(*) filter (where mantra_tamil   is null) as tamil,
+    count(*) filter (where step_title_ta  is null) as title_ta,
+    count(*) filter (where meaning_en     is null) as meaning,
+    count(*) filter (where philosophy_en  is null) as philosophy
+    from pooja_steps where pooja_id = '${p}'`);
+  console.log(`  ${p}: of ${g.total} steps, missing mantra_tamil ${g.tamil}` +
+    ` (steps whose content is a namavali or archana list have no mantra by design),` +
+    ` step_title_ta ${g.title_ta}, meaning_en ${g.meaning}, philosophy_en ${g.philosophy}`);
+}
 
 console.log(`\n${failed ? 'RESULT: FAILURES ABOVE' : 'RESULT: all checks passed'}\n`);
 await db.close();
