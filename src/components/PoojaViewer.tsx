@@ -1429,17 +1429,21 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                         );
                       })()}
 
-                      {currentStep.meaning_en && (
-                        <div className="pt-4 border-t border-stone-800/80">
-                          <p className="text-xs text-amber-400/80 font-bold uppercase tracking-widest mb-1">
-                            Meaning / அர்த்தம்
-                          </p>
-                          <p className="text-sm md:text-base text-stone-300 italic max-w-2xl mx-auto leading-relaxed">
-                            &quot;{currentStep.meaning_en}&quot;
-                          </p>
-                        </div>
-                      )}
                     </div>
+                  </div>
+                )}
+
+                {/* Meaning sits OUTSIDE the mantra card. It used to be inside,
+                    so the steps whose content is a namavali or an archana list
+                    -- which carry no step mantra -- could never show one. */}
+                {currentStep.meaning_en && (
+                  <div className="rounded-2xl bg-stone-900 border border-amber-500/25 p-6 shadow-xl">
+                    <p className="text-xs text-amber-400/80 font-bold uppercase tracking-widest mb-2">
+                      Meaning / அர்த்தம்
+                    </p>
+                    <p className="text-sm md:text-base text-stone-300 italic leading-relaxed">
+                      &quot;{currentStep.meaning_en}&quot;
+                    </p>
                   </div>
                 )}
 

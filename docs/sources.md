@@ -214,3 +214,62 @@ instead of retyping them.
 - Tamil instruction drafts remain pending vaidika review.
 - "Facing north" for the arghyam remains unattested in any written source and is
   still not encoded.
+
+---
+
+## The Siddhi Vinayaka Vrata Kalpam, and what it corrected
+
+`Sri Vinayaka Vrata Kalpam (Part 2)` (Telugu)
+https://stotranidhi.com/sri-vinayaka-vrata-kalpam-two/
+
+Found by following the cross-reference on StotraNidhi's turmeric-Ganapati page.
+This is the vrata kalpam **for Ganesha Chaturthi**, and it carries all four
+enumerated archanas in one internally consistent paddhati, where migration 0010
+had stitched them together from four separate places. Migration 0012 replaces
+them wholesale. Extracted by `scripts/parse-vinayaka-kalpam.mjs` under the same
+round-trip rule as the Varalakshmi kalpam.
+
+| | before (0010) | after (0012) |
+|---|---|---|
+| Anga Pooja | a mantra **truncated mid-list with a literal `...`** after three limbs | 29 limbs as archana rows |
+| Patra Pooja | 21 leaves, **no name pairing** — each offered with the deity's own mantra | 21 leaves, each with its own Ganesha name |
+| Pushpa Pooja | the 16-name Shodashanama verse | the kalpam's **21 flowers**, which is what the video's "21 type Pushpa Archana" chapter is |
+| Durva Pooja | sanskritdocuments' 21 names | the kalpam's 21 names; the other reading is recorded in `source_ref` |
+
+### Why this pairing is trustworthy where the aggregators' were not
+
+Most of the patra names alliterate with their leaf — `dhūmaketave/dhattūra`,
+`apavargadāya/apāmārga`, `cirantanāya/cūta`, `kapilāya/karavīra`,
+`amalāya/āmalakī`, `sindhūrāya/sindhuvāra`, `śaṅkarapriyāya/śamī`,
+`arkaprabhāya/arka`. **Fourteen of the twenty-one**, which is far past
+coincidence, though seven pairs — including the first three — do not. The Anga
+Pooja alliterates the same way and more completely. That is a mnemonic
+structure, and structure survives transmission in a way an editor's guess does
+not. The parser asserts it loosely, as an alignment check, not as a rule.
+
+### The detail that proves the old leaf list was wrong
+
+Sathya Vadyar's samagri lists nine leaves. Against the list 0010 used, eight
+mapped and **nellikkai elai matched nothing**. This kalpam has `āmalakī`, the
+gooseberry, at position 13 where the old list had `devadāru`. All nine now map.
+The unmatched leaf should have been read as a signal at the time rather than
+noted and passed over.
+
+---
+
+## Meanings
+
+`meaning_en` on all 53 steps, from `scripts/build-meanings.mjs` (migration 0013).
+
+These render the mantra each step actually stores — not a second description of
+the step, since `instruction_en` says what to do and `philosophy_en` says why.
+The eight steps whose content is a namavali or archana list carry no mantra, so
+their meaning says what the list is saying.
+
+**This is the project's own English, not published text**, and carries no
+`source_ref` for that reason. A vaidika review should treat the meanings as
+editable prose, unlike the mantras, which are published text and must not be
+rewritten.
+
+The Meaning block also moved out of the mantra card in `PoojaViewer`, because
+inside it those eight list-only steps could never have shown one.

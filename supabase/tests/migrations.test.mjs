@@ -383,6 +383,64 @@ await assert('still 21 samagri', `select count(*) from samagri_items where ${VL}
 await assert('Ganesha pooja untouched at 24 steps',
   "select count(*) from pooja_steps where pooja_id = 'ganesha_standard'", 24);
 
+// --- 9h. Ganesha archanas from the vrata kalpam -------------------------------
+console.log('\n[9h] 0012 Ganesha archanas');
+await step('0012_ganesha_archanas.sql', () => db.exec(sql(`${MIG}/0012_ganesha_archanas.sql`)));
+await assert('the truncated Anga Pooja mantra is gone',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Anga Pooja' and mantra_sanskrit is not null`, 0);
+await assert('29 anga rows', archanaCount('Anga Pooja'), 29 + 15); // +15 Varalakshmi shares the title
+await assert('29 Ganesha anga rows',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'ganesha_standard' and s.step_title_en = 'Anga Pooja'`, 29);
+await assert('21 patra rows, now with their own names',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.step_title_en = 'Patra Pooja (21 Leaves)'
+     and a.invoked_name_translit not like '%mahāgaṇapataye%'`, 21);
+await assert('the patra names are 21 DISTINCT names, not one repeated',
+  `select count(distinct a.invoked_name_deva) from archana_items a
+     join pooja_steps s on s.id = a.pooja_step_id
+    where s.step_title_en = 'Patra Pooja (21 Leaves)'`, 21);
+await assert('amalaki replaced devadaru at leaf 13',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.step_title_en = 'Patra Pooja (21 Leaves)' and a.seq = 13
+     and a.offering_en like '%Amalaki%'`, 1);
+await assert('nine leaves are on the vadyar samagri list, none flagged substitutable',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.step_title_en = 'Patra Pooja (21 Leaves)' and not a.is_substitutable`, 9);
+await assert('Pushpa Pooja is renamed and has 21 flowers',
+  archanaCount('Pushpa Pooja (21 Flowers)'), 21);
+await assert('the old 16-name pushpa step is gone',
+  `select count(*) from pooja_steps where step_title_en = 'Pushpa Pooja (Shodasha Nama)'`, 0);
+await assert('21 durva rows', archanaCount('Durva Pooja (21 Names)'), 21);
+await assert('all four Ganesha archanas are lists with no step mantra',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en in ('Anga Pooja','Patra Pooja (21 Leaves)',
+                           'Pushpa Pooja (21 Flowers)','Durva Pooja (21 Names)')
+     and mantra_sanskrit is not null`, 0);
+await assert('still 24 steps',
+  "select count(*) from pooja_steps where pooja_id = 'ganesha_standard'", 24);
+
+// --- 9i. Meanings -------------------------------------------------------------
+console.log('\n[9i] 0013 meanings');
+await step('0013_meanings.sql', () => db.exec(sql(`${MIG}/0013_meanings.sql`)));
+await assert('no step is left without a meaning',
+  'select count(*) from pooja_steps where meaning_en is null', 0);
+await assert('the list-only steps got one too',
+  `select count(*) from pooja_steps where meaning_en is not null
+     and mantra_sanskrit is null`, 8);
+await assert('meanings are not one-liners',
+  'select count(*) from pooja_steps where length(meaning_en) < 40', 0);
+
+console.log('\n[9j] 0012 and 0013 idempotency');
+await step('0012 re-run', () => db.exec(sql(`${MIG}/0012_ganesha_archanas.sql`)));
+await step('0013 re-run', () => db.exec(sql(`${MIG}/0013_meanings.sql`)));
+await assert('still 21 patra rows', archanaCount('Patra Pooja (21 Leaves)'), 21);
+await assert('still 21 flowers', archanaCount('Pushpa Pooja (21 Flowers)'), 21);
+await assert('still no null meanings',
+  'select count(*) from pooja_steps where meaning_en is null', 0);
+await assert('still 24 + 29 steps', 'select count(*) from pooja_steps', 53);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
