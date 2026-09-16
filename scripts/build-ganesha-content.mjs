@@ -47,7 +47,7 @@ const fixSup = (t) => {
   do { prev = cur; cur = cur.replace(MISPLACED, '$1$2$5$3$4'); } while (cur !== prev);
   return cur;
 };
-const tidy = (t) => t.replace(/[௃௄]/g, '').replace(/ஃ/g, '꞉').replace(/'/g, '');
+const tidy = (t) => t.replace(/[௃௄]/g, '').replace(/ஃ/g, '꞉').replace(/ௐ/g, 'ஓம்').replace(/'/g, '');
 const PROTECTED = /(\[[A-Z0-9_]+\]|[।॥])/;
 const tr = (text, to) =>
   String(text)

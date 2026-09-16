@@ -45,7 +45,7 @@ const fixSup = (t) => {
   do { prev = cur; cur = cur.replace(MISPLACED, '$1$2$5$3$4'); } while (cur !== prev);
   return cur;
 };
-const tidyTa = (t) => t.replace(/[௃௄]/g, '').replace(/ஃ/g, '꞉').replace(/'/g, '');
+const tidyTa = (t) => t.replace(/[௃௄]/g, '').replace(/ஃ/g, '꞉').replace(/ௐ/g, 'ஓம்').replace(/'/g, '');
 const PROTECTED = /(\[[A-Z0-9_]+\]|[।॥])/;
 const tr = (text, to) =>
   String(text).split(PROTECTED).map((p) => {
@@ -485,6 +485,27 @@ const NAIVEDYAM = [
   ['secondary', 'Thengai (coconut)', 'தேங்காய்', 'Optional in the vadyar\'s list.', 'வாத்யாரின் பட்டியலில் விருப்பத்திற்குரியது.'],
 ];
 
+// What is actually being touched or worshipped at each line, so offering_en
+// holds English rather than a transliteration of the Sanskrit. The Sanskrit is
+// kept in offering_deva and the transliteration renders under the name anyway.
+const GLOSS = {
+  anga_pooja: [
+    ['the feet', 'பாதங்கள்'], ['the knees', 'முழங்கால்கள்'], ['the thighs', 'தொடைகள்'],
+    ['the waist', 'இடுப்பு'], ['the navel', 'நாபி'], ['the breast', 'மார்பு'],
+    ['both arms', 'இரு புஜங்கள்'], ['the throat', 'கண்டம்'], ['the face', 'முகம்'],
+    ['the lips', 'உதடுகள்'], ['the nose', 'நாசி'], ['the eyes', 'கண்கள்'],
+    ['the ears', 'காதுகள்'], ['the head', 'சிரசு'], ['the whole body', 'உடல் முழுவதும்'],
+  ],
+  tora_granthi: [
+    ['the first knot', 'முதல் முடிச்சு'], ['the second knot', 'இரண்டாம் முடிச்சு'],
+    ['the third knot', 'மூன்றாம் முடிச்சு'], ['the fourth knot', 'நான்காம் முடிச்சு'],
+    ['the fifth knot', 'ஐந்தாம் முடிச்சு'], ['the sixth knot', 'ஆறாம் முடிச்சு'],
+    ['the seventh knot', 'ஏழாம் முடிச்சு'], ['the eighth knot', 'எட்டாம் முடிச்சு'],
+    ['the ninth knot', 'ஒன்பதாம் முடிச்சு'],
+  ],
+};
+const VERB = { anga_pooja: 'Worship', tora_granthi: 'Worship' };
+
 // ---------------------------------------------------------------------------
 // validation
 // ---------------------------------------------------------------------------
@@ -499,6 +520,14 @@ if (K.tora_granthi.lines !== 9) problems.push(`tora_granthi has ${K.tora_granthi
 if (NAMAVALI.lakshmi?.length !== 108) problems.push(`lakshmi namavali has ${NAMAVALI.lakshmi?.length}`);
 for (const s of STEPS) {
   if (!s.deva && !s.archana && !s.namavali_id) problems.push(`${s.title_en} has no mantra, archana or namavali`);
+  // Every archana line must have an English and Tamil gloss, or the offering
+  // column silently falls back to showing transliteration as if it were English.
+  if (s.archana) {
+    const n = K[s.archana].deva.split('\n').length;
+    if ((GLOSS[s.archana]?.length ?? 0) !== n) {
+      problems.push(`${s.archana}: ${GLOSS[s.archana]?.length ?? 0} glosses for ${n} lines`);
+    }
+  }
 }
 if (problems.length) { problems.forEach((p) => console.error('FAIL ' + p)); process.exit(1); }
 
@@ -670,6 +699,7 @@ function splitLine(deva) {
   return [deva.replace(/\s*[।॥]\s*$/, '').trim(), null];
 }
 
+
 for (const s of STEPS.filter((x) => x.archana)) {
   const lines = K[s.archana].deva.split('\n');
   out(`-- ${s.title_en}: ${lines.length} rows`);
@@ -679,8 +709,9 @@ for (const s of STEPS.filter((x) => x.archana)) {
 values`);
   out(lines.map((line, i) => {
     const [name, act] = splitLine(line);
+    const [en, ta] = GLOSS[s.archana][i] ?? [];
     return `  (${stepRef(s.title_en)}, ${i + 1}, ${q(name)}, ${q(tr(name, 'tamil'))}, ${q(tr(name, 'iast'))},` +
-      ` ${q(act)}, ${q(act ? tr(act, 'iast') : null)}, ${q(act ? tr(act, 'tamil') : null)})`;
+      ` ${q(act)}, ${q(en ? `${VERB[s.archana]} ${en}` : null)}, ${q(ta ? `${ta} பூஜிக்கவும்` : null)})`;
   }).join(',\n'));
   out(`on conflict (pooja_step_id, seq) do update set
   invoked_name_deva = excluded.invoked_name_deva,

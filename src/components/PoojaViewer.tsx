@@ -417,6 +417,14 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
   const currentStep = steps[currentStepIndex];
 
+  // Where the current step sits among the ones this performer and mode actually
+  // do. The raw index counts filtered-out steps, so it is wrong for the counter
+  // and the progress bar: a woman doing the Varalakshmi main pooja walks 27 of
+  // the 29 rows, not 29, and should not be told otherwise.
+  const activePosition = currentStep
+    ? availableSteps.findIndex((s) => s === currentStep) + 1
+    : 0;
+
   // Dynamic Mantra Inserter Helper for Sankalpam
   const getDynamicMantra = useCallback(
     (originalText: string | null | undefined, script: 'sanskrit' | 'tamil' | 'translit') => {
@@ -582,7 +590,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 width: `${
                   currentStepIndex === -1
                     ? 0
-                    : ((currentStepIndex + 1) / steps.length) * 100
+                    : (activePosition / Math.max(availableSteps.length, 1)) * 100
                 }%`,
               }}
             />
@@ -1145,7 +1153,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-stone-900 to-stone-950 border border-amber-500/30 p-6 shadow-2xl space-y-4">
                   <div className="flex items-center justify-between gap-4">
                     <span className="px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-extrabold text-xs tracking-wider uppercase flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5" /> Step {currentStepIndex + 1} of {steps.length}
+                      <Sparkles className="w-3.5 h-3.5" /> Step {activePosition} of {availableSteps.length}
                     </span>
 
                     {/* Step Jump Select */}
@@ -1448,10 +1456,46 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       </span>
                     </div>
 
+                    {/* When every line invokes the same name, the rows lead with
+                        what is offered, so the mantra is stated once here rather
+                        than repeated down the list. */}
+                    {currentStep.archana_list.length > 1 &&
+                      currentStep.archana_list[0].offering_en &&
+                      currentStep.archana_list.every(
+                        (o: ArchanaItem) => o.sanskrit === currentStep.archana_list![0].sanskrit,
+                      ) && (
+                        <div className="rounded-xl bg-stone-950/60 border border-amber-500/20 px-4 py-3">
+                          <p className="text-[11px] uppercase tracking-wider font-bold text-amber-500/70 mb-1">
+                            {instructionLang === 'ta'
+                              ? 'ஒவ்வொன்றுக்கும் இந்த மந்திரம்'
+                              : 'Recite at every offering'}
+                          </p>
+                          <p className="text-base font-bold text-amber-100">
+                            {mantraLang === 'tamil' && currentStep.archana_list[0].tamil
+                              ? currentStep.archana_list[0].tamil
+                              : currentStep.archana_list[0].sanskrit}
+                          </p>
+                          {currentStep.archana_list[0].translit && (
+                            <p className="text-xs text-stone-400 font-medium">
+                              {currentStep.archana_list[0].translit}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
                     {/* Scrollable list */}
                     <div className="max-h-96 overflow-y-auto pr-2 space-y-2.5 divide-y divide-stone-800/60">
                       {currentStep.archana_list.map((item: ArchanaItem, idx: number) => {
                         const isOffered = !!archanaProgress[`archana-${idx}`];
+                        // In the Patra Pooja every line invokes the same name,
+                        // because the paddhatis disagree on the pairing. Showing
+                        // the mantra 21 times buries the leaf, which is the part
+                        // that actually changes, so lead with the offering there.
+                        const repeatedName =
+                          !!item.offering_en &&
+                          currentStep.archana_list!.every(
+                            (o: ArchanaItem) => o.sanskrit === currentStep.archana_list![0].sanskrit,
+                          );
                         return (
                           <div
                             key={idx}
@@ -1470,26 +1514,43 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                                 #{item.number || idx + 1}
                               </span>
                               <div>
-                                <p className="text-sm md:text-base font-bold text-amber-100">
-                                  {mantraLang === 'tamil' && item.tamil ? item.tamil : item.sanskrit}
-                                </p>
-                                {item.translit && (
-                                  <p className="text-xs text-stone-400 font-medium">{item.translit}</p>
-                                )}
-                                {/* The patra and durva poojas offer a different thing at
-                                    each line, so the name alone would be 21 identical rows. */}
-                                {item.offering_en && (
-                                  <p className="text-xs text-amber-300/90 font-semibold mt-1">
-                                    {instructionLang === 'ta' && item.offering_ta
-                                      ? item.offering_ta
-                                      : item.offering_en}
+                                {repeatedName ? (
+                                  <>
+                                    <p className="text-sm md:text-base font-bold text-amber-100">
+                                      {instructionLang === 'ta' && item.offering_ta
+                                        ? item.offering_ta
+                                        : item.offering_en}
+                                    </p>
                                     {item.botanical && (
-                                      <span className="text-stone-500 font-normal italic">
-                                        {' '}
-                                        · {item.botanical}
-                                      </span>
+                                      <p className="text-xs text-stone-400 font-medium italic">
+                                        {item.botanical}
+                                      </p>
                                     )}
-                                  </p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="text-sm md:text-base font-bold text-amber-100">
+                                      {mantraLang === 'tamil' && item.tamil ? item.tamil : item.sanskrit}
+                                    </p>
+                                    {item.translit && (
+                                      <p className="text-xs text-stone-400 font-medium">{item.translit}</p>
+                                    )}
+                                    {/* Anga and durva offer a different thing at each
+                                        line, so the name alone is not enough. */}
+                                    {item.offering_en && (
+                                      <p className="text-xs text-amber-300/90 font-semibold mt-1">
+                                        {instructionLang === 'ta' && item.offering_ta
+                                          ? item.offering_ta
+                                          : item.offering_en}
+                                        {item.botanical && (
+                                          <span className="text-stone-500 font-normal italic">
+                                            {' '}
+                                            · {item.botanical}
+                                          </span>
+                                        )}
+                                      </p>
+                                    )}
+                                  </>
                                 )}
                                 {item.is_substitutable && item.substitute_with && (
                                   <p className="text-xs text-stone-400 mt-0.5">
@@ -1579,7 +1640,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               <span>Preparation & Settings</span>
             ) : (
               <span>
-                Step {availableSteps.findIndex((s) => s === currentStep) + 1} of {availableSteps.length}
+                Step {activePosition} of {availableSteps.length}
               </span>
             )}
           </div>

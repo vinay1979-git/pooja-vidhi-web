@@ -348,7 +348,7 @@ values ('varalakshmi_vratham', 5, 'purvangam', '{main,punar}',
         'Roll a small cone of turmeric paste on a betel leaf. That is the Pillaiyar for today. Invoke him, offer akshatai and a flower, and ask him to clear the way before the main pooja begins. He is not immersed or kept; at the end of the vratham he is set aside with the rest of the offerings.',
         'மஞ்சள் மாவை வெற்றிலையின் மேல் சிறு கூம்பாகப் பிடிக்கவும். அதுவே இன்றைய பிள்ளையார். அவரை ஆவாஹனம் செய்து, அக்ஷதையும் புஷ்பமும் சமர்ப்பித்து, பிரதான பூஜை தொடங்கும் முன் விக்கினங்களை நீக்கும்படி வேண்டவும். இவரை கரைப்பதோ வைத்திருப்பதோ இல்லை; விரதம் முடிந்தபின் மற்ற சமர்ப்பணங்களுடன் சேர்த்து எடுத்து வைக்கப்படுகிறார்.',
         'हरिद्राभं चतुर्बाहुं हरिद्रावदनं प्रभुम् । पाशांकुशधरं देवं मोदकं दंतमेव च । भक्ताऽभयप्रदातारं वंदे विघ्नविनाशनम् । ॐ हरिद्रा गणपतये नमः । अस्मिन् हरिद्राबिंबे श्रीमहागणपतिं आवाहयामि, स्थापयामि, पूजयामि ॥',
-        'ஹரித்ராபம் சதுர்பாஹும் ஹரித்ராவதநம் ப்ரபும் । பாஶாம்குஶதரம் தேவம் மோதகம் தம்தமேவ ச । பக்தாऽபயப்ரதாதாரம் வம்தே விக்நவிநாஶநம் । ௐ ஹரித்ரா கணபதயே நம꞉ । அஸ்மிந் ஹரித்ராபிம்பே ஶ்ரீமஹாகணபதிம் ஆவாஹயாமி, ஸ்தாபயாமி, பூஜயாமி ॥',
+        'ஹரித்ராபம் சதுர்பாஹும் ஹரித்ராவதநம் ப்ரபும் । பாஶாம்குஶதரம் தேவம் மோதகம் தம்தமேவ ச । பக்தாऽபயப்ரதாதாரம் வம்தே விக்நவிநாஶநம் । ஓம் ஹரித்ரா கணபதயே நம꞉ । அஸ்மிந் ஹரித்ராபிம்பே ஶ்ரீமஹாகணபதிம் ஆவாஹயாமி, ஸ்தாபயாமி, பூஜயாமி ॥',
         'haridrābhaṃ caturbāhuṃ haridrāvadanaṃ prabhum । pāśāṃkuśadharaṃ devaṃ modakaṃ daṃtameva ca । bhaktā''bhayapradātāraṃ vaṃde vighnavināśanam । oṃ haridrā gaṇapataye namaḥ । asmin haridrābiṃbe śrīmahāgaṇapatiṃ āvāhayāmi, sthāpayāmi, pūjayāmi ॥',
         'Every pooja in this tradition opens by asking Ganesha to move first. Making him out of turmeric rather than fetching a metal idol is the point: the obstacle-remover is made from what is already on the kitchen shelf, in the minute before he is needed.', 'all', true, false,
         null, 'StotraNidhi Sri Haridra Ganapati Puja (Telugu); Sathya Vadyar, Varalakshmi Poojai 2026 step by step, chapter at 04:02. The full published vidhi also carries Vedic mantras with svara marks, which this app does not yet render and which are omitted here rather than shown unaccented.')
@@ -777,7 +777,7 @@ values ('varalakshmi_vratham', 19, 'uttara', '{main,punar,udvasana}',
 पूगीफल समायुक्तं नागवल्ली दळैर्युतं ।
 कर्पूर चूर्ण संयुक्तं तांबूलं प्रतिगृह्यतां ॥
 श्री वरलक्ष्मी देवतायै नमः तांबूलं समर्पयामि ॥',
-        'ௐ ப்ராணாய ஸ்வாஹா । ௐ அபாநாய ஸ்வாஹா । ௐ வ்யாநாய ஸ்வாஹா । ௐ உதாநாய ஸ்வாஹா । ௐ ஸமாநாய ஸ்வாஹா ॥
+        'ஓம் ப்ராணாய ஸ்வாஹா । ஓம் அபாநாய ஸ்வாஹா । ஓம் வ்யாநாய ஸ்வாஹா । ஓம் உதாநாய ஸ்வாஹா । ஓம் ஸமாநாய ஸ்வாஹா ॥
 நைவேத்யம் ஷட்ரஸோபேதம் ததி மத்வாஜ்ய ஸம்யுதம் ।
 நாநாபக்ஷ்யபலோபேதம் க்ருஹாண ஹரிவல்லபே ॥
 ஶ்ரீ வரலக்ஷ்மீ தேவதாயை நம꞉ நைவேத்யம் ஸமர்பயாமி ॥
@@ -1122,21 +1122,21 @@ insert into public.archana_items
   (pooja_step_id, seq, invoked_name_deva, invoked_name_ta, invoked_name_translit,
    offering_deva, offering_en, offering_ta)
 values
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 1, 'ॐ चंचलायै नमः', 'ௐ சம்சலாயை நம꞉', 'oṃ caṃcalāyai namaḥ', 'पादौ पूजयामि', 'pādau pūjayāmi', 'பாதௌ பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 2, 'ॐ चपलायै नमः', 'ௐ சபலாயை நம꞉', 'oṃ capalāyai namaḥ', 'जानुनी पूजयामि', 'jānunī pūjayāmi', 'ஜாநுநீ பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 3, 'ॐ पीतांबरधरायै नमः', 'ௐ பீதாம்பரதராயை நம꞉', 'oṃ pītāṃbaradharāyai namaḥ', 'ऊरू पूजयामि', 'ūrū pūjayāmi', 'ஊரூ பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 4, 'ॐ कमलवासिन्यै नमः', 'ௐ கமலவாஸிந்யை நம꞉', 'oṃ kamalavāsinyai namaḥ', 'कटिं पूजयामि', 'kaṭiṃ pūjayāmi', 'கடிம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 5, 'ॐ पद्मालयायै नमः', 'ௐ பத்மாலயாயை நம꞉', 'oṃ padmālayāyai namaḥ', 'नाभिं पूजयामि', 'nābhiṃ pūjayāmi', 'நாபிம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 6, 'ॐ मदनमात्रे नमः', 'ௐ மதநமாத்ரே நம꞉', 'oṃ madanamātre namaḥ', 'स्तनौ पूजयामि', 'stanau pūjayāmi', 'ஸ்தநௌ பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 7, 'ॐ ललितायै नमः', 'ௐ லலிதாயை நம꞉', 'oṃ lalitāyai namaḥ', 'भुजद्वयं पूजयामि', 'bhujadvayaṃ pūjayāmi', 'புஜத்வயம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 8, 'ॐ कंबुकंठ्यै नमः', 'ௐ கம்புகம்ட்யை நம꞉', 'oṃ kaṃbukaṃṭhyai namaḥ', 'कंठं पूजयामि', 'kaṃṭhaṃ pūjayāmi', 'கம்டம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 9, 'ॐ सुमुखायै नमः', 'ௐ ஸுமுகாயை நம꞉', 'oṃ sumukhāyai namaḥ', 'मुखं पूजयामि', 'mukhaṃ pūjayāmi', 'முகம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 10, 'ॐ श्रियै नमः', 'ௐ ஶ்ரியை நம꞉', 'oṃ śriyai namaḥ', 'ओष्ठौ पूजयामि', 'oṣṭhau pūjayāmi', 'ஓஷ்டௌ பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 11, 'ॐ सुनासिकायै नमः', 'ௐ ஸுநாஸிகாயை நம꞉', 'oṃ sunāsikāyai namaḥ', 'नासिकां पूजयामि', 'nāsikāṃ pūjayāmi', 'நாஸிகாம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 12, 'ॐ सुनेत्रायै नमः', 'ௐ ஸுநேத்ராயை நம꞉', 'oṃ sunetrāyai namaḥ', 'नेत्रौ पूजयामि', 'netrau pūjayāmi', 'நேத்ரௌ பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 13, 'ॐ रमायै नमः', 'ௐ ரமாயை நம꞉', 'oṃ ramāyai namaḥ', 'कर्णौ पूजयामि', 'karṇau pūjayāmi', 'கர்ணௌ பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 14, 'ॐ कमलायै नमः', 'ௐ கமலாயை நம꞉', 'oṃ kamalāyai namaḥ', 'शिरः पूजयामि', 'śiraḥ pūjayāmi', 'ஶிர꞉ பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 15, 'ॐ वरलक्ष्मै नमः सर्वाण्यंगानि पूजयामि', 'ௐ வரலக்ஷ்மை நம꞉ ஸர்வாண்யம்காநி பூஜயாமி', 'oṃ varalakṣmai namaḥ sarvāṇyaṃgāni pūjayāmi', null, null, null)
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 1, 'ॐ चंचलायै नमः', 'ஓம் சம்சலாயை நம꞉', 'oṃ caṃcalāyai namaḥ', 'पादौ पूजयामि', 'Worship the feet', 'பாதங்கள் பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 2, 'ॐ चपलायै नमः', 'ஓம் சபலாயை நம꞉', 'oṃ capalāyai namaḥ', 'जानुनी पूजयामि', 'Worship the knees', 'முழங்கால்கள் பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 3, 'ॐ पीतांबरधरायै नमः', 'ஓம் பீதாம்பரதராயை நம꞉', 'oṃ pītāṃbaradharāyai namaḥ', 'ऊरू पूजयामि', 'Worship the thighs', 'தொடைகள் பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 4, 'ॐ कमलवासिन्यै नमः', 'ஓம் கமலவாஸிந்யை நம꞉', 'oṃ kamalavāsinyai namaḥ', 'कटिं पूजयामि', 'Worship the waist', 'இடுப்பு பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 5, 'ॐ पद्मालयायै नमः', 'ஓம் பத்மாலயாயை நம꞉', 'oṃ padmālayāyai namaḥ', 'नाभिं पूजयामि', 'Worship the navel', 'நாபி பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 6, 'ॐ मदनमात्रे नमः', 'ஓம் மதநமாத்ரே நம꞉', 'oṃ madanamātre namaḥ', 'स्तनौ पूजयामि', 'Worship the breast', 'மார்பு பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 7, 'ॐ ललितायै नमः', 'ஓம் லலிதாயை நம꞉', 'oṃ lalitāyai namaḥ', 'भुजद्वयं पूजयामि', 'Worship both arms', 'இரு புஜங்கள் பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 8, 'ॐ कंबुकंठ्यै नमः', 'ஓம் கம்புகம்ட்யை நம꞉', 'oṃ kaṃbukaṃṭhyai namaḥ', 'कंठं पूजयामि', 'Worship the throat', 'கண்டம் பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 9, 'ॐ सुमुखायै नमः', 'ஓம் ஸுமுகாயை நம꞉', 'oṃ sumukhāyai namaḥ', 'मुखं पूजयामि', 'Worship the face', 'முகம் பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 10, 'ॐ श्रियै नमः', 'ஓம் ஶ்ரியை நம꞉', 'oṃ śriyai namaḥ', 'ओष्ठौ पूजयामि', 'Worship the lips', 'உதடுகள் பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 11, 'ॐ सुनासिकायै नमः', 'ஓம் ஸுநாஸிகாயை நம꞉', 'oṃ sunāsikāyai namaḥ', 'नासिकां पूजयामि', 'Worship the nose', 'நாசி பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 12, 'ॐ सुनेत्रायै नमः', 'ஓம் ஸுநேத்ராயை நம꞉', 'oṃ sunetrāyai namaḥ', 'नेत्रौ पूजयामि', 'Worship the eyes', 'கண்கள் பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 13, 'ॐ रमायै नमः', 'ஓம் ரமாயை நம꞉', 'oṃ ramāyai namaḥ', 'कर्णौ पूजयामि', 'Worship the ears', 'காதுகள் பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 14, 'ॐ कमलायै नमः', 'ஓம் கமலாயை நம꞉', 'oṃ kamalāyai namaḥ', 'शिरः पूजयामि', 'Worship the head', 'சிரசு பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Anga Pooja'), 15, 'ॐ वरलक्ष्मै नमः सर्वाण्यंगानि पूजयामि', 'ஓம் வரலக்ஷ்மை நம꞉ ஸர்வாண்யம்காநி பூஜயாமி', 'oṃ varalakṣmai namaḥ sarvāṇyaṃgāni pūjayāmi', null, 'Worship the whole body', 'உடல் முழுவதும் பூஜிக்கவும்')
 on conflict (pooja_step_id, seq) do update set
   invoked_name_deva = excluded.invoked_name_deva,
   invoked_name_ta = excluded.invoked_name_ta,
@@ -1153,15 +1153,15 @@ insert into public.archana_items
   (pooja_step_id, seq, invoked_name_deva, invoked_name_ta, invoked_name_translit,
    offering_deva, offering_en, offering_ta)
 values
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 1, 'कमलायै नमः', 'கமலாயை நம꞉', 'kamalāyai namaḥ', 'प्रथम ग्रंथिं पूजयामि', 'prathama graṃthiṃ pūjayāmi', 'ப்ரதம க்ரம்திம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 2, 'रमायै नमः', 'ரமாயை நம꞉', 'ramāyai namaḥ', 'द्वितीय ग्रंथिं पूजयामि', 'dvitīya graṃthiṃ pūjayāmi', 'த்விதீய க்ரம்திம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 3, 'लोकमात्रे नमः', 'லோகமாத்ரே நம꞉', 'lokamātre namaḥ', 'तृतीय ग्रंथिं पूजयामि', 'tṛtīya graṃthiṃ pūjayāmi', 'த்ருதீய க்ரம்திம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 4, 'विश्वजनन्यै नमः', 'விஶ்வஜநந்யை நம꞉', 'viśvajananyai namaḥ', 'चतुर्थ ग्रंथिं पूजयामि', 'caturtha graṃthiṃ pūjayāmi', 'சதுர்த க்ரம்திம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 5, 'महालक्ष्मै नमः', 'மஹாலக்ஷ்மை நம꞉', 'mahālakṣmai namaḥ', 'पंचम ग्रंथिं पूजयामि', 'paṃcama graṃthiṃ pūjayāmi', 'பம்சம க்ரம்திம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 6, 'क्षीराब्धितनयायै नमः', 'க்ஷீராப்திதநயாயை நம꞉', 'kṣīrābdhitanayāyai namaḥ', 'षष्ठ ग्रंथिं पूजयामि', 'ṣaṣṭha graṃthiṃ pūjayāmi', 'ஷஷ்ட க்ரம்திம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 7, 'विश्वसाक्षिण्यै नमः', 'விஶ்வஸாக்ஷிண்யை நம꞉', 'viśvasākṣiṇyai namaḥ', 'सप्तम ग्रंथिं पूजयामि', 'saptama graṃthiṃ pūjayāmi', 'ஸப்தம க்ரம்திம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 8, 'चंद्रसोदर्यै नमः', 'சம்த்ரஸோதர்யை நம꞉', 'caṃdrasodaryai namaḥ', 'अष्टम ग्रंथिं पूजयामि', 'aṣṭama graṃthiṃ pūjayāmi', 'அஷ்டம க்ரம்திம் பூஜயாமி'),
-  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 9, 'हरिवल्लभायै नमः', 'ஹரிவல்லபாயை நம꞉', 'harivallabhāyai namaḥ', 'नवम ग्रंथिं पूजयामि', 'navama graṃthiṃ pūjayāmi', 'நவம க்ரம்திம் பூஜயாமி')
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 1, 'कमलायै नमः', 'கமலாயை நம꞉', 'kamalāyai namaḥ', 'प्रथम ग्रंथिं पूजयामि', 'Worship the first knot', 'முதல் முடிச்சு பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 2, 'रमायै नमः', 'ரமாயை நம꞉', 'ramāyai namaḥ', 'द्वितीय ग्रंथिं पूजयामि', 'Worship the second knot', 'இரண்டாம் முடிச்சு பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 3, 'लोकमात्रे नमः', 'லோகமாத்ரே நம꞉', 'lokamātre namaḥ', 'तृतीय ग्रंथिं पूजयामि', 'Worship the third knot', 'மூன்றாம் முடிச்சு பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 4, 'विश्वजनन्यै नमः', 'விஶ்வஜநந்யை நம꞉', 'viśvajananyai namaḥ', 'चतुर्थ ग्रंथिं पूजयामि', 'Worship the fourth knot', 'நான்காம் முடிச்சு பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 5, 'महालक्ष्मै नमः', 'மஹாலக்ஷ்மை நம꞉', 'mahālakṣmai namaḥ', 'पंचम ग्रंथिं पूजयामि', 'Worship the fifth knot', 'ஐந்தாம் முடிச்சு பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 6, 'क्षीराब्धितनयायै नमः', 'க்ஷீராப்திதநயாயை நம꞉', 'kṣīrābdhitanayāyai namaḥ', 'षष्ठ ग्रंथिं पूजयामि', 'Worship the sixth knot', 'ஆறாம் முடிச்சு பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 7, 'विश्वसाक्षिण्यै नमः', 'விஶ்வஸாக்ஷிண்யை நம꞉', 'viśvasākṣiṇyai namaḥ', 'सप्तम ग्रंथिं पूजयामि', 'Worship the seventh knot', 'ஏழாம் முடிச்சு பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 8, 'चंद्रसोदर्यै नमः', 'சம்த்ரஸோதர்யை நம꞉', 'caṃdrasodaryai namaḥ', 'अष्टम ग्रंथिं पूजयामि', 'Worship the eighth knot', 'எட்டாம் முடிச்சு பூஜிக்கவும்'),
+  ((select id from public.pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Nonbu Sharadu Pooja'), 9, 'हरिवल्लभायै नमः', 'ஹரிவல்லபாயை நம꞉', 'harivallabhāyai namaḥ', 'नवम ग्रंथिं पूजयामि', 'Worship the ninth knot', 'ஒன்பதாம் முடிச்சு பூஜிக்கவும்')
 on conflict (pooja_step_id, seq) do update set
   invoked_name_deva = excluded.invoked_name_deva,
   invoked_name_ta = excluded.invoked_name_ta,
