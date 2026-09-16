@@ -998,9 +998,13 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       key={item.id}
                       onClick={() => toggleSamagri(item.id)}
                       className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${
+                        // Same reason as the archana rows: amber-950 and stone-950
+                        // are both near-white in the light theme, so collected and
+                        // not-collected became the same colour and only the tick
+                        // distinguished them. amber-500 is saffron in both themes.
                         isChecked
-                          ? 'bg-amber-950/30 border-amber-500/40 text-amber-200'
-                          : 'bg-stone-950/60 border-stone-800/80 text-stone-300 hover:border-stone-700'
+                          ? 'bg-amber-500/15 border-amber-500/50 text-amber-200'
+                          : 'bg-stone-950/60 border-stone-800/80 text-stone-300 hover:border-stone-600'
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -1506,7 +1510,14 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                               }))
                             }
                             className={`pt-2.5 pb-2.5 px-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
-                              isOffered ? 'bg-amber-950/30 border border-amber-500/30' : 'hover:bg-stone-950/60'
+                              // amber-500 is a saturated saffron in BOTH themes, so a
+                              // low-opacity wash of it reads on the dark ground and on
+                              // the cream one. amber-950 and stone-950 do not: each is
+                              // near-white in light mode and the row tint vanished,
+                              // leaving the button as the only sign of what was offered.
+                              isOffered
+                                ? 'bg-amber-500/15 border border-amber-500/40'
+                                : 'border border-transparent hover:bg-amber-500/5'
                             }`}
                           >
                             <div className="flex items-center gap-3">
