@@ -302,10 +302,14 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     [poojaMode, modesSeeded]
   );
 
-  // Steps for this performer on this day.
-  const availableSteps = useMemo(() => {
-    return steps.filter((s) => isStepAvailableForGender(s) && isStepInMode(s));
-  }, [steps, isStepAvailableForGender, isStepInMode]);
+  // Navigation and the step list both need "is this part of today's pooja for
+  // this performer", not gender alone.
+  const isStepActive = useCallback(
+    (step: PoojaStep) => isStepAvailableForGender(step) && isStepInMode(step),
+    [isStepAvailableForGender, isStepInMode]
+  );
+
+  const availableSteps = useMemo(() => steps.filter(isStepActive), [steps, isStepActive]);
 
   // Parse Samagri items consistently
   const parsedSamagriList = useMemo(() => {
@@ -375,14 +379,14 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
     if (currentStepIndex === -1) {
       // Find first valid step
-      const firstValidIdx = steps.findIndex(isStepAvailableForGender);
+      const firstValidIdx = steps.findIndex(isStepActive);
       goToStep(firstValidIdx >= 0 ? firstValidIdx : 0);
       return;
     }
 
     // Find next valid step index
     let nextIdx = currentStepIndex + 1;
-    while (nextIdx < steps.length && !isStepAvailableForGender(steps[nextIdx])) {
+    while (nextIdx < steps.length && !isStepActive(steps[nextIdx])) {
       nextIdx++;
     }
 
@@ -400,7 +404,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     }
 
     let prevIdx = currentStepIndex - 1;
-    while (prevIdx >= 0 && !isStepAvailableForGender(steps[prevIdx])) {
+    while (prevIdx >= 0 && !isStepActive(steps[prevIdx])) {
       prevIdx--;
     }
 
@@ -1150,15 +1154,26 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       onChange={(e) => goToStep(Number(e.target.value))}
                       className="bg-stone-950 text-amber-300 text-xs font-semibold px-3 py-1.5 rounded-lg border border-amber-500/30 focus:outline-none"
                     >
-                      {steps.map((s, idx) => (
-                        <option key={s.id || idx} value={idx} disabled={!isStepAvailableForGender(s)}>
-                          Step {idx + 1}:{' '}
-                          {instructionLang === 'ta' && s.step_title_ta
-                            ? s.step_title_ta
-                            : s.step_title_en}{' '}
-                          {!isStepAvailableForGender(s) ? '(Skipped)' : ''}
-                        </option>
-                      ))}
+                      {steps.map((s, idx) =>
+                        // A step belonging to a different day is not part of
+                        // this pooja at all, so it is left out rather than
+                        // greyed. Gender exclusions stay visible and marked,
+                        // because knowing a step exists and is not yours is
+                        // useful; knowing about tomorrow's steps is not.
+                        !isStepInMode(s) ? null : (
+                          <option
+                            key={s.id || idx}
+                            value={idx}
+                            disabled={!isStepAvailableForGender(s)}
+                          >
+                            Step {idx + 1}:{' '}
+                            {instructionLang === 'ta' && s.step_title_ta
+                              ? s.step_title_ta
+                              : s.step_title_en}{' '}
+                            {!isStepAvailableForGender(s) ? '(Skipped)' : ''}
+                          </option>
+                        )
+                      )}
                     </select>
                   </div>
 
@@ -1540,7 +1555,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               <span>Preparation & Settings</span>
             ) : (
               <span>
-                Step {currentStepIndex + 1} of {steps.length} ({availableSteps.length} active)
+                Step {availableSteps.findIndex((s) => s === currentStep) + 1} of {availableSteps.length}
               </span>
             )}
           </div>
