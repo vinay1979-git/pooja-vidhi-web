@@ -28,6 +28,7 @@
 
 import { readFileSync } from 'node:fs';
 import Sanscript from '@indic-transliteration/sanscript';
+import { tidyTamil, fixSuperscripts, transliterate as trShared, PROTECTED } from './_tamil.mjs';
 
 const DIR = process.env.NAMAVALI_DIR || 'C:/tmp-pv/namavali/';
 const K = JSON.parse(readFileSync(DIR + 'kalpam.json', 'utf8'));
@@ -39,14 +40,8 @@ const KALPAM = 'StotraNidhi Sri Varalakshmi Vrata Kalpam (Telugu), round-trip ve
 const VIDEO = 'Sathya Vadyar, Varalakshmi Poojai 2026 step by step';
 
 // ---------------------------------------------------------------------------
-const MISPLACED = /([க-ஹ])([ா-்]*)([ரல])([ா-்]*)([²³⁴])/g;
-const fixSup = (t) => {
-  let prev; let cur = t;
-  do { prev = cur; cur = cur.replace(MISPLACED, '$1$2$5$3$4'); } while (cur !== prev);
-  return cur;
-};
-const tidyTa = (t) => t.replace(/[௃௄]/g, '').replace(/ஃ/g, '꞉').replace(/ௐ/g, 'ஓம்').replace(/'/g, '');
-const PROTECTED = /(\[[A-Z0-9_]+\]|[।॥])/;
+const fixSup = fixSuperscripts;
+const tidyTa = tidyTamil;
 const tr = (text, to) =>
   String(text).split(PROTECTED).map((p) => {
     if (p === '' || PROTECTED.test(p)) return p;

@@ -464,6 +464,51 @@ await assert('existing entries were not rewritten',
   `select count(*) from pooja_steps where step_title_en = 'Achamanam'
      and philosophy_en like 'Achamanam purifies%'`, 2);
 
+// --- 9m. Hygiene ---------------------------------------------------------------
+console.log('\n[9m] 0015 hygiene');
+await assert('avagraha is in Tamil text before this runs',
+  "select count(*) > 0 from pooja_steps where mantra_tamil like '%ऽ%'", 'true');
+await step('0015_hygiene.sql', () => db.exec(sql(`${MIG}/0015_hygiene.sql`)));
+await assert('no avagraha left in any Tamil field',
+  "select count(*) from pooja_steps where mantra_tamil like '%ऽ%'", 0);
+await assert('no om sign left in any Tamil field',
+  "select count(*) from pooja_steps where mantra_tamil like '%ௐ%'", 0);
+await assert('no avagraha in archana or namavali Tamil',
+  "select (select count(*) from archana_items where invoked_name_ta like '%ऽ%')"
+  + " + (select count(*) from namavali_items where name_ta like '%ऽ%')", 0);
+await assert('no double spaces left in mantras',
+  "select count(*) from pooja_steps where mantra_sanskrit ~ '[ \t]{2,}'"
+  + " or mantra_tamil ~ '[ \t]{2,}' or mantra_translit ~ '[ \t]{2,}'", 0);
+await assert('both poojas have a description',
+  'select count(*) from poojas where description_en is null', 0);
+await assert('no philosophy claims about nadis or chakras',
+  "select count(*) from pooja_steps where philosophy_en ~* 'nadi|chakra|nerve cent|cosmic energ'", 0);
+await assert('the seven rewrites landed on 12 rows',
+  "select count(*) from pooja_steps where step_title_en in"
+  + " ('Achamanam','Anga Vandanam','Vighneshwara Dhyanam','Pranayamam','Kalasha Pooja')"
+  + " or (pooja_id = 'ganesha_standard' and step_title_en in ('Anga Pooja','Kshama Prarthana & Conclusion'))", 12);
+await assert('the mantras themselves still have their words',
+  "select count(*) from pooja_steps where mantra_sanskrit is not null and length(mantra_sanskrit) < 10", 0);
+// The four prose fixes: each phrase they were written to remove must be gone.
+await assert('no step still claims durva is the only twenty-one-fold upachara',
+  "select count(*) from pooja_steps where instruction_en like '%only upachara in the whole pooja given twenty-one times%'", 0);
+await assert('nothing still calls the Pushpa Pooja a sixteen-name step',
+  "select count(*) from pooja_steps where instruction_en like '%sixteen-name Pushpa Pooja%'", 0);
+await assert('dhoopam no longer contradicts the neerajanam step',
+  "select count(*) from pooja_steps where philosophy_en like '%only upacharas that reach everyone present%'", 0);
+await assert('arugampul is spelled one way everywhere',
+  "select count(*) from pooja_steps where instruction_en like '%Arukampul%'", 0);
+// ...but the two CORRECT "sixteen upachara" references must survive, because
+// they render the kalpam's own shodashopachara.
+await assert('the kalpam sixteen-upachara references are untouched',
+  "select count(*) from pooja_steps where meaning_en like '%sixteen%upachara%'", 2);
+
+console.log('\n[9n] 0015 idempotency');
+await step('0015 re-run', () => db.exec(sql(`${MIG}/0015_hygiene.sql`)));
+await assert('still no avagraha',
+  "select count(*) from pooja_steps where mantra_tamil like '%ऽ%'", 0);
+await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {

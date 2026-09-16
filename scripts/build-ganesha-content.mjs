@@ -30,6 +30,7 @@
 
 import { readFileSync } from 'node:fs';
 import Sanscript from '@indic-transliteration/sanscript';
+import { tidyTamil, fixSuperscripts, transliterate as trShared, PROTECTED } from './_tamil.mjs';
 
 const NAMAVALI = JSON.parse(
   readFileSync((process.env.NAMAVALI_DIR || 'C:/tmp-pv/namavali/') + 'parsed.json', 'utf8'),
@@ -40,15 +41,8 @@ const POOJA = 'ganesha_standard';
 // ---------------------------------------------------------------------------
 // transliteration, same rules as scripts/generate-scripts.mjs
 // ---------------------------------------------------------------------------
-const MISPLACED = /([க-ஹ])([ா-்]*)([ரல])([ா-்]*)([²³⁴])/g;
-const fixSup = (t) => {
-  let prev;
-  let cur = t;
-  do { prev = cur; cur = cur.replace(MISPLACED, '$1$2$5$3$4'); } while (cur !== prev);
-  return cur;
-};
-const tidy = (t) => t.replace(/[௃௄]/g, '').replace(/ஃ/g, '꞉').replace(/ௐ/g, 'ஓம்').replace(/'/g, '');
-const PROTECTED = /(\[[A-Z0-9_]+\]|[।॥])/;
+const fixSup = fixSuperscripts;
+const tidy = tidyTamil;
 const tr = (text, to) =>
   String(text)
     .split(PROTECTED)

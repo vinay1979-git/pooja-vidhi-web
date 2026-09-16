@@ -348,7 +348,7 @@ values ('varalakshmi_vratham', 5, 'purvangam', '{main,punar}',
         'Roll a small cone of turmeric paste on a betel leaf. That is the Pillaiyar for today. Invoke him, offer akshatai and a flower, and ask him to clear the way before the main pooja begins. He is not immersed or kept; at the end of the vratham he is set aside with the rest of the offerings.',
         'மஞ்சள் மாவை வெற்றிலையின் மேல் சிறு கூம்பாகப் பிடிக்கவும். அதுவே இன்றைய பிள்ளையார். அவரை ஆவாஹனம் செய்து, அக்ஷதையும் புஷ்பமும் சமர்ப்பித்து, பிரதான பூஜை தொடங்கும் முன் விக்கினங்களை நீக்கும்படி வேண்டவும். இவரை கரைப்பதோ வைத்திருப்பதோ இல்லை; விரதம் முடிந்தபின் மற்ற சமர்ப்பணங்களுடன் சேர்த்து எடுத்து வைக்கப்படுகிறார்.',
         'हरिद्राभं चतुर्बाहुं हरिद्रावदनं प्रभुम् । पाशांकुशधरं देवं मोदकं दंतमेव च । भक्ताऽभयप्रदातारं वंदे विघ्नविनाशनम् । ॐ हरिद्रा गणपतये नमः । अस्मिन् हरिद्राबिंबे श्रीमहागणपतिं आवाहयामि, स्थापयामि, पूजयामि ॥',
-        'ஹரித்ராபம் சதுர்பாஹும் ஹரித்ராவதநம் ப்ரபும் । பாஶாம்குஶதரம் தேவம் மோதகம் தம்தமேவ ச । பக்தாऽபயப்ரதாதாரம் வம்தே விக்நவிநாஶநம் । ஓம் ஹரித்ரா கணபதயே நம꞉ । அஸ்மிந் ஹரித்ராபிம்பே ஶ்ரீமஹாகணபதிம் ஆவாஹயாமி, ஸ்தாபயாமி, பூஜயாமி ॥',
+        'ஹரித்ராபம் சதுர்பாஹும் ஹரித்ராவதநம் ப்ரபும் । பாஶாம்குஶதரம் தேவம் மோதகம் தம்தமேவ ச । பக்தாபயப்ரதாதாரம் வம்தே விக்நவிநாஶநம் । ஓம் ஹரித்ரா கணபதயே நம꞉ । அஸ்மிந் ஹரித்ராபிம்பே ஶ்ரீமஹாகணபதிம் ஆவாஹயாமி, ஸ்தாபயாமி, பூஜயாமி ॥',
         'haridrābhaṃ caturbāhuṃ haridrāvadanaṃ prabhum । pāśāṃkuśadharaṃ devaṃ modakaṃ daṃtameva ca । bhaktā''bhayapradātāraṃ vaṃde vighnavināśanam । oṃ haridrā gaṇapataye namaḥ । asmin haridrābiṃbe śrīmahāgaṇapatiṃ āvāhayāmi, sthāpayāmi, pūjayāmi ॥',
         'Every pooja in this tradition opens by asking Ganesha to move first. Making him out of turmeric rather than fetching a metal idol is the point: the obstacle-remover is made from what is already on the kitchen shelf, in the minute before he is needed.', 'all', true, false,
         null, 'StotraNidhi Sri Haridra Ganapati Puja (Telugu); Sathya Vadyar, Varalakshmi Poojai 2026 step by step, chapter at 04:02. The full published vidhi also carries Vedic mantras with svara marks, which this app does not yet render and which are omitted here rather than shown unaccented.')
@@ -552,7 +552,7 @@ values ('varalakshmi_vratham', 13, 'pradhana', '{main,punar}',
         'பயோததி க்ருதோபேதம் ஶர்கராமது ஸம்யுதம் ।
 பம்சாம்ருதஸ்நாநமிதம் க்ருஹாண கமலாலயே ॥
 ஶ்ரீ வரலக்ஷ்மீ தேவதாயை நம꞉ பம்சாம்ருதஸ்நாநம் ஸமர்பயாமி ॥
-கம்காஜலம் மயாऽநீதம் மஹாதேவஶிரஸ்ஸ்திதம் ।
+கம்காஜலம் மயாநீதம் மஹாதேவஶிரஸ்ஸ்திதம் ।
 ஶுத்தோதக ஸ்நாநமிதம் க்ருஹாண விதுஸோதரி ॥
 ஶ்ரீ வரலக்ஷ்மீ தேவதாயை நம꞉ ஶுத்தோதக ஸ்நாநம் ஸமர்பயாமி ॥
 ஸ்நாநாநம்தரம் ஆசமநீயம் ஸமர்பயாமி ।',
@@ -887,7 +887,7 @@ values ('varalakshmi_vratham', 22, 'uttara', '{main,punar,udvasana}',
 श्री वरलक्ष्मी देवतायै नमः प्रदक्षिणं समर्पयामि ॥',
         'யாநிகாநி ச பாபாநி ஜந்மாம்தர க்ருதாநி ச
 தாநி தாநி ப்ரணஶ்யம்தி ப்ரதக்ஷிண பதே பதே ।
-பாபோऽஹம் பாபகர்மாஹம் பாபாத்மா பாபஸம்பவா
+பாபோஹம் பாபகர்மாஹம் பாபாத்மா பாபஸம்பவா
 த்ராஹி மாம் க்ருபயா தேவி ஶரணாகதவத்ஸலே ।
 அந்யதா ஶரணம் நாஸ்தி த்வமேவ ஶரணம் மம
 தஸ்மாத்காருண்யபாவேந ரக்ஷரக்ஷ ஜநார்தநி ॥

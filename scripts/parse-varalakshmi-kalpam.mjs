@@ -23,6 +23,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import Sanscript from '@indic-transliteration/sanscript';
+import { tidyTamil, fixSuperscripts, transliterate as trShared, PROTECTED } from './_tamil.mjs';
 
 const DIR = process.env.NAMAVALI_DIR || 'C:/tmp-pv/namavali/';
 const SOURCE = 'StotraNidhi, Sri Varalakshmi Vrata Kalpam (Telugu), stotranidhi.com/sri-varalakshmi-vrata-kalpam-in-telugu/';
@@ -107,15 +108,8 @@ function body(key, nextKey) {
 }
 
 // --- script conversion ------------------------------------------------------
-const MISPLACED = /([க-ஹ])([ா-்]*)([ரல])([ா-்]*)([²³⁴])/g;
-const fixSup = (t) => {
-  let prev;
-  let cur = t;
-  do { prev = cur; cur = cur.replace(MISPLACED, '$1$2$5$3$4'); } while (cur !== prev);
-  return cur;
-};
-const tidyTa = (t) => t.replace(/[௃௄]/g, '').replace(/ஃ/g, '꞉').replace(/ௐ/g, 'ஓம்').replace(/'/g, '');
-const PROTECTED = /([।॥])/;
+const fixSup = fixSuperscripts;
+const tidyTa = tidyTamil;
 const convert = (text, to) =>
   text
     .split(PROTECTED)

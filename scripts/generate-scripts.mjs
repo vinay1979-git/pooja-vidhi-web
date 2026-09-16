@@ -19,6 +19,7 @@
  */
 
 import Sanscript from '@indic-transliteration/sanscript';
+import { tidyTamil, fixSuperscripts, transliterate as trShared, PROTECTED } from './_tamil.mjs';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -61,15 +62,6 @@ const note = console.error;
 const MISPLACED_SUPERSCRIPT =
   /([க-ஹ])([ா-்]*)([ரல])([ா-்]*)([²³⁴])/g;
 
-function fixSuperscripts(text) {
-  let prev;
-  let cur = text;
-  do {
-    prev = cur;
-    cur = cur.replace(MISPLACED_SUPERSCRIPT, '$1$2$5$3$4');
-  } while (cur !== prev);
-  return cur;
-}
 
 // ---------------------------------------------------------------------------
 // Placeholders such as [DYNAMIC_PANCHANGAM_DATA] must survive untouched, or the
@@ -81,7 +73,6 @@ function fixSuperscripts(text) {
 // substituting sentinels into the string. Sentinels are what a transliterator
 // is most likely to mangle.
 // ---------------------------------------------------------------------------
-const PROTECTED = /(\[[A-Z0-9_]+\]|[।॥])/;
 
 // Tidy two artefacts of the plain Tamil scheme.
 //  - visarga comes out as aytham; Tamil Sanskrit print uses a raised colon,
@@ -89,7 +80,6 @@ const PROTECTED = /(\[[A-Z0-9_]+\]|[।॥])/;
 //  - vocalic r and rr are marked with an ASCII apostrophe (kRShNa -> kru'Shna).
 //    Tamil devotional print writes these plain, and a stray quote in the middle
 //    of a mantra just looks like a typo.
-const tidyTamil = (t) => t.replace(/௃|௄/g, '').replace(/ஃ/g, '꞉').replace(/'/g, '');
 
 function transliterate(text, to) {
   if (!text) return null;

@@ -32,6 +32,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import Sanscript from '@indic-transliteration/sanscript';
+import { tidyTamil, fixSuperscripts, transliterate as trShared, PROTECTED } from './_tamil.mjs';
 
 const DIR = process.env.NAMAVALI_DIR || 'C:/tmp-pv/namavali/';
 const SOURCE =
@@ -73,14 +74,8 @@ function body(key, nextKey) {
     .map((l) => l.replace(/\s*\|\s*$/, ''));
 }
 
-const MISPLACED = /([க-ஹ])([ா-்]*)([ரல])([ா-்]*)([²³⁴])/g;
-const fixSup = (t) => {
-  let prev; let cur = t;
-  do { prev = cur; cur = cur.replace(MISPLACED, '$1$2$5$3$4'); } while (cur !== prev);
-  return cur;
-};
-const tidyTa = (t) =>
-  t.replace(/[௃௄]/g, '').replace(/ஃ/g, '꞉').replace(/ௐ/g, 'ஓம்').replace(/'/g, '');
+const fixSup = fixSuperscripts;
+const tidyTa = tidyTamil;
 const toTamil = (d) => tidyTa(fixSup(Sanscript.t(d, 'devanagari', 'tamil')));
 const toIast = (d) => Sanscript.t(d, 'devanagari', 'iast');
 const skel = (s) =>

@@ -23,11 +23,10 @@
  */
 
 import Sanscript from '@indic-transliteration/sanscript';
+import { tidyTamil, fixSuperscripts, transliterate as trShared, PROTECTED } from './_tamil.mjs';
 
-const MISPLACED = /([க-ஹ])([ா-்]*)([ரல])([ா-்]*)([²³⁴])/g;
-const fixSup = (t) => { let p; let c = t; do { p = c; c = c.replace(MISPLACED, '$1$2$5$3$4'); } while (c !== p); return c; };
-const tidy = (t) => t.replace(/[௃௄]/g, '').replace(/ஃ/g, '꞉').replace(/'/g, '');
-const PROTECTED = /(\[[A-Z0-9_]+\]|[।॥])/;
+const fixSup = fixSuperscripts;
+const tidy = tidyTamil;
 const tr = (text, to) =>
   String(text).split(PROTECTED).map((part) => {
     if (part === '' || PROTECTED.test(part)) return part;

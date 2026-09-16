@@ -15,17 +15,8 @@
  */
 
 import Sanscript from '@indic-transliteration/sanscript';
+import { tidyTamil, fixSuperscripts, transliterate as trShared, PROTECTED } from './_tamil.mjs';
 
-const MISPLACED_SUPERSCRIPT = /([க-ஹ])([ா-்]*)([ரல])([ா-்]*)([²³⁴])/g;
-function fixSuperscripts(text) {
-  let prev;
-  let cur = text;
-  do {
-    prev = cur;
-    cur = cur.replace(MISPLACED_SUPERSCRIPT, '$1$2$5$3$4');
-  } while (cur !== prev);
-  return cur;
-}
 
 // Tidy two artefacts of the plain Tamil scheme.
 //  - visarga comes out as aytham; Tamil Sanskrit print uses a raised colon,
@@ -33,10 +24,8 @@ function fixSuperscripts(text) {
 //  - vocalic r and rr are marked with an ASCII apostrophe (kRShNa -> kru'Shna).
 //    Tamil devotional print writes these plain, and a stray quote in the middle
 //    of a mantra just looks like a typo.
-const tidyTamil = (t) => t.replace(/௃|௄/g, '').replace(/ஃ/g, '꞉').replace(/'/g, '');
 const TAMIL_SCHEME = 'tamil';
 
-const PROTECTED = /(\[[A-Z0-9_]+\]|[।॥])/;
 function transliterate(text, to) {
   return String(text)
     .split(PROTECTED)
