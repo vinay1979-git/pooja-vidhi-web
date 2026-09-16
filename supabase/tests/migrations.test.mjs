@@ -441,6 +441,29 @@ await assert('still no null meanings',
   'select count(*) from pooja_steps where meaning_en is null', 0);
 await assert('still 24 + 29 steps', 'select count(*) from pooja_steps', 53);
 
+// --- 9k. Philosophy -----------------------------------------------------------
+console.log('\n[9k] 0014 philosophy');
+await assert('eleven steps have no philosophy before this runs',
+  'select count(*) from pooja_steps where philosophy_en is null', 11);
+await step('0014_philosophy.sql', () => db.exec(sql(`${MIG}/0014_philosophy.sql`)));
+await assert('no step is left without philosophy',
+  'select count(*) from pooja_steps where philosophy_en is null', 0);
+await assert('the Varalakshmi bell got one too',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and step_title_en = 'Ghanta Pooja' and philosophy_en is not null`, 1);
+await assert('nothing is a stub',
+  'select count(*) from pooja_steps where length(philosophy_en) < 80', 0);
+
+console.log('\n[9l] 0014 idempotency');
+await step('0014 re-run', () => db.exec(sql(`${MIG}/0014_philosophy.sql`)));
+await assert('still none missing',
+  'select count(*) from pooja_steps where philosophy_en is null', 0);
+// The update is guarded on "is null", so a re-run must not overwrite an entry
+// that was edited by hand in between.
+await assert('existing entries were not rewritten',
+  `select count(*) from pooja_steps where step_title_en = 'Achamanam'
+     and philosophy_en like 'Achamanam purifies%'`, 2);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
