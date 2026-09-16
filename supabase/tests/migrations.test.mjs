@@ -229,6 +229,28 @@ await assert('every naivedyam item has Tamil',
 await assert('recipe_note_ta column exists',
   "select count(*) from information_schema.columns where table_name='naivedyam_items' and column_name='recipe_note_ta'", 1);
 
+// --- 9c. Closing steps and pooja modes ----------------------------------------
+console.log('\n[9c] 0009 closing steps and modes');
+await step('0009_closing_steps_and_modes.sql', () => db.exec(sql(`${MIG}/0009_closing_steps_and_modes.sql`)));
+await assert('20 steps now', 'select count(*) from pooja_steps', 20);
+await assert('step numbers still dense',
+  'select (max(step_number)-min(step_number)+1) - count(*) from pooja_steps', 0);
+await assert('no duplicate step_number after the shift',
+  'select count(*) from (select step_number from pooja_steps group by 1 having count(*)>1) x', 0);
+await assert('Ksheera Arghyam sits at 18',
+  "select count(*) from pooja_steps where step_number = 18 and step_title_en = 'Ksheera Arghyam'", 1);
+await assert('Udvasanam is last',
+  "select count(*) from pooja_steps where step_number = 20 and step_title_en = 'Udvasanam'", 1);
+await assert('main mode steps', "select count(*) from pooja_steps where 'main' = any(modes)", 19);
+await assert('punar mode steps', "select count(*) from pooja_steps where 'punar' = any(modes)", 18);
+await assert('udvasana mode steps', "select count(*) from pooja_steps where 'udvasana' = any(modes)", 10);
+await assert('Avahanam is not repeated on later days',
+  "select count(*) from pooja_steps where step_title_en = 'Avahanam & Asanam' and 'punar' = any(modes)", 0);
+await assert('Udvasanam only on the final day',
+  "select count(*) from pooja_steps where step_title_en = 'Udvasanam' and 'main' = any(modes)", 0);
+await assert('new steps carry all three scripts',
+  "select count(*) from pooja_steps where step_number in (18,20) and (mantra_sanskrit is null or mantra_tamil is null or mantra_translit is null)", 0);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 const gaps = await one(`select

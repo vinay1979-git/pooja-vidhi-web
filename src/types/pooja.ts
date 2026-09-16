@@ -23,6 +23,15 @@ export interface SamagriItem {
   required?: boolean;
 }
 
+/**
+ * A multi-day observance is driven by mode, not by a different pooja.
+ *   main      day one, the full pooja
+ *   punar     a later day: abbreviated, the deity is already installed so
+ *             Avahanam and Prana Pratishtha are not repeated
+ *   udvasana  the final day, which adds the release before immersion
+ */
+export type PoojaMode = 'main' | 'punar' | 'udvasana';
+
 export interface NaivedyamAvoidItem {
   name_en: string;
   name_ta?: string;
@@ -64,6 +73,8 @@ export interface PoojaStep {
   is_dynamic_sankalpam?: boolean | null;
   archana_list?: ArchanaItem[] | null;
   phase?: 'purvangam' | 'pradhana' | 'uttara';
+  /** Which pooja modes include this step. See PoojaMode. */
+  modes?: PoojaMode[];
   /** Authoritative. 'filter_*' removes the screen entirely; 'variant_*' keeps it
    *  and swaps the mantra. */
   gender_rule?:

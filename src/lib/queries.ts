@@ -142,20 +142,33 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
   };
 }
 
+// modes arrives with migration 0009. Same rule as recipe_note_ta: ask for it,
+// and fall back to the older shape if Postgres says the column is not there
+// yet, so code and migration can land in either order. Selecting a missing
+// column fails the whole query, and last time that surfaced as a bare 404.
+const STEPS_SELECT = (withModes: boolean) => `
+  id, pooja_id, step_number, phase, step_title_en, step_title_ta,
+  instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil,
+  mantra_translit, meaning_en, philosophy_en, philosophy_ta,
+  gender_rule, variant_mantra_sanskrit, variant_note_en,
+  is_dynamic_sankalpam${withModes ? ', modes' : ''},
+  archana_items ( seq, invoked_name_deva, invoked_name_ta,
+                  invoked_name_translit, offering_en, botanical, meaning_en )`;
+
 export async function getSteps(poojaId: string): Promise<PoojaStep[]> {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('pooja_steps')
-    .select(
-      `id, pooja_id, step_number, phase, step_title_en, step_title_ta,
-       instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil,
-       mantra_translit, meaning_en, philosophy_en, philosophy_ta,
-       gender_rule, variant_mantra_sanskrit, variant_note_en,
-       is_dynamic_sankalpam,
-       archana_items ( seq, invoked_name_deva, invoked_name_ta,
-                       invoked_name_translit, offering_en, botanical, meaning_en )`,
-    )
+    .select(STEPS_SELECT(true))
     .eq('pooja_id', poojaId)
     .order('step_number', { ascending: true });
+
+  if (error?.code === '42703') {
+    ({ data, error } = await supabase
+      .from('pooja_steps')
+      .select(STEPS_SELECT(false))
+      .eq('pooja_id', poojaId)
+      .order('step_number', { ascending: true }));
+  }
 
   if (error) {
     throw new Error(
@@ -166,7 +179,11 @@ export async function getSteps(poojaId: string): Promise<PoojaStep[]> {
   }
   if (!data) return [];
 
-  return data.map((s: Record<string, unknown>) => {
+  // The select string is built at runtime, which defeats supabase-js's generic
+  // inference, same as in getPooja.
+  const rows = data as unknown as Record<string, unknown>[];
+
+  return rows.map((s) => {
     const archana: ArchanaItem[] = ((s.archana_items as Record<string, unknown>[]) ?? [])
       .slice()
       .sort((a, b) => (a.seq as number) - (b.seq as number))
@@ -195,6 +212,7 @@ export async function getSteps(poojaId: string): Promise<PoojaStep[]> {
       philosophy_ta: (s.philosophy_ta as string) ?? undefined,
       is_dynamic_sankalpam: (s.is_dynamic_sankalpam as boolean) ?? false,
       archana_list: archana.length ? archana : null,
+      modes: ((s.modes as string[]) ?? ['main']) as PoojaStep['modes'],
       gender_rule: s.gender_rule as GenderRule,
       gender_target: toLegacyGender(s.gender_rule as GenderRule),
       variant_mantra_sanskrit: (s.variant_mantra_sanskrit as string) ?? undefined,

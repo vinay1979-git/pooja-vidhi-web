@@ -7,6 +7,7 @@ import { AlertCircle, Award, BookOpen, Calendar, Check, CheckCircle2, ChevronDow
 import { Pooja, PoojaStep, ArchanaItem } from '@/types/pooja';
 import { fetchPanchangamData, PanchangamData } from '@/actions/getSankalpam';
 import { usePreferences, resolveScript, SCRIPT_LABEL } from '@/lib/preferences';
+import type { PoojaMode } from '@/types/pooja';
 
 interface PoojaViewerProps {
   pooja: Pooja;
@@ -34,6 +35,11 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
   // Performer Gender State ('male' | 'female' | 'couple')
   const [performerGender, setPerformerGender] = useState<'male' | 'female' | 'couple'>('male');
+
+  // Multi-day observances. Day one is the full pooja; later days are an
+  // abbreviated Punar Pooja because the deity is already installed; the final
+  // day adds Udvasanam to release the presence before immersion.
+  const [poojaMode, setPoojaMode] = useState<PoojaMode>('main');
 
   // Philosophy Accordion Toggle State
   const [showPhilosophy, setShowPhilosophy] = useState<boolean>(true);
@@ -280,10 +286,26 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     [performerGender]
   );
 
-  // Filtered steps available for active gender selection
+  // True once migration 0009 has run and the steps carry mode tags. Before
+  // that every step looks like day one, so filtering by mode would empty the
+  // list for Punar and Udvasanam. Fall back to showing everything instead.
+  const modesSeeded = useMemo(
+    () => steps.some((s) => Array.isArray(s.modes) && s.modes.length > 1),
+    [steps]
+  );
+
+  const isStepInMode = useCallback(
+    (step: PoojaStep) => {
+      if (!modesSeeded) return true;
+      return (step.modes ?? ['main']).includes(poojaMode);
+    },
+    [poojaMode, modesSeeded]
+  );
+
+  // Steps for this performer on this day.
   const availableSteps = useMemo(() => {
-    return steps.filter(isStepAvailableForGender);
-  }, [steps, isStepAvailableForGender]);
+    return steps.filter((s) => isStepAvailableForGender(s) && isStepInMode(s));
+  }, [steps, isStepAvailableForGender, isStepInMode]);
 
   // Parse Samagri items consistently
   const parsedSamagriList = useMemo(() => {
@@ -631,6 +653,63 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               {/* Performer Gender Toggle */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                {/* Which day of the observance. Ganesha Chaturthi is kept for
+                    one, three, five, seven, nine or eleven days; only the first
+                    and last differ from the middle ones. */}
+                <div className="mb-4">
+                  <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5 mb-2">
+                    <Calendar className="w-4 h-4 text-amber-400" /> Which day? / எந்த நாள்?
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {([
+                      {
+                        id: 'main' as PoojaMode,
+                        en: 'Main Pooja',
+                        ta: 'பிரதான பூஜை',
+                        hint: 'First day. Full vidhi, the idol is installed.',
+                      },
+                      {
+                        id: 'punar' as PoojaMode,
+                        en: 'Punar Pooja',
+                        ta: 'புனர் பூஜை',
+                        hint: 'A later day. Shorter: the deity is already installed.',
+                      },
+                      {
+                        id: 'udvasana' as PoojaMode,
+                        en: 'Udvasanam only',
+                        ta: 'உத்வாசனம்',
+                        hint: 'Final day. Closing and release, before immersion.',
+                      },
+                    ]).map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          setPoojaMode(m.id);
+                          setCurrentStepIndex(-1);
+                        }}
+                        className={`py-2.5 px-3 rounded-xl text-left transition-all border ${
+                          poojaMode === m.id
+                            ? 'bg-amber-500 text-ink-inverse border-amber-400 shadow-md'
+                            : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
+                        }`}
+                      >
+                        <span className="block text-xs font-bold">{m.en}</span>
+                        <span className="block text-[11px] font-tamil opacity-90" lang="ta">
+                          {m.ta}
+                        </span>
+                        <span className="block text-[10px] mt-0.5 opacity-75 leading-snug">
+                          {m.hint}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-stone-400 mt-2">
+                    {modesSeeded
+                      ? `${availableSteps.length} of ${steps.length} steps for this selection.`
+                      : 'Day selection has no effect yet: run migration 0009 to tag the steps.'}
+                  </p>
+                </div>
+
                   <Users className="w-4 h-4 text-amber-400" /> Performed By / வழிபாடு செய்பவர்
                 </label>
                 <div className="grid grid-cols-3 gap-2">
