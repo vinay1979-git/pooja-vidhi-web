@@ -529,6 +529,39 @@ await assert('multi-line mantras still have their line breaks',
 await step('0016 re-run', () => db.exec(sql(`${MIG}/0016_strip_carriage_returns.sql`)));
 await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
 
+// --- 9p. Ganesha preparation --------------------------------------------------
+console.log('\n[9p] 0017 Ganesha prep');
+await assert('Ganesha had only the original seven samagri',
+  "select count(*) from samagri_items where pooja_id = 'ganesha_standard'", 7);
+await step('0017_ganesha_prep.sql', () => db.exec(sql(`${MIG}/0017_ganesha_prep.sql`)));
+await assert('36 samagri items now',
+  "select count(*) from samagri_items where pooja_id = 'ganesha_standard'", 36);
+await assert('7 naivedyam items now',
+  "select count(*) from naivedyam_items where pooja_id = 'ganesha_standard'", 7);
+await assert('the things a practitioner would have arrived without are there',
+  `select count(*) from samagri_items where pooja_id = 'ganesha_standard'
+     and (item_en like '%Vasthram%' or item_en like '%Poonal%' or item_en like '%Panchamirtham%'
+          or item_en like '%Raw milk%' or item_en like '%Vilakku%' or item_en like '%Mani%')`, 6);
+await assert('all nine leaves he lists are on the sheet',
+  `select count(*) from samagri_items where pooja_id = 'ganesha_standard' and category = 'leaf'`, 9);
+await assert('every samagri row is bilingual',
+  "select count(*) from samagri_items where item_ta is null or item_ta = ''", 0);
+await assert('seq is dense 1..36',
+  `select (max(seq)-min(seq)+1) - count(*) from samagri_items where pooja_id = 'ganesha_standard'`, 0);
+await assert('one spelling of arugampul in samagri',
+  "select count(*) from samagri_items where item_en like '%Arukampul%' or item_ta like '%அறுகம்புல்%'", 0);
+await assert('one spelling of arugampul in the steps',
+  "select count(*) from pooja_steps where instruction_en like '%Arukampul%' or instruction_ta like '%அறுகம்புல்%'", 0);
+await assert('substitutable samagri always names a substitute',
+  'select count(*) from samagri_items where is_substitutable and substitute_with is null', 0);
+
+console.log('\n[9q] 0017 idempotency');
+await step('0017 re-run', () => db.exec(sql(`${MIG}/0017_ganesha_prep.sql`)));
+await assert('still 36 samagri',
+  "select count(*) from samagri_items where pooja_id = 'ganesha_standard'", 36);
+await assert('Varalakshmi samagri untouched',
+  "select count(*) from samagri_items where pooja_id = 'varalakshmi_vratham'", 21);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
