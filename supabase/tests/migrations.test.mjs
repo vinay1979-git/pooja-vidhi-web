@@ -562,6 +562,71 @@ await assert('still 36 samagri',
 await assert('Varalakshmi samagri untouched',
   "select count(*) from samagri_items where pooja_id = 'varalakshmi_vratham'", 21);
 
+// --- 9r. The arghyam, and who ties the thread ---------------------------------
+// Addressed by the natural key, not by uuid: this database generates its own
+// ids in 0001-0009, so the production uuids mean nothing here. Both poojas
+// have a step titled 'Ksheera Arghyam', hence the pooja_id in every locator.
+const stepAt = (pooja, title) => `pooja_id = '${pooja}' and step_title_en = '${title}'`;
+const GAN_ARGHYAM = stepAt('ganesha_standard', 'Ksheera Arghyam');
+const VL_ARGHYAM = stepAt('varalakshmi_vratham', 'Ksheera Arghyam');
+const VL_THREAD = stepAt('varalakshmi_vratham', 'Sharadu Dharanam');
+const itemsOf = (...wheres) =>
+  `pooja_step_id in (select id from pooja_steps where ${wheres.map((w) => `(${w})`).join(' or ')})`;
+
+console.log('\n[9r] 0018 arghyam and thread');
+await assert('the arghyam was one undifferentiated mantra with no offerings',
+  `select count(*) from archana_items where ${itemsOf(GAN_ARGHYAM, VL_ARGHYAM)}`, 0);
+await step('0018_arghyam_and_thread.sql', () => db.exec(sql(`${MIG}/0018_arghyam_and_thread.sql`)));
+await assert('Ganesha arghyam is four numbered offerings',
+  `select count(*) from archana_items where ${itemsOf(GAN_ARGHYAM)}`, 4);
+await assert('Varalakshmi arghyam is one',
+  `select count(*) from archana_items where ${itemsOf(VL_ARGHYAM)}`, 1);
+// The pouring count lives in the refrain. A verse without one leaves the
+// practitioner no way to know how many times to pour, which is the fault
+// that was reported.
+await assert('every arghyam line carries its idam-arghyam refrain, in all three scripts',
+  `select count(*) from archana_items
+    where ${itemsOf(GAN_ARGHYAM, VL_ARGHYAM)}
+      and not (invoked_name_deva like '%इदमर्घ्यं%'
+               and invoked_name_ta like '%இதமர்க்யம்%'
+               and invoked_name_translit like '%idamarghyaṃ%')`, 0);
+// Two lines per offering: the verse, then the refrain. If the newline were
+// lost the two would render as one run-on sentence.
+await assert('each offering is two lines',
+  `select count(*) from archana_items
+    where ${itemsOf(GAN_ARGHYAM, VL_ARGHYAM)}
+      and invoked_name_deva not like '%' || chr(10) || '%'`, 0);
+await assert('the old step-level mantra blob is gone from both',
+  `select count(*) from pooja_steps
+    where ((${GAN_ARGHYAM}) or (${VL_ARGHYAM})) and mantra_sanskrit is not null`, 0);
+// 0009 wrote "sarva siddhi pradayaka" and "jyeshthasvamin ganeshvara"; the
+// kalpam has "varaprada vinayaka" and "svami jyeshtha vinayaka".
+await assert('the unsourced 0009 wording is gone',
+  `select count(*) from archana_items where ${itemsOf(GAN_ARGHYAM)}
+     and (invoked_name_translit like '%sarva siddhi pradāyaka%'
+          or invoked_name_translit like '%jyeṣṭhasvāmin%')`, 0);
+await assert('the pranava is written the same way as everywhere else',
+  `select count(*) from archana_items where ${itemsOf(GAN_ARGHYAM, VL_ARGHYAM)}
+     and invoked_name_deva like '%ओं %'`, 0);
+await assert('the husband tying it with three knots is recorded',
+  `select count(*) from pooja_steps where ${VL_THREAD}
+     and instruction_en like '%husband%' and instruction_en like '%three knots%'
+     and instruction_ta like '%கணவர்%'`, 1);
+// Three knots of the tying next to nine knots of the thread reads as a
+// contradiction unless the step says which is which.
+await assert('and distinguished from the nine granthis worshipped just before',
+  `select count(*) from pooja_steps where ${VL_THREAD}
+     and instruction_en like '%nine granthis%'`, 1);
+await assert('its source_ref admits the kalpam does not say it',
+  `select count(*) from pooja_steps where ${VL_THREAD}
+     and source_ref like '%NOT stated in the kalpam%'`, 1);
+
+console.log('\n[9s] 0018 idempotency');
+await step('0018 re-run', () => db.exec(sql(`${MIG}/0018_arghyam_and_thread.sql`)));
+await assert('still four Ganesha offerings, not eight',
+  `select count(*) from archana_items where ${itemsOf(GAN_ARGHYAM)}`, 4);
+await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {

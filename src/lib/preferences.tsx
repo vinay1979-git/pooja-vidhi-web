@@ -21,7 +21,25 @@ import React, {
  */
 
 export type InstructionLang = 'en' | 'ta';
-export type MantraScript = 'sanskrit' | 'tamil' | 'translit';
+
+/**
+ * The scripts a reader can CHOOSE for the mantra.
+ *
+ * There used to be a third, 'translit', offered in the header as "Eng". It was
+ * removed because the label promised something the button could not give:
+ * mantra_translit is romanised Sanskrit, not an English translation, so
+ * choosing "Eng" put `gṛhāṇārghyaṃ mayā dattaṃ` on screen where a reader
+ * reasonably expected "receive this arghyam I give" -- and on the steps with no
+ * roman text stored it fell through to Devanagari, so the English option
+ * displayed Sanskrit. Nothing is lost by dropping it: Sanskrit and Tamil both
+ * already carry the roman line underneath, and the actual English is the
+ * Meaning block, which is always shown.
+ */
+export type MantraScript = 'sanskrit' | 'tamil';
+
+/** What is actually on screen. Roman can still appear as a fallback. */
+export type ShownScript = MantraScript | 'translit';
+
 export type Theme = 'dark' | 'light';
 
 interface Preferences {
@@ -54,10 +72,9 @@ function read(): typeof DEFAULTS {
     const p = JSON.parse(raw) as Partial<typeof DEFAULTS>;
     return {
       instructionLang: p.instructionLang === 'ta' ? 'ta' : 'en',
-      mantraScript:
-        p.mantraScript === 'tamil' || p.mantraScript === 'translit'
-          ? p.mantraScript
-          : 'sanskrit',
+      // Anything that is not 'tamil' becomes 'sanskrit', which also migrates
+      // the stored 'translit' of anyone who had the old "Eng" option selected.
+      mantraScript: p.mantraScript === 'tamil' ? 'tamil' : 'sanskrit',
       theme: p.theme === 'dark' ? 'dark' : 'light',
     };
   } catch {
@@ -126,8 +143,8 @@ export function resolveScript(
     mantra_tamil?: string | null;
     mantra_translit?: string | null;
   },
-): { text: string | null; shown: MantraScript | null; isFallback: boolean } {
-  const byScript: Record<MantraScript, string | null | undefined> = {
+): { text: string | null; shown: ShownScript | null; isFallback: boolean } {
+  const byScript: Record<ShownScript, string | null | undefined> = {
     sanskrit: source.mantra_sanskrit,
     tamil: source.mantra_tamil,
     translit: source.mantra_translit,
@@ -137,12 +154,10 @@ export function resolveScript(
   if (wanted) return { text: wanted, shown: want, isFallback: false };
 
   // Fall back in a sensible order, but report which script actually appears.
-  const order: MantraScript[] =
-    want === 'tamil'
-      ? ['translit', 'sanskrit']
-      : want === 'translit'
-        ? ['sanskrit', 'tamil']
-        : ['translit', 'tamil'];
+  // Roman is still reachable here even though it can no longer be chosen: a
+  // step with no Devanagari is better served by readable roman than by nothing.
+  const order: ShownScript[] =
+    want === 'tamil' ? ['translit', 'sanskrit'] : ['translit', 'tamil'];
 
   for (const alt of order) {
     const text = byScript[alt];
@@ -151,7 +166,7 @@ export function resolveScript(
   return { text: null, shown: null, isFallback: false };
 }
 
-export const SCRIPT_LABEL: Record<MantraScript, string> = {
+export const SCRIPT_LABEL: Record<ShownScript, string> = {
   sanskrit: 'Sanskrit',
   tamil: 'Tamil',
   translit: 'Transliteration',

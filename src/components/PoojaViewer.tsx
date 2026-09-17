@@ -88,8 +88,14 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
   const [panchangamData, setPanchangamData] = useState<PanchangamData | null>(null);
 
-  // Archana Progress State
-  const [archanaProgress, setArchanaProgress] = useState<Record<string, number>>({});
+  // Which archana lines have been offered, keyed `${stepId}::${index}`.
+  //
+  // The key used to be `archana-${index}` alone, with no step in it. Every
+  // archana step in the pooja therefore shared one set of keys: offering the
+  // first flower in the Patra Pooja lit up the first line of the Pushpa Pooja,
+  // the Durva Pooja and the Ashtottaram as well, because all four are line #0.
+  // Two steps can share an index; they cannot share an id.
+  const [archanaProgress, setArchanaProgress] = useState<Record<string, boolean>>({});
 
   // Pooja Complete Summary State
   const [isCompleted, setIsCompleted] = useState(false);
@@ -591,16 +597,11 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               >
                 தமிழ்
               </button>
-              <button
-                onClick={() => setMantraLang('translit')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                  mantraLang === 'translit'
-                    ? 'bg-amber-500 text-ink-inverse shadow-sm'
-                    : 'text-stone-300 hover:text-stone-100'
-                }`}
-              >
-                Eng
-              </button>
+              {/* There is deliberately no third "Eng" button here. It selected
+                  romanised Sanskrit, not English, and fell back to Devanagari
+                  on steps with no roman text -- so the English option showed
+                  Sanskrit. Both remaining scripts carry the roman line beneath
+                  them, and the English is the Meaning block below. */}
             </div>
           </div>
         </div>
@@ -1354,20 +1355,12 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                         const core =
                           mantraLang === 'tamil'
                             ? panchangamData.core.tamil
-                            : mantraLang === 'translit'
-                              ? panchangamData.core.translit
-                              : panchangamData.core.sanskrit;
+                            : panchangamData.core.sanskrit;
                         return (
                           <>
                             <span
-                              className={
-                                mantraLang === 'tamil'
-                                  ? 'font-tamil'
-                                  : mantraLang === 'sanskrit'
-                                    ? 'font-deva'
-                                    : ''
-                              }
-                              lang={mantraLang === 'tamil' ? 'ta' : mantraLang === 'sanskrit' ? 'sa' : 'en'}
+                              className={mantraLang === 'tamil' ? 'font-tamil' : 'font-deva'}
+                              lang={mantraLang === 'tamil' ? 'ta' : 'sa'}
                             >
                               {core}
                             </span>
@@ -1387,6 +1380,16 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       })()}
                       &quot;
                     </div>
+
+                    {/* The roman sankalpam used to be reachable only by picking
+                        the "Eng" mantra script, which no longer exists. Carry it
+                        underneath instead, exactly as the mantra card does, so
+                        a reader of neither script can still say the sentence. */}
+                    {panchangamData.core.translit && (
+                      <p className="px-4 text-xs md:text-sm text-stone-400 italic leading-relaxed">
+                        {panchangamData.core.translit}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -1437,8 +1440,13 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                           : null;
                         return (
                           <>
+                            {/* whitespace-pre-line: several mantras are stored
+                                with a line break at each pada, the way the
+                                published pages set them. Those breaks were
+                                being collapsed, so a four-line shloka arrived
+                                as one unbroken sentence. */}
                             <p
-                              className={`text-xl md:text-2xl lg:text-3xl leading-relaxed text-amber-300 tracking-wide ${
+                              className={`text-xl md:text-2xl lg:text-3xl leading-relaxed text-amber-300 tracking-wide whitespace-pre-line ${
                                 r.shown === 'tamil'
                                   ? 'font-tamil'
                                   : r.shown === 'sanskrit'
@@ -1450,7 +1458,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                               {main}
                             </p>
                             {gloss && (
-                              <p className="text-sm md:text-base text-stone-400 italic leading-relaxed max-w-2xl mx-auto">
+                              <p className="text-sm md:text-base text-stone-400 italic leading-relaxed max-w-2xl mx-auto whitespace-pre-line">
                                 {gloss}
                               </p>
                             )}
@@ -1495,7 +1503,18 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                         </h3>
                       </div>
                       <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-stone-800 text-stone-300">
-                        {Object.keys(archanaProgress).length} offered
+                        {/* Count this step's offered lines, not the size of the
+                            map. Object.keys counted every line ever touched in
+                            the whole pooja, and un-offering a line left its key
+                            behind with a falsy value, so the tally only ever
+                            went up and could exceed the number of lines shown. */}
+                        {
+                          currentStep.archana_list.filter(
+                            (_: ArchanaItem, i: number) =>
+                              archanaProgress[`${currentStep.id}::${i}`],
+                          ).length
+                        }{' '}
+                        of {currentStep.archana_list.length} offered
                       </span>
                     </div>
 
@@ -1529,7 +1548,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     {/* Scrollable list */}
                     <div className="max-h-96 overflow-y-auto pr-2 space-y-2.5 divide-y divide-stone-800/60">
                       {currentStep.archana_list.map((item: ArchanaItem, idx: number) => {
-                        const isOffered = !!archanaProgress[`archana-${idx}`];
+                        const key = `${currentStep.id}::${idx}`;
+                        const isOffered = !!archanaProgress[key];
                         // In the Patra Pooja every line invokes the same name,
                         // because the paddhatis disagree on the pairing. Showing
                         // the mantra 21 times buries the leaf, which is the part
@@ -1543,10 +1563,14 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                           <div
                             key={idx}
                             onClick={() =>
-                              setArchanaProgress((prev) => ({
-                                ...prev,
-                                [`archana-${idx}`]: isOffered ? 0 : 1,
-                              }))
+                              setArchanaProgress((prev) => {
+                                const next = { ...prev };
+                                // Delete rather than set false, so the map only
+                                // ever holds lines that really were offered.
+                                if (isOffered) delete next[key];
+                                else next[key] = true;
+                                return next;
+                              })
                             }
                             className={`pt-2.5 pb-2.5 px-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
                               // amber-500 is a saturated saffron in BOTH themes, so a
@@ -1579,11 +1603,18 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                                   </>
                                 ) : (
                                   <>
-                                    <p className="text-sm md:text-base font-bold text-amber-100">
+                                    {/* whitespace-pre-line: an archana line can be
+                                        more than one line. The Ksheera Arghyam
+                                        verses each carry their "idam arghyam"
+                                        refrain underneath, and without this the
+                                        two ran together into one sentence. */}
+                                    <p className="text-sm md:text-base font-bold text-amber-100 whitespace-pre-line">
                                       {mantraLang === 'tamil' && item.tamil ? item.tamil : item.sanskrit}
                                     </p>
                                     {item.translit && (
-                                      <p className="text-xs text-stone-400 font-medium">{item.translit}</p>
+                                      <p className="text-xs text-stone-400 font-medium whitespace-pre-line">
+                                        {item.translit}
+                                      </p>
                                     )}
                                     {/* Anga and durva offer a different thing at each
                                         line, so the name alone is not enough. */}
@@ -1619,7 +1650,12 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                                   : 'bg-stone-800 text-amber-300 hover:bg-amber-900/50'
                               }`}
                             >
-                              🌸 {isOffered ? 'Offered' : 'Offer Flower'}
+                              {/* Not every archana line offers a flower. This
+                                  list is also the leaves of the Patra Pooja, the
+                                  limbs touched in the Anga Pooja and the pourings
+                                  of the arghyam, and "Offer Flower" was wrong on
+                                  all three. */}
+                              🌸 {isOffered ? 'Offered' : 'Offer'}
                             </button>
                           </div>
                         );

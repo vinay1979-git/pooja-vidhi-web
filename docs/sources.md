@@ -209,8 +209,8 @@ instead of retyping them.
   (asunīte, gaṇānāṃ tvā, āpo hi ṣṭhā, yajñopavītam). The app does not render
   accents, so those are omitted rather than shown unaccented. Rendering svara is
   an open feature question.
-- `meaning_en` is still null on every step in both poojas, so the Meaning block
-  never renders.
+- ~~`meaning_en` is still null on every step in both poojas~~ — filled for all 53
+  by migration 0013; see the Meanings section below.
 - Tamil instruction drafts remain pending vaidika review.
 - "Facing north" for the arghyam remains unattested in any written source and is
   still not encoded.
@@ -273,3 +273,96 @@ rewritten.
 
 The Meaning block also moved out of the mantra card in `PoojaViewer`, because
 inside it those eight list-only steps could never have shown one.
+
+---
+
+## The Ksheera Arghyam, and the correction it forced
+
+Reported by a practitioner as "incomplete, there are 3 steps in offering
+arghyam". Chasing it turned up two separate faults, fixed in migration 0018 by
+`scripts/build-arghyam-and-thread.mjs`.
+
+### The arghyam is a sequence, and was stored as a paragraph
+
+The published kalpams do not print an arghyam as one recitation. They print a
+verse, then a refrain naming how many times to pour, then the next verse:
+
+> అర్ఘ్యం గృహాణ హేరంబ వరప్రద వినాయక …
+> ఓం శ్రీ సిద్ధివినాయక స్వామినే నమః **యిదమర్ఘ్యం యిదమర్ఘ్యం యిదమర్ఘ్యమ్**
+
+Both poojas held the whole thing in `mantra_sanskrit` as one run of text, and
+**every refrain was missing**, so nothing on screen said how many pourings to
+make. The verses are `archana_items` now, which the viewer already renders as a
+numbered, tickable list, and each carries its refrain on a second line.
+
+The same publisher's Sankashtahara kalpam prints the identical shape with
+`(iti saptavāraṃ)` after each of its three arghyams, which is what confirmed
+the pattern rather than a quirk of one page.
+
+### Ganesha's verses traced to no text
+
+Migration 0009 wrote three verses under the `source_ref` *"Sathya Vadyar,
+Ganesha Chaturthi 2026; Tamil Smartha ksheerarghya pradanam"* — a video and a
+tradition, not a text. The rule at the top of this file is that a video
+establishes **sequence** and a published text establishes **wording**, and that
+rule was not followed here.
+
+The Siddhi Vinayaka Vrata Kalpam's `పునరర్ఘ్యం` section gives **four** verses:
+
+| | 0009 | the kalpam |
+|---|---|---|
+| 1 | `arghyaṃ gṛhāṇa heramba` **`sarva siddhi pradāyaka`** | **`varaprada vināyaka`** |
+| 2 | — | `namastubhyaṃ gaṇeśāya namaste vighnanāyaka` |
+| 3 | — | `namaste bhinnadantāya namaste harasūnave` |
+| 4 | `gauryaṅgamala sambhūta` **`jyeṣṭhasvāmin gaṇeśvara`** | **`svāmi jyeṣṭha vināyaka`** |
+
+and 0009's third verse, `vināyaka namaste'stu gandha puṣpākṣatairyutam`, appears
+in no published text found. So the step was **short a verse and carrying wording
+that traced to nothing at the same time**. All four now come out of the cached
+page and are round-trip verified Telugu → Devanagari → Telugu.
+
+One further edit to the source text, recorded in the script: Telugu writes an
+epenthetic *y* before a word-initial *i*, so `యిదమర్ఘ్యం` is `ఇదమర్ఘ్యం`. It is
+an orthographic convention, not a different word, and Devanagari has no such
+form. Without normalising it the round-trip check would have failed on every
+refrain — which would have looked like a broken converter rather than a spelling
+convention.
+
+Varalakshmi's verse was **not** changed. It is from the kalpam and round-trips;
+it only gained the refrain and the structure. The kalpam prints its arghyam once
+as an upachara, with `arghyaṃ samarpayāmi`; the threefold `idam arghyam` form
+used at the close follows the same publisher's shape for a repeated arghyam, and
+the `source_ref` says so.
+
+---
+
+## Who ties the nonbu saradu
+
+`Sharadu Dharanam` said only that "an elder in the house ties it for the younger
+women". The practice the vratham is actually known for — **the husband ties the
+saradu on his wife's right wrist, making three knots** — was absent.
+
+It is not in the kalpam. The kalpam gives `badhnāmi dakṣiṇe haste`, *"I tie it
+on the right hand"*, first person, and says nothing about who ties it or how
+many knots. The `philosophy_en` this project had written for the step leaned on
+exactly that — *"nobody ties it for you in the text, whatever happens in the
+room"* — which is how a normal household practice came to be **excluded rather
+than merely unmentioned**. A vidhi text giving a mantra in the first person is
+written for whoever is reciting it; it is not a ruling that the tying is done
+alone.
+
+Both are recorded now, each labelled. The `source_ref` states plainly that the
+three knots are household practice reported by this project's owner and **not**
+stated in the kalpam, and flags it for practitioner review.
+
+One thing worth watching in review: the thread carries **nine** granthis, which
+the preceding step worships with nine names of Lakshmi, and the tying makes
+**three**. Two counts, two screens apart, for different things — the instruction
+now says which is which, because otherwise it reads as a contradiction.
+
+### Open for practitioners
+
+- Whether the four-verse punararghyam matches what they were taught, or whether
+  their paddhati gives three.
+- Whether the husband ties it in their household, and whether three knots is
+  what they were taught.
