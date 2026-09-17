@@ -45,3 +45,12 @@ steps.json
 
 # Contains the Supabase service-role key and DB password. Never commit.
 DB Extract/
+
+# Superseded planning artifacts, copied back into the root when this session
+# moved out of its scratch workspace. The live schema is supabase/migrations/
+# (0001_core_tables.sql onward); these are the earlier drafts that produced it,
+# plus the blueprint HTML. Kept on disk, out of the repo.
+/0001_initial_schema.sql
+/0002_seed_ganesha_from_extract.sql
+/migrate-extract.mjs
+/digital-purohit-blueprint.html
