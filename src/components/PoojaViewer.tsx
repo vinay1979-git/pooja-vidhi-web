@@ -7,6 +7,7 @@ import { AlertCircle, Award, BookOpen, Calendar, Check, CheckCircle2, ChevronDow
 import { Pooja, PoojaStep, ArchanaItem } from '@/types/pooja';
 import { fetchPanchangamData, PanchangamData } from '@/actions/getSankalpam';
 import { usePreferences, resolveScript, SCRIPT_LABEL } from '@/lib/preferences';
+import { TempleBell } from '@/components/TempleBell';
 import type { PoojaMode } from '@/types/pooja';
 
 interface PoojaViewerProps {
@@ -1659,19 +1660,28 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
       {/* ANCHORED BOTTOM NAVIGATION BAR */}
       <footer className="fixed bottom-0 left-0 right-0 z-40 bg-stone-900/95 backdrop-blur-md border-t border-amber-500/20 py-3 px-4 shadow-2xl">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           <button
             onClick={handlePrevStep}
             disabled={currentStepIndex <= -1}
-            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+            aria-label={currentStepIndex <= 0 ? 'Back to preparation' : 'Previous step'}
+            title={currentStepIndex <= 0 ? 'Back to preparation' : 'Previous step'}
+            className={`px-3 sm:px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 shrink-0 ${
               currentStepIndex <= -1
                 ? 'opacity-40 bg-stone-800 text-stone-500 cursor-not-allowed'
                 : 'bg-stone-800 hover:bg-amber-950 text-amber-300 border border-amber-500/30'
             }`}
           >
             <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
-            <span>Previous</span>
+            {/* Label hidden on a phone: with the bell now docked here too, four
+                controls in one row wrapped the Start button onto two lines. */}
+            <span className="hidden sm:inline">Previous</span>
           </button>
+
+          {/* The bell lives here rather than floating over the page. Mid-pooja
+              it used to sit on top of the offering list, which is the one
+              screen where you are tapping rows. */}
+          <TempleBell variant="docked" />
 
           {/* Where you are. This used to be hidden below sm, so on a phone --
               where the step header scrolls out of sight -- there was nothing
@@ -1697,7 +1707,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
           <button
             onClick={handleNextStep}
             disabled={!resolvedGeo && currentStepIndex === -1}
-            className={`px-6 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2 ${
+            className={`px-4 sm:px-6 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 whitespace-nowrap ${
               !resolvedGeo && currentStepIndex === -1
                 ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50 border border-stone-700'
                 : 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-ink-inverse shadow-amber-600/30'

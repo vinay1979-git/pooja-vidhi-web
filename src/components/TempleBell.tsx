@@ -36,7 +36,16 @@ const STRIKE_INTERVAL_MS = 165; // shaken, not tolled
 const REBOUND_MS = 62; // clapper coming back off the opposite wall
 const REBOUND_GAIN = 0.45;
 
-export const TempleBell: React.FC = () => {
+interface TempleBellProps {
+  /**
+   * "floating" parks it over the bottom-right of the page. "docked" renders it
+   * as a normal control, for a screen that already has a footer to sit in --
+   * floating over a pooja step meant it covered the offering list.
+   */
+  variant?: 'floating' | 'docked';
+}
+
+export const TempleBell: React.FC<TempleBellProps> = ({ variant = 'floating' }) => {
   const [isRinging, setIsRinging] = useState(false);
   const ctxRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -150,8 +159,17 @@ export const TempleBell: React.FC = () => {
       aria-pressed={isRinging}
       aria-label={isRinging ? 'Stop the bell' : 'Ring the pooja bell'}
       title={isRinging ? 'Stop the bell' : 'Ring the pooja bell'}
-      className={`fixed bottom-24 right-5 z-40 w-14 h-14 rounded-full flex items-center justify-center
-        border shadow-2xl transition-colors
+      // No position class in the base. "relative" here would beat the variant's
+      // "fixed": Tailwind emits position utilities in a fixed order, relative
+      // after fixed, so the later rule wins regardless of class order and the
+      // floating bell silently stopped floating. Each variant sets its own.
+      className={`rounded-full flex items-center justify-center shrink-0
+        border transition-colors
+        ${
+          variant === 'floating'
+            ? 'fixed bottom-24 right-5 z-40 w-14 h-14 shadow-2xl'
+            : 'relative w-11 h-11 shadow-md'
+        }
         ${
           isRinging
             ? 'bg-amber-500 border-amber-400 text-ink-inverse'
@@ -169,9 +187,9 @@ export const TempleBell: React.FC = () => {
         </>
       )}
       {isRinging ? (
-        <BellOff className="w-6 h-6 relative" />
+        <BellOff className={variant === 'floating' ? 'w-6 h-6 relative' : 'w-5 h-5 relative'} />
       ) : (
-        <Bell className="w-6 h-6 relative" />
+        <Bell className={variant === 'floating' ? 'w-6 h-6 relative' : 'w-5 h-5 relative'} />
       )}
     </button>
   );
