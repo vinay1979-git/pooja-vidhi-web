@@ -509,6 +509,26 @@ await assert('still no avagraha',
   "select count(*) from pooja_steps where mantra_tamil like '%ऽ%'", 0);
 await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
 
+// --- 9o. Carriage returns -----------------------------------------------------
+console.log('\n[9o] 0016 strip carriage returns');
+await step('0016_strip_carriage_returns.sql', () => db.exec(sql(`${MIG}/0016_strip_carriage_returns.sql`)));
+await assert('no carriage returns in any mantra',
+  `select count(*) from pooja_steps where mantra_sanskrit like '%' || chr(13) || '%'
+     or mantra_tamil like '%' || chr(13) || '%' or mantra_translit like '%' || chr(13) || '%'`, 0);
+await assert('none in prose either',
+  `select count(*) from pooja_steps where instruction_en like '%' || chr(13) || '%'
+     or instruction_ta like '%' || chr(13) || '%' or meaning_en like '%' || chr(13) || '%'
+     or philosophy_en like '%' || chr(13) || '%'`, 0);
+await assert('none in archana or namavali',
+  `select (select count(*) from archana_items where invoked_name_deva like '%' || chr(13) || '%')
+        + (select count(*) from namavali_items where name_deva like '%' || chr(13) || '%')`, 0);
+// Stripping CR must not have eaten the line breaks themselves.
+await assert('multi-line mantras still have their line breaks',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and mantra_sanskrit like '%' || chr(10) || '%'`, 16);
+await step('0016 re-run', () => db.exec(sql(`${MIG}/0016_strip_carriage_returns.sql`)));
+await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {

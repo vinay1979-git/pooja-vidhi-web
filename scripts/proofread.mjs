@@ -103,7 +103,11 @@ function checkProse(where, text, lang) {
     if (!text.includes('[DYNAMIC_PANCHANGAM_DATA]')) fail(where, 'contains an ellipsis, which has meant truncation here before');
   }
   if (/\bTBD\b|\bTODO\b|\bXXX\b|\bplaceholder\b|\blorem\b/i.test(text)) fail(where, 'contains placeholder text');
-  if (/\s{2,}/.test(text)) warn(where, 'has a double space');
+  // Name carriage returns specifically. Reported as "a double space" they read
+  // as cosmetic and were nearly dismissed; they were actually git's autocrlf
+  // writing CRLF into the migration files and so into the database.
+  if (text.includes('\r')) fail(where, 'contains a carriage return');
+  if (/[ \t]{2,}/.test(text)) warn(where, 'has a double space');
   // The Sankalpam brackets its dynamic slot as "... [TOKEN] ...", so the space
   // before those dots is deliberate.
   if (/\s+[.,;]/.test(text.replace(/\.\.\.\s*\[[A-Z0-9_]+\]\s*\.\.\./g, ' '))) {

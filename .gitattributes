@@ -1,0 +1,10 @@
+# Migrations are executed as text. Git's autocrlf is on for this working copy,
+# which rewrote every .sql file to CRLF on checkout, and the carriage returns
+# then went INTO the database inside multi-line mantra literals. Pin these to
+# LF so what is committed is what runs.
+*.sql   text eol=lf
+*.mjs   text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
