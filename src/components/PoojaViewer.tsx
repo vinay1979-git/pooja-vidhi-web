@@ -476,21 +476,29 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
       <header className="sticky top-0 z-40 bg-stone-900/90 backdrop-blur-md border-b border-amber-500/20 shadow-xl">
         <div className="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
           {/* Back to Catalog Link & Title */}
-          <div className="flex items-center gap-3">
+          {/* min-w-0 lets the title truncate instead of wrapping to two lines,
+              which on a phone pushed the language toggles down and cost about
+              a fifth of the screen before any content. */}
+          {/* min-w-0 allows the ellipsis; the basis floor stops the title
+              surrendering all its width to the toggles, which at tablet size
+              cut it to "Standard Ganes...". Below that floor the header's
+              flex-wrap drops the toggles to their own line instead. */}
+          <div className="flex items-center gap-2.5 min-w-0 flex-1 sm:min-w-[22rem]">
             <Link
               href="/"
-              className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-amber-950 text-amber-300 transition-colors border border-amber-500/30 text-xs font-bold flex items-center gap-1 shrink-0 shadow-sm"
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-amber-950 text-amber-300 transition-colors border border-amber-500/30 text-xs font-bold flex items-center gap-1 shrink-0 shadow-sm"
               title="Return to Pooja Catalog"
+              aria-label="Back to the pooja catalogue"
             >
               <ChevronLeft className="w-4 h-4 stroke-[3]" />
               <span>Catalog</span>
             </Link>
 
-            <div>
-              <h1 className="text-lg md:text-xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-300 bg-clip-text text-transparent tracking-wide">
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-300 bg-clip-text text-transparent tracking-wide truncate">
                 {pooja.title_en}
               </h1>
-              <p className="text-xs md:text-sm text-amber-400/90 font-medium tracking-wide">
+              <p className="text-xs md:text-sm text-amber-400/90 font-medium tracking-wide truncate">
                 {pooja.title_ta}
               </p>
             </div>
@@ -599,7 +607,12 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-4xl w-full mx-auto px-4 pt-6 flex-1">
+      {/* overflow-x-hidden clips the step slide transition, which translates the
+          content 100px sideways on the way in and out. Without it a phone can
+          be dragged horizontally mid-transition and the page looks broken. It
+          goes here rather than on the root, because an overflow container
+          anywhere above the sticky header would stop the header sticking. */}
+      <main className="max-w-4xl w-full mx-auto px-4 pt-6 flex-1 overflow-x-hidden">
         {/* VIEW 1: PREPARATION SCREEN (Samagri & Naivedyam & Sankalpam Config) */}
         {currentStepIndex === -1 && (
           <motion.div
@@ -611,38 +624,44 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
             {/* Intro Welcome Card */}
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-950/40 via-stone-900 to-stone-900 border border-amber-500/30 p-6 md:p-8 shadow-2xl">
               <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold uppercase tracking-wider">
-                    <Sparkles className="w-3.5 h-3.5" /> Ritual Preparation / தயாரிப்பு
-                  </div>
-                  <h2 className="text-2xl md:text-3xl font-extrabold text-amber-100">
-                    {pooja.title_en}
-                  </h2>
-                  <p className="text-stone-300 text-sm md:text-base max-w-2xl leading-relaxed">
-                    Welcome to the sacred ritual. Select performer, check Samagri items, verify location coordinates for Sankalpam, and view philosophical meanings.
-                  </p>
+              {/* No Start button here. It used to sit at the top of this card,
+                  which on a phone put it above every preparation section: you
+                  could tap it and be in the pooja without a location, without
+                  the samagri checked, and without having seen the naivedyam.
+                  Starting belongs at the END of preparation, which is where the
+                  two buttons now are. */}
+              <div className="relative z-10 space-y-3">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold uppercase tracking-wider">
+                  <Sparkles className="w-3.5 h-3.5" /> Ritual Preparation / தயாரிப்பு
                 </div>
-
-                <button
-                  onClick={handleNextStep}
-                  disabled={!resolvedGeo}
-                  className={`w-full md:w-auto px-8 py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-3 shrink-0 transition-all ${
-                    resolvedGeo
-                      ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-ink-inverse shadow-amber-600/30 hover:scale-105 cursor-pointer'
-                      : 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50 border border-stone-700'
-                  }`}
-                  title={!resolvedGeo ? 'Please detect or verify your location coordinates first' : 'Start Pooja'}
-                >
-                  <Flame className="w-6 h-6 fill-current" /> Start Pooja
-                  <ChevronRight className="w-5 h-5 stroke-[3]" />
-                </button>
+                <h2 className="text-2xl md:text-3xl font-extrabold text-amber-100">
+                  {pooja.title_en}
+                </h2>
+                <p className="text-stone-300 text-sm md:text-base leading-relaxed">
+                  {instructionLang === 'ta'
+                    ? 'பூஜையைத் தொடங்கும் முன் கீழே உள்ள மூன்றையும் முடிக்கவும். இறுதியில் தொடங்கும் பொத்தான் உள்ளது.'
+                    : 'Work down this page before you begin. The button to start is at the end of it.'}
+                </p>
+                <ol className="grid gap-2 sm:grid-cols-3 pt-1">
+                  {[
+                    ['1', 'Who is performing, and which day', 'யார், எந்த நாள்'],
+                    ['2', 'Your location, for the Sankalpam', 'இடம், சங்கல்பத்திற்கு'],
+                    ['3', 'Samagri and naivedyam', 'சாமக்ரி & நைவேத்யம்'],
+                  ].map(([n, en, ta]) => (
+                    <li key={n} className="flex items-start gap-2.5 text-sm text-stone-300">
+                      <span className="shrink-0 w-6 h-6 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center justify-center">
+                        {n}
+                      </span>
+                      <span className="leading-snug">{instructionLang === 'ta' ? ta : en}</span>
+                    </li>
+                  ))}
+                </ol>
               </div>
             </div>
 
             {/* SANKALPAM & NOMINATIM GEOLOCATION CONFIGURATION CARD */}
-            <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-amber-950/20 to-stone-950 border border-amber-500/40 p-6 shadow-xl space-y-6">
-              <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
+            <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-amber-950/20 to-stone-950 border border-amber-500/40 p-4 sm:p-6 shadow-xl space-y-6">
+              <div className="flex flex-col items-start sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-amber-500/20 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
                     <Compass className="w-6 h-6" />
@@ -1155,8 +1174,12 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               >
                 {/* Step Header Card */}
                 <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-stone-900 to-stone-950 border border-amber-500/30 p-6 shadow-2xl space-y-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-extrabold text-xs tracking-wider uppercase flex items-center gap-1.5">
+                  {/* The jump menu sizes itself to its longest option, which is
+                      a full step title. Beside the badge on a 375px screen that
+                      pushed it 60px past the card and the option text was cut
+                      off. Stack it and let it take the width it has. */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <span className="self-start px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-extrabold text-xs tracking-wider uppercase flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5" /> Step {activePosition} of {availableSteps.length}
                     </span>
 
@@ -1164,7 +1187,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     <select
                       value={currentStepIndex}
                       onChange={(e) => goToStep(Number(e.target.value))}
-                      className="bg-stone-950 text-amber-300 text-xs font-semibold px-3 py-1.5 rounded-lg border border-amber-500/30 focus:outline-none"
+                      aria-label="Jump to a step"
+                      className="w-full sm:w-auto sm:max-w-[60%] bg-stone-950 text-amber-300 text-xs font-semibold px-3 py-2 sm:py-1.5 rounded-lg border border-amber-500/30 focus:outline-none focus:border-amber-500"
                     >
                       {steps.map((s, idx) =>
                         // A step belonging to a different day is not part of
@@ -1299,8 +1323,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
                 {/* Dynamic Sankalpam Helper Card */}
                 {currentStep.is_dynamic_sankalpam && panchangamData && (
-                  <div className="rounded-2xl bg-amber-950/20 border border-amber-500/40 p-6 shadow-xl space-y-4">
-                    <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+                  <div className="rounded-2xl bg-amber-950/20 border border-amber-500/40 p-4 sm:p-6 shadow-xl space-y-4">
+                    <div className="flex flex-col items-start sm:flex-row sm:items-center sm:justify-between gap-2.5 border-b border-amber-500/20 pb-3">
                       <div className="flex items-center gap-2 text-amber-400 font-bold text-base">
                         <Flame className="w-5 h-5" /> Dynamic Sankalpam (சங்கல்பம்)
                       </div>
@@ -1358,7 +1382,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 {/* Mantra Presentation Section with Robust Language Fallbacks */}
                 {(currentStep.mantra_sanskrit || currentStep.mantra_tamil || currentStep.mantra_translit) && (
                   <div className="rounded-2xl bg-gradient-to-br from-stone-900 to-amber-950/30 border border-amber-500/40 p-6 md:p-8 shadow-2xl space-y-6">
-                    <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
+                    <div className="flex flex-col items-start sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-amber-500/20 pb-4">
                       <div className="flex items-center gap-2">
                         <span className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
                           <Languages className="w-5 h-5" />
@@ -1450,7 +1474,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 {/* Archana List Section (if present) */}
                 {currentStep.archana_list && currentStep.archana_list.length > 0 && (
                   <div className="rounded-2xl bg-stone-900 border border-amber-500/30 p-6 shadow-2xl space-y-4">
-                    <div className="flex items-center justify-between border-b border-stone-800 pb-3">
+                    <div className="flex flex-col items-start sm:flex-row sm:items-center sm:justify-between gap-2.5 border-b border-stone-800 pb-3">
                       <div className="flex items-center gap-2">
                         <Flower2 className="w-5 h-5 text-amber-400" />
                         <h3 className="text-lg font-bold text-amber-200">
@@ -1649,14 +1673,24 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
             <span>Previous</span>
           </button>
 
-          {/* Center Indicator */}
-          <div className="text-xs font-semibold text-amber-400/90 text-center hidden sm:block">
+          {/* Where you are. This used to be hidden below sm, so on a phone --
+              where the step header scrolls out of sight -- there was nothing
+              telling you how far through you were. */}
+          <div className="text-xs font-semibold text-amber-400/90 text-center px-1">
             {currentStepIndex === -1 ? (
-              <span>Preparation & Settings</span>
+              <>
+                <span className="hidden sm:inline">Preparation &amp; Settings</span>
+                <span className="sm:hidden">Prep</span>
+              </>
             ) : (
-              <span>
-                Step {activePosition} of {availableSteps.length}
-              </span>
+              <>
+                <span className="hidden sm:inline">
+                  Step {activePosition} of {availableSteps.length}
+                </span>
+                <span className="sm:hidden tabular-nums">
+                  {activePosition}/{availableSteps.length}
+                </span>
+              </>
             )}
           </div>
 
@@ -1670,9 +1704,14 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
             }`}
           >
             <span>
+              {/* "last step" means the last one THIS performer and mode
+                  actually do. Comparing against steps.length counted the
+                  filtered-out ones, so on the Ganesha main pooja -- where
+                  Udvasanam is the final row but is udvasana-only -- the button
+                  never said Complete. */}
               {currentStepIndex === -1
                 ? 'Start Pooja'
-                : currentStepIndex === steps.length - 1
+                : activePosition >= availableSteps.length
                 ? 'Complete Pooja'
                 : 'Next Step'}
             </span>

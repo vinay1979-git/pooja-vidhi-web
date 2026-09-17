@@ -49,29 +49,29 @@ export default async function CatalogHomePage() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-6xl mx-auto px-4 pt-8 space-y-10">
+      <main className="max-w-6xl mx-auto px-4 pt-5 sm:pt-8 space-y-6 sm:space-y-10">
         {/* Sacred Hero Banner */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-950/60 via-stone-900 to-stone-950 border border-amber-500/30 p-8 md:p-12 shadow-2xl">
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-950/60 via-stone-900 to-stone-950 border border-amber-500/30 p-5 sm:p-8 md:p-12 shadow-2xl">
           <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 max-w-3xl space-y-4">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold uppercase tracking-wider">
               <Flame className="w-4 h-4 fill-amber-400" /> Sacred Rituals & Mantras Storehouse
             </div>
-            <h2 className="text-3xl md:text-5xl font-black text-amber-100 leading-tight">
+            <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-amber-100 leading-tight">
               Perform Authentic Hindu Poojas with Confidence & Devotion
             </h2>
-            <p className="text-stone-300 text-base md:text-lg leading-relaxed">
+            <p className="text-stone-300 text-sm sm:text-base md:text-lg leading-relaxed">
               Step-by-step guided Vidhis, authentic Devanagari & Tamil script mantras, audio temple bell chime, personalized Sankalpam generator, and full philosophical explanations for every ritual.
             </p>
 
-            <div className="pt-2 flex flex-wrap items-center gap-4 text-xs font-semibold text-amber-300">
-              <span className="flex items-center gap-1.5 bg-stone-900/80 px-3 py-1.5 rounded-lg border border-amber-500/20">
+            <div className="pt-1 flex flex-wrap items-center gap-2 sm:gap-4 text-xs font-semibold text-amber-300">
+              <span className="flex items-center gap-1.5 bg-stone-900/80 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-amber-500/20">
                 <Compass className="w-4 h-4 text-amber-400" /> Geolocation Sankalpam
               </span>
-              <span className="flex items-center gap-1.5 bg-stone-900/80 px-3 py-1.5 rounded-lg border border-amber-500/20">
+              <span className="flex items-center gap-1.5 bg-stone-900/80 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-amber-500/20">
                 <BookOpen className="w-4 h-4 text-amber-400" /> 108 Namavali Archana
               </span>
-              <span className="flex items-center gap-1.5 bg-stone-900/80 px-3 py-1.5 rounded-lg border border-amber-500/20">
+              <span className="flex items-center gap-1.5 bg-stone-900/80 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-amber-500/20">
                 <Sparkles className="w-4 h-4 text-amber-400" /> Gender & Novice Adaptations
               </span>
             </div>
