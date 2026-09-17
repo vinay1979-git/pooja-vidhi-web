@@ -1572,7 +1572,12 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                                 return next;
                               })
                             }
-                            className={`pt-2.5 pb-2.5 px-3 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                            // items-start, not items-center. The rows were laid
+                            // out for a one-line name, where the two align
+                            // anyway; the arghyam puts a six-line verse in the
+                            // same row and centring left the number and the
+                            // button floating beside line four of it.
+                            className={`pt-2.5 pb-2.5 px-3 rounded-lg flex items-start gap-3 justify-between cursor-pointer transition-colors ${
                               // amber-500 is a saturated saffron in BOTH themes, so a
                               // low-opacity wash of it reads on the dark ground and on
                               // the cream one. amber-950 and stone-950 do not: each is
@@ -1583,11 +1588,14 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                                 : 'border border-transparent hover:bg-amber-500/5'
                             }`}
                           >
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs font-mono font-bold w-7 text-amber-400/80">
+                            {/* items-start here too, and min-w-0 so a long
+                                unbroken line shrinks instead of pushing the
+                                row wider than the phone. */}
+                            <div className="flex items-start gap-3 min-w-0">
+                              <span className="text-xs font-mono font-bold w-7 shrink-0 text-amber-400/80 leading-6">
                                 #{item.number || idx + 1}
                               </span>
-                              <div>
+                              <div className="min-w-0">
                                 {repeatedName ? (
                                   <>
                                     <p className="text-sm md:text-base font-bold text-amber-100">

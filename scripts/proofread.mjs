@@ -220,6 +220,11 @@ const EXPECT_ARCHANA = {
   'ganesha_standard/Durva Pooja (21 Names)': 21,
   'varalakshmi_vratham/Anga Pooja': 15,
   'varalakshmi_vratham/Nonbu Sharadu Pooja': 9,
+  // Not a namavali: the arghyam verses, each with its pouring refrain, moved
+  // into archana_items in 0018 so the screen can number them and be ticked
+  // off. Four for Ganesha, from the kalpam's punararghyam; one for Varalakshmi.
+  'ganesha_standard/Ksheera Arghyam': 4,
+  'varalakshmi_vratham/Ksheera Arghyam': 1,
 };
 for (const [k, n] of Object.entries(EXPECT_ARCHANA)) {
   if ((byStep.get(k) ?? 0) !== n) fail(k, `has ${byStep.get(k) ?? 0} archana rows, expected ${n}`);
