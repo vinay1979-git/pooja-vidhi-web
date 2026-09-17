@@ -312,6 +312,21 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
   const availableSteps = useMemo(() => steps.filter(isStepActive), [steps, isStepActive]);
 
+  // Every step is a new screen, so start it at the top. Without this the new
+  // step inherits the scroll position of the one before it, and on a phone --
+  // where a step with an archana list runs well past the viewport -- Next Step
+  // drops you into the middle of the next instruction, its heading already
+  // scrolled past.
+  //
+  // This has to be an effect, not a line in goToStep. Scrolling synchronously
+  // inside the click handler interrupts the exit animation that AnimatePresence
+  // mode="wait" is waiting on, so the next step never mounts and the screen
+  // goes blank while the footer counter keeps advancing.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [currentStepIndex]);
+
   // Parse Samagri items consistently
   const parsedSamagriList = useMemo(() => {
     return (pooja.samagri_list || []).map((item, idx) => {
@@ -608,12 +623,17 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
       </header>
 
       {/* Main Content Area */}
-      {/* overflow-x-hidden clips the step slide transition, which translates the
-          content 100px sideways on the way in and out. Without it a phone can
-          be dragged horizontally mid-transition and the page looks broken. It
-          goes here rather than on the root, because an overflow container
-          anywhere above the sticky header would stop the header sticking. */}
-      <main className="max-w-4xl w-full mx-auto px-4 pt-6 flex-1 overflow-x-hidden">
+      {/* Clips the step slide transition, which translates content 100px
+          sideways on the way in and out; without it a phone can be dragged
+          horizontally mid-transition.
+
+          CLIP, not hidden. Setting overflow-x to hidden makes the other axis
+          compute to auto, which turned main into a second scroll container
+          nested inside the window's and left the page with two things that
+          could scroll. overflow-x: clip does the clipping without creating a
+          scroll container at all. It also stays off the root, because an
+          overflow container above the sticky header would stop it sticking. */}
+      <main className="max-w-4xl w-full mx-auto px-4 pt-6 flex-1 overflow-x-clip">
         {/* VIEW 1: PREPARATION SCREEN (Samagri & Naivedyam & Sankalpam Config) */}
         {currentStepIndex === -1 && (
           <motion.div
@@ -1141,21 +1161,11 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               </div>
             </div>
 
-            {/* Bottom Start Action */}
-            <div className="flex justify-center pt-4">
-              <button
-                onClick={handleNextStep}
-                disabled={!resolvedGeo}
-                className={`w-full max-w-md py-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center gap-3 transition-all ${
-                  resolvedGeo
-                    ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-ink-inverse shadow-amber-600/30 hover:scale-105 cursor-pointer'
-                    : 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50 border border-stone-700'
-                }`}
-              >
-                <Flame className="w-6 h-6 fill-current" /> Begin First Step (படி 1)
-                <ChevronRight className="w-5 h-5 stroke-[3]" />
-              </button>
-            </div>
+            {/* No Start button here either. The footer already carries one and
+                it is on screen the whole way down this page, so a second at the
+                end of the content was the same action twice. The footer is the
+                one that stays, because it is where Next Step and Previous live
+                for the rest of the pooja. */}
           </motion.div>
         )}
 
