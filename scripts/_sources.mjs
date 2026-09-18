@@ -76,11 +76,37 @@ export function loadRoman(path) {
     .filter(Boolean);
 }
 
-/** Load a cached Telugu page as tidy lines. */
-export function loadTelugu(path) {
+/**
+ * Load a cached Telugu page as tidy lines.
+ *
+ * `vedic: true` for a page that prints svara. Telugu Vedic text uses the
+ * DEVANAGARI udatta and anudatta marks (U+0951, U+0952) plus a right double
+ * quote for the dheergha svarita, and Sanscript carries all three straight
+ * through into the output. Off by default: vvk_te.txt has no accents at all, so
+ * the generators that already read it must not see their input change.
+ */
+export function loadTelugu(path, { vedic = false } = {}) {
   return readFileSync(path, 'utf8')
     .split('\n')
-    .map((l) => l.replace(/&#8211;/g, '–').replace(/&#8217;/g, "'").trimEnd());
+    .map((l) => {
+      let s = l.replace(/&#8211;/g, '–').replace(/&#8217;/g, "'");
+      if (vedic) {
+        s = s
+          .replace(/&#8221;/g, '')
+          .replace(SVARA, '')
+          // A LATIN small o standing in for the Telugu anusvara: the page sets
+          // amṛtaṃ vai prāṇāḥ as అమృతo వై ప్రాణా and gaṇānāṃ tvā as గణానాo త్వా.
+          // Left alone it survives conversion as a latin letter sitting inside
+          // a Devanagari mantra, which is how it was caught.
+          .replace(/([ఀ-౿])o/g, '$1ం')
+          // and an ASCII colon standing in for the visarga (చక్షు: for చక్షుః).
+          // Without this the Devanagari came out as चक्षु: with a colon sitting
+          // where the visarga belongs -- visible on screen, and wrong. The same
+          // substitution iastToDeva already makes for the roman pages.
+          .replace(/([ఀ-౿]):/g, '$1ః');
+      }
+      return s.trimEnd();
+    });
 }
 
 /**

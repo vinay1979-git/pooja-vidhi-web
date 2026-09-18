@@ -537,3 +537,74 @@ fault-class checks. They were written inline in `build-upachara-mantras.mjs`,
 and the moment a second generator needed them there were two copies — which is
 the situation `_tamil.mjs` exists to prevent. `0019` was re-emitted after the
 refactor and is byte-identical.
+
+---
+
+## Prana Pratishtha, and how to tell a truncated mantra from a short one
+
+Reported as *"all main mantras are so truncated that research needs to be done
+again. Prana prathishta one example — just says I will perform pran prathishta."*
+
+Correct. Prana Pratishtha held one verse and a samarpayami tag, under
+`source_ref` that named a video chapter and a tradition but **no text**. It is in
+none of the cached pages: it was typed from memory in migration 0010. Udvasanam
+was a worse truncation — it held the **first half** of `yajñena yajñamayajanta`
+and stopped mid-verse, with none of the closing `śobhanārthe kṣemāya
+punarāgamanāya ca | oṃ śāntiḥ śāntiḥ śāntiḥ`, which is the last thing said in
+the whole pooja.
+
+Migration 0021 replaces both from published text, in **both genders**:
+
+| | source | tail |
+|---|---|---|
+| masculine (Ganesha) | Sri Haridra Ganapati Puja (Telugu, svara) | `sthiro bhava varado bhava` |
+| feminine (Varalakshmi) | Sri Lalitha Shodasopachara Puja Vidhanam (IAST) | `āvāhitā bhava sthāpitā bhava, varadā bhava` |
+
+Both share the Vedic core — `asunīte punarasmāsu cakṣuḥ` (Rigveda 10.59.6) and
+`amṛtaṃ vai prāṇāḥ` — and differ exactly where Sanskrit gender makes them differ.
+The old text handled gender by swapping `asya` for `asyai`, which was the right
+instinct; this keeps the care and sources it. The Varalakshmi Vrata Kalpam has no
+prana pratishtha of its own, which is why the Lalitha vidhanam is used.
+
+### Two more ways the Telugu page lies to a converter
+
+Both found by generator checks, not by reading:
+
+- **A latin `o` for the anusvara.** The page sets `amṛtaṃ vai prāṇāḥ` as
+  `అమృతo వై ప్రాణా` and `gaṇānāṃ tvā` as `గణానాo త్వా`. Left alone the `o` survives
+  conversion and sits as a latin letter inside a Devanagari mantra.
+- **An ASCII colon for the visarga**: `చక్షు:` for `చక్షుః`. The Ganesha output
+  read `चक्षु:` with a colon where the visarga belongs while the Varalakshmi one,
+  coming through the roman path which already folded colons, read `चक्षुः`. Two
+  spellings of the same word, one screen apart.
+
+### A mistake repeated
+
+The new `source_ref` quoted the old one verbatim — and so matched the gate that
+hunts for survivors of the old one, failing the migration. **This is the same
+mistake 0019 made and documented.** Writing it down was not enough; the gate
+catching it twice is what actually worked.
+
+### The inventory, and what "truncated" means
+
+Counting nulls does not answer "is this truncated" — a step can have a mantra in
+all three scripts and still be a tag line. The harness now prints section `[11]`,
+a per-step inventory of **length, line count and origin**, so the thin ones are
+visible in CI rather than discovered in a pooja.
+
+After 0020 and 0021 it flags **8** steps as a line or two, and the flag conflates
+two different things:
+
+**Not truncated, just not line-broken.** Anga Vandanam (204 chars on one line),
+both Sankalpams, Manjal Pillaiyar. These carry their full text; they are stored
+as a single run, and now that the viewer honours line breaks they would read
+better split.
+
+**Short because the rite is short.** Achamanam is three names and three sips.
+Sharadu Dharanam, Varalakshmi's Karpura Neerajanam, Pushpanjali and Namaskaram
+are each the one verse their kalpam gives.
+
+**Actually outstanding: the Ganesha Sankalpam.** It is the last step carrying
+`Tamil draft, pending vaidika review`, it is 275 characters against
+Varalakshmi's 509, and it holds the `[DYNAMIC_PANCHANGAM_DATA]` slot, so it
+needs care rather than a regenerate.

@@ -782,6 +782,68 @@ await assert('the kalasha deity name was not doubled',
   `select (length(mantra_sanskrit) - length(replace(mantra_sanskrit, 'पूजार्थं', ''))) / length('पूजार्थं')
      from pooja_steps where pooja_id = 'ganesha_standard' and step_title_en = 'Kalasha Pooja'`, 1);
 
+// --- 9x. Prana Pratishtha and Udvasanam --------------------------------------
+const GAN_PP = "pooja_id = 'ganesha_standard' and step_title_en = 'Prana Pratishtha'";
+const VL_PP = "pooja_id = 'varalakshmi_vratham' and step_title_en = 'Prana Pratishtha'";
+
+console.log('\n[9x] 0021 prana pratishtha and udvasanam');
+await assert('prana pratishtha was one verse and a tag',
+  `select count(*) from pooja_steps where step_title_en = 'Prana Pratishtha'
+     and mantra_sanskrit like '%प्राणाः प्रतिष्ठन्तु%'`, 2);
+// The truncation that was reported: udvasanam stopped mid-verse.
+await assert('udvasanam stopped mid-verse',
+  `select count(*) from pooja_steps where step_title_en = 'Udvasanam'
+     and mantra_sanskrit not like '%ते ह नाकं%'`, 2);
+await step('0021_prana_pratishtha_and_udvasanam.sql',
+  () => db.exec(sql(`${MIG}/0021_prana_pratishtha_and_udvasanam.sql`)));
+
+await assert('the unsourced pratishthantu verse is gone',
+  `select count(*) from pooja_steps where mantra_sanskrit like '%प्राणाः प्रतिष्ठन्तु%'`, 0);
+await assert('both prana pratishthas carry the Vedic core',
+  `select count(*) from pooja_steps where step_title_en = 'Prana Pratishtha'
+     and mantra_sanskrit like '%असुनीते%' and mantra_sanskrit like '%अमृतं वै प्राणा%'
+     and mantra_sanskrit like '%यथास्थानमुपह्वयते%'`, 2);
+// Gender is the whole reason there are two recensions rather than one text.
+await assert('Ganesha takes the masculine forms',
+  `select count(*) from pooja_steps where ${GAN_PP}
+     and mantra_sanskrit like '%स्थिरो भव%' and mantra_sanskrit like '%वरदो भव%'`, 1);
+await assert('Varalakshmi takes the feminine forms, and only those',
+  `select count(*) from pooja_steps where ${VL_PP}
+     and mantra_sanskrit like '%आवाहिता भव%' and mantra_sanskrit like '%वरदा भव%'
+     and mantra_sanskrit not like '%वरदो भव%' and mantra_sanskrit not like '%स्थिरो भव%'`, 1);
+// The first build spliced the namaskara in at a fixed index and split the
+// shloka in half, between jyokpasyema and manumate.
+await assert('the namaskara follows the Vedic core instead of splitting it',
+  `select count(*) from pooja_steps where step_title_en = 'Prana Pratishtha'
+     and position('यथास्थानमुपह्वयते' in mantra_sanskrit) < position('नमः' in mantra_sanskrit)`, 2);
+// The Telugu page writes the visarga as an ASCII colon and the anusvara as a
+// latin o. Both survive conversion if they are not folded first.
+await assert('no ASCII colon stands in for a visarga',
+  `select count(*) from pooja_steps where position(':' in mantra_sanskrit) > 0`, 0);
+// The sankalpam's [DYNAMIC_PANCHANGAM_DATA] slot is latin on purpose: the
+// panchangam engine renders into it. Everything else must be script.
+await assert('no latin letter is left inside a Devanagari mantra',
+  `select count(*) from pooja_steps
+    where replace(mantra_sanskrit, '[DYNAMIC_PANCHANGAM_DATA]', '') ~ '[a-zA-Z]'`, 0);
+// Udvasanam must be a whole verse and must actually close the pooja.
+await assert('udvasanam is whole, in both poojas',
+  `select count(*) from pooja_steps where step_title_en = 'Udvasanam'
+     and mantra_sanskrit like '%ते ह नाकं%' and mantra_sanskrit like '%यत्र पूर्वे%'
+     and mantra_sanskrit like '%पुनरागमनाय%' and mantra_sanskrit like '%शांतिः शांतिः शांतिः%'`, 2);
+await assert('and each names its own deity',
+  `select count(*) from pooja_steps where step_title_en = 'Udvasanam'
+     and ((pooja_id = 'ganesha_standard' and mantra_sanskrit like '%श्री महागणपतये नमः%')
+       or (pooja_id = 'varalakshmi_vratham' and mantra_sanskrit like '%श्री वरलक्ष्मी देवतायै नमः%'))`, 2);
+await assert('no step claims a source that names no text',
+  `select count(*) from pooja_steps where source_ref like '%Standard prana pratishtha verse%'`, 0);
+
+console.log('\n[9y] 0021 idempotency');
+await step('0021 re-run', () => db.exec(sql(`${MIG}/0021_prana_pratishtha_and_udvasanam.sql`)));
+await assert('the namaskara was not inserted twice',
+  `select (length(mantra_sanskrit) - length(replace(mantra_sanskrit, 'देवतायै नमः', ''))) / length('देवतायै नमः')
+     from pooja_steps where ${VL_PP}`, 1);
+await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
@@ -796,6 +858,44 @@ for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
     ` (steps whose content is a namavali or archana list have no mantra by design),` +
     ` step_title_ta ${g.title_ta}, meaning_en ${g.meaning}, philosophy_en ${g.philosophy}`);
 }
+
+// --- 11. Where every mantra comes from, and how long it is -------------------
+//
+// The report that prompted 0021 was "all main mantras are so truncated that
+// research needs to be done again". A count of nulls does not answer that: a
+// step can have a mantra, in all three scripts, and still be a tag line with
+// nothing behind it. This prints the two facts that do answer it -- how much
+// text is there, and whether it traces to a published page -- so the next
+// person can see the thin ones rather than discover them in a pooja.
+console.log('\n[11] mantra inventory: length, lines, and whether it is sourced');
+const inv = await db.query(`
+  select pooja_id, step_number, step_title_en,
+         coalesce(length(mantra_sanskrit), 0) as chars,
+         case when mantra_sanskrit is null then 0
+              else length(mantra_sanskrit) - length(replace(mantra_sanskrit, chr(10), '')) + 1 end as lines,
+         case
+           when namavali_id is not null then 'namavali'
+           when exists (select 1 from archana_items a where a.pooja_step_id = pooja_steps.id) then 'archana list'
+           when source_ref is null then 'NO SOURCE'
+           when source_ref like '%pending vaidika review%' then 'DRAFT'
+           when source_ref like '%StotraNidhi%' then 'published'
+           else 'other'
+         end as origin
+    from pooja_steps order by pooja_id, step_number`);
+let thin = 0;
+for (const r of inv.rows) {
+  // A mantra step with fewer than three lines is the shape the report was
+  // about. Namavali and archana steps carry their text in another table.
+  const isMantra = r.origin !== 'namavali' && r.origin !== 'archana list';
+  const flag = isMantra && r.lines < 3 ? '  <-- thin' : '';
+  if (flag) thin++;
+  console.log(
+    `  ${r.pooja_id.padEnd(20)} #${String(r.step_number).padStart(2)} ` +
+    `${r.step_title_en.slice(0, 36).padEnd(36)} ${String(r.chars).padStart(5)}ch ` +
+    `${String(r.lines).padStart(2)}ln  ${r.origin}${flag}`,
+  );
+}
+console.log(`\n  ${thin} mantra step(s) are still a line or two.`);
 
 console.log(`\n${failed ? 'RESULT: FAILURES ABOVE' : 'RESULT: all checks passed'}\n`);
 await db.close();
