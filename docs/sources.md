@@ -366,3 +366,93 @@ now says which is which, because otherwise it reads as a contradiction.
   their paddhati gives three.
 - Whether the husband ties it in their household, and whether three knots is
   what they were taught.
+
+---
+
+## The offering steps were never written
+
+Reported as "naivedyam, karpura neeranjanam etc — single mantra is written that
+is wrong". It was, and it was not two steps.
+
+Sixteen of Ganesha's twenty-four steps still carried `source_ref = 'Tamil draft,
+pending vaidika review'` — the original app's placeholder content. Every
+migration since has gone after the enumerated archanas (0012), the meanings
+(0013), the philosophy (0014) and the arghyam (0018), and none of them touched
+the plain upacharas. Six of Varalakshmi's twenty-nine carry it too, and they are
+the six purvangam steps 0011 copied out of Ganesha, so the same placeholders are
+in both poojas.
+
+| step | what was stored |
+|---|---|
+| Karpura Neerajanam | `karpūra nīrājanaṃ santataṃ darśayāmi` — 38 characters |
+| Mantra Pushpam & Namaskaram | one pradakshina verse standing in for the mantrapushpam, the pradakshina, the sashtanga namaskaram **and** the prarthana |
+| Dhoopam & Deepam | three samarpayami tags, no verse at all |
+| Naivedyam | the five pranas, and nothing else |
+
+### A naivedyam is a sequence, not a verse
+
+This is the one worth spelling out. The Smartha naivedyam is:
+
+1. the vyahritis and the Gayatri
+2. `deva savitaḥ prasuva`
+3. `satyaṃ tvā ṛtena pariṣiñcāmi` — water sprinkled in a circle around the food
+4. `amṛtamastu । amṛtopastaraṇamasi` — water as the **bed beneath** the nectar
+5. the five breaths fed one at a time
+6. **then** the naming of what is offered
+7. `amṛtāpidhānamasi` — water as the **cover over** it
+8. `uttarāpośanaṃ`, the hands and the mouth rinsed
+
+Ganesha had step 5. Varalakshmi had 5 and 6, from its kalpam, and none of the
+frame. Migration 0019 gives both the whole thing.
+
+The order matters and is not the published page's. StotraNidhi prints the verse
+and its samarpayami first and the frame after; the frame-first order is what the
+owner reported and it is the only order in which water-below / feed / water-above
+is a sequence rather than a list. `source_ref` says which is which, and the
+harness asserts the naming falls between the fifth breath and the covering.
+
+### Where the text comes from, and the seam in it
+
+Two sources, joined where the seam is real:
+
+- **the deity's verses** — Sri Siddhi Vinayaka Vrata Kalpam (Telugu), the same
+  cached page 0012 and 0018 used
+- **the naivedyam frame** — Sri Maha Ganapathi Shodashopachara Puja (IAST)
+
+The frame is the same in the Ganapati vidhanam, in the Purusha Sukta vidhanam
+and in every Smartha paddhati, because it belongs to the act of feeding rather
+than to the deity. So it is used in **both** poojas — the composition model this
+project already applies to the purvangam, applied to an upachara.
+
+`deva savitaḥ prasuva` is in **neither** published page. It is Apastamba prayoga
+and it is what the owner recites, so it is included and flagged in `source_ref`,
+the same treatment the three knots got.
+
+### Two decisions that reverse earlier ones
+
+**Svara is stripped.** This file previously said accented Vedic mantras would be
+omitted rather than shown unaccented. That was written when the question was
+whether to *add* them; it is not a reason to ship a naivedyam with no Gayatri in
+it. The vyahritis, the Gayatri and the prana mantras are shown unaccented, the
+instruction says they carry svara, and rendering svara stays open.
+
+**Ganesha gains a tambulam.** It had none anywhere, though the kalpam puts one
+between the naivedyam and the nirajanam. Folded into the naivedyam step, which
+is renamed `Naivedyam & Tambulam` to match Varalakshmi's.
+
+### Still placeholders after 0019
+
+The purvangam — Achamanam, Anga Vandanam, Vighneshwara Dhyanam, Pranayamam,
+Kalasha Pooja, Ghanta Pooja — and Ganesha's Avahanam & Asanam, Padyam & Arghyam,
+Snanam & Vastram, Gandham/Kumkumam/Pushpam, Sankalpam and Kshama Prarthana.
+`pv_en.html` (StotraNidhi, *Puja Vidhanam — Poorvangam, Smartha Paddhati*) is
+the source for the first six and is already cached.
+
+### Open for practitioners
+
+- Whether `deva savitaḥ prasuva` belongs where it is put here, between the
+  Gayatri and the sprinkling.
+- Whether the karpura neerajanam should be more than the one verse every
+  published source gives it. `na tatra sūryo bhāti` and `karpūragauraṃ` are sung
+  at deeparadhana in many houses and are in **none** of the four cached
+  vidhanams, so they are not encoded.

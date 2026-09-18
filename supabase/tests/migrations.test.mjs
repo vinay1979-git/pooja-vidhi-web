@@ -627,6 +627,86 @@ await assert('still four Ganesha offerings, not eight',
   `select count(*) from archana_items where ${itemsOf(GAN_ARGHYAM)}`, 4);
 await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
 
+// --- 9t. The offering steps, and the naivedyam frame -------------------------
+const GAN_NAIV = "pooja_id = 'ganesha_standard' and step_title_en in ('Naivedyam', 'Naivedyam & Tambulam')";
+const VL_NAIV = "pooja_id = 'varalakshmi_vratham' and step_title_en = 'Naivedyam, Paniyam & Tambulam'";
+const GAN_NIRA = "pooja_id = 'ganesha_standard' and step_title_en = 'Karpura Neerajanam'";
+const GAN_MP = "pooja_id = 'ganesha_standard' and step_title_en = 'Mantra Pushpam & Namaskaram'";
+
+console.log('\n[9t] 0019 upachara mantras');
+await assert('Karpura Neerajanam was a fragment',
+  `select case when length(mantra_sanskrit) < 60 then 1 else 0 end from pooja_steps where ${GAN_NIRA}`, 1);
+// The parens around the OR matter: "(A) or (B) and C" binds as "A or (B and C)",
+// so the first version of this asked whether Ganesha's naivedyam existed at all
+// and answered 1, not whether either had the frame.
+await assert('neither naivedyam had the frame',
+  `select count(*) from pooja_steps where ((${GAN_NAIV}) or (${VL_NAIV}))
+     and mantra_sanskrit like '%भूर्भुवस्सुवः%'`, 0);
+await step('0019_upachara_mantras.sql', () => db.exec(sql(`${MIG}/0019_upachara_mantras.sql`)));
+
+// Every touched step must be a sequence now, not a tag line.
+// Lines, not characters. The neerajanam is a legitimate 154 characters and a
+// 200-character floor failed it; what these all have in common is that each is
+// a sequence of lines where it used to be one.
+for (const [label, where, minLines] of [
+  ['Dhoopam & Deepam', "pooja_id = 'ganesha_standard' and step_title_en = 'Dhoopam & Deepam'", 7],
+  ['Karpura Neerajanam', GAN_NIRA, 4],
+  ['Mantra Pushpam & Namaskaram', GAN_MP, 20],
+]) {
+  await assert(`${label} is a full sequence`,
+    `select case when (length(mantra_sanskrit) - length(replace(mantra_sanskrit, chr(10), ''))) + 1 >= ${minLines}
+            then 1 else 0 end from pooja_steps where ${where}`, 1);
+}
+
+// The frame, in the order that makes it mean anything: water below, the five
+// breaths, the naming, water above. A frame with the naming in the wrong place
+// is not a frame, it is a list of lines.
+for (const [who, where] of [['ganesha', GAN_NAIV], ['varalakshmi', VL_NAIV]]) {
+  await assert(`${who} naivedyam has the vyahritis and the Gayatri`,
+    `select count(*) from pooja_steps where (${where})
+       and mantra_sanskrit like '%भूर्भुवस्सुवः%' and mantra_sanskrit like '%प्रचोदयात्%'`, 1);
+  await assert(`${who} naivedyam sprinkles, beds and covers`,
+    `select count(*) from pooja_steps where (${where})
+       and mantra_sanskrit like '%परिषिञ्चामि%'
+       and mantra_sanskrit like '%अमृतोपस्तरणमसि%'
+       and mantra_sanskrit like '%अमृतापिधानमसि%'
+       and mantra_sanskrit like '%उत्तरापोशनं%'`, 1);
+  await assert(`${who} naivedyam names the offering after the five breaths`,
+    `select count(*) from pooja_steps where (${where})
+       and position('समानाय स्वाहा' in mantra_sanskrit) < position('नैवेद्यं समर्पयामि' in mantra_sanskrit)
+       and position('नैवेद्यं समर्पयामि' in mantra_sanskrit) < position('अमृतापिधानमसि' in mantra_sanskrit)`, 1);
+  await assert(`${who} naivedyam carries the frame in all three scripts`,
+    `select count(*) from pooja_steps where (${where})
+       and mantra_tamil like '%பூர்புவஸ்ஸுவ%' and mantra_translit like '%bhūrbhuvassuvaḥ%'`, 1);
+}
+// The page heading "tambulam" sat between the rinsing and the betel verse in
+// the first build, because the frame was sliced one line too long.
+await assert('no bare page heading was captured into a mantra',
+  `select count(*) from pooja_steps
+    where mantra_translit like '%' || chr(10) || 'tāmbūlam' || chr(10) || '%'
+       or mantra_translit like '%' || chr(10) || 'nīrājanam' || chr(10) || '%'`, 0);
+// The kalpam's nirajanam section already ends with its own achamaniyam.
+await assert('the neerajanam achamaniyam is not printed twice',
+  `select count(*) from pooja_steps where ${GAN_NIRA}
+     and (length(mantra_sanskrit) - length(replace(mantra_sanskrit, 'नीराजनानंतरं', ''))) / length('नीराजनानंतरं') > 1`, 0);
+await assert('Ganesha finally has a tambulam',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Naivedyam & Tambulam' and mantra_sanskrit like '%तांबूलं समर्पयामि%'`, 1);
+await assert('no touched step still claims to be an unreviewed draft',
+  `select count(*) from pooja_steps
+    where ((${GAN_NAIV}) or (${VL_NAIV}) or (${GAN_NIRA}) or (${GAN_MP}))
+      and source_ref like '%pending vaidika review%'`, 0);
+await assert('the owner-reported line is flagged, not passed off as published',
+  `select count(*) from pooja_steps where (${GAN_NAIV})
+     and mantra_sanskrit like '%प्रसुव%' and source_ref like '%NEITHER published page%'`, 1);
+
+console.log('\n[9u] 0019 idempotency');
+await step('0019 re-run', () => db.exec(sql(`${MIG}/0019_upachara_mantras.sql`)));
+await assert('the Varalakshmi frame was not wrapped twice',
+  `select (length(mantra_sanskrit) - length(replace(mantra_sanskrit, 'भूर्भुवस्सुवः', ''))) / length('भूर्भुवस्सुवः')
+     from pooja_steps where ${VL_NAIV}`, 1);
+await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
