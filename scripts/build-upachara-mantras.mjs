@@ -68,7 +68,7 @@
  * instruction says they carry svara, and rendering svara stays an open
  * feature.
  */
-import { writeFileSync } from 'node:fs';
+import { emitMigration } from './_migration.mjs';
 import Sanscript from '@indic-transliteration/sanscript';
 import { transliterate as tr } from './_tamil.mjs';
 import {
@@ -386,8 +386,7 @@ out("--   select step_title_en, length(mantra_sanskrit) from pooja_steps where s
 const sql = lines.join('\n') + '\n';
 
 if (process.argv.includes('--emit')) {
-  writeFileSync('supabase/migrations/0019_upachara_mantras.sql', sql);
-  console.log('wrote supabase/migrations/0019_upachara_mantras.sql');
+  emitMigration('supabase/migrations/0019_upachara_mantras.sql', sql);
 } else {
   console.log('--- validated, not written (pass --emit) ---\n');
   for (const s of STEPS) {

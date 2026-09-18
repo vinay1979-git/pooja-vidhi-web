@@ -58,7 +58,7 @@
  * only at a danda, which is where the reciter pauses anyway. Idempotent: after
  * one run there is no "। " left to split on.
  */
-import { writeFileSync } from 'node:fs';
+import { emitMigration } from './_migration.mjs';
 import Sanscript from '@indic-transliteration/sanscript';
 import { transliterate as tr } from './_tamil.mjs';
 import { loadTelugu, section, teluguToDeva, normalise, checkScripts } from './_sources.mjs';
@@ -306,8 +306,7 @@ out("--   select pooja_id, step_title_en from pooja_steps where source_ref like 
 const sql = lines.join('\n') + '\n';
 
 if (process.argv.includes('--emit')) {
-  writeFileSync('supabase/migrations/0022_sankalpam_and_line_breaks.sql', sql);
-  console.log('wrote supabase/migrations/0022_sankalpam_and_line_breaks.sql');
+  emitMigration('supabase/migrations/0022_sankalpam_and_line_breaks.sql', sql);
 } else {
   console.log('--- validated, not written (pass --emit) ---\n');
   for (const [pooja, s] of Object.entries(built)) {

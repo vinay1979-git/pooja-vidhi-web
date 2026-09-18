@@ -688,3 +688,66 @@ Two splitting traps worth keeping:
 - Matching `अर्थं` finds nothing. The clauses read `-yarthaṃ`, `-ptyarthaṃ`,
   where the *a* of *artha* is the inherent vowel of the preceding consonant and
   no standalone `अ` exists in the string. The match is on `र्थं`.
+
+## How the mantras reach the database, and what the transport does to them
+
+Running the live gate after 0022 -- `node scripts/proofread.mjs` -- returned
+**not ready**: 681 carriage returns across 17 steps and the three script
+columns, plus 5 in `archana_items` and 6 in `deities`.
+
+### The diagnosis in 0016 was wrong
+
+0016 stripped the same junk in March and concluded: *"Git's core.autocrlf
+rewrote the migration files to CRLF on checkout ... .gitattributes now pins
+*.sql to LF so this cannot recur."* The pinning worked. `git ls-files --eol`
+reports `w/lf` for every migration, and there is not one carriage return in
+0017 through 0022 on disk. The carriage returns arrived anyway.
+
+They are not in the file. They are in the **transport**. The SQL is applied by
+pasting it into a browser SQL editor, and a `<textarea>` normalises every
+newline it holds to CRLF before submitting. Each line of each multi-line string
+literal in the pasted text picks one up.
+
+The data proves it, and proves it inside a single migration. 0022 gave two
+steps their line breaks by two different routes:
+
+| Step | How it got its line breaks | Result |
+| --- | --- | --- |
+| Achamanam | `replace(mantra_sanskrit, '। ', '।' \|\| chr(10))` -- the **server** computed them | clean |
+| Karpura Neerajanam | literal newlines inside a quoted literal in the pasted file | CRLF throughout |
+
+Same migration, same run, same session. Only the transport differs.
+
+### Why it had been invisible
+
+Every earlier gate looked at the wrong artefact. The PGlite harness reads the
+`.sql` files off disk, and those are LF, so a carriage return can never appear
+there spontaneously -- which is why the harness passed clean through 0022 while
+production held 681 of them. `proofread.mjs` reads the live database and caught
+it on the first run. That difference is the whole argument for keeping a gate
+that talks to production rather than to a fixture.
+
+On screen they render as nothing: a browser treats CRLF as one segment break, so
+`whitespace-pre-line` shows exactly the intended lines. Nobody reciting from the
+app would have seen anything. They still break every exact-text comparison, and
+they are not what the published page says.
+
+### The fix, and why it is not a setting
+
+No setting in this repo can prevent it, because the corruption happens after the
+file leaves the repo. So the migration repairs itself instead: `CR_GUARD` in
+`scripts/_migration.mjs` is spliced in before the closing `commit;` of every
+generated migration, and strips CR from every text column in the schema. It is
+idempotent, costs nothing when the SQL was applied some other way -- `psql -f`
+never introduces the problem -- and does not care which way it was.
+
+0023 is the same sweep applied once to the whole schema, to clear what 0017
+through 0022 left. It sweeps `information_schema` rather than a list of columns:
+the list is precisely what failed last time, since 0016 enumerated
+`pooja_steps`, `archana_items` and `namavali_items`, missed `deities`, and left
+four carriage returns sitting in `dhyana_sloka_deva` through every release
+since.
+
+Harness section `[9ab]` injects the corruption the paste would have caused --
+the harness cannot observe it otherwise -- and then proves 0023 removes it
+without eating the line breaks it sat beside.

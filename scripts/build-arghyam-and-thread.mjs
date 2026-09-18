@@ -72,7 +72,8 @@
  * knots" next to "nine knots" two screens apart is exactly the kind of thing
  * that reads as a contradiction.
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { emitMigration } from './_migration.mjs';
 import Sanscript from '@indic-transliteration/sanscript';
 import { transliterate as tr, PROTECTED } from './_tamil.mjs';
 
@@ -468,8 +469,7 @@ out(`--   select seq, invoked_name_translit from archana_items where ${inSteps(S
 const sql = lines.join('\n') + '\n';
 
 if (process.argv.includes('--emit')) {
-  writeFileSync('supabase/migrations/0018_arghyam_and_thread.sql', sql);
-  console.log('wrote supabase/migrations/0018_arghyam_and_thread.sql');
+  emitMigration('supabase/migrations/0018_arghyam_and_thread.sql', sql);
 } else {
   console.log('--- validated, not written (pass --emit) ---\n');
   for (const o of GANESHA_OFFERINGS) {

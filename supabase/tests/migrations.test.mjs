@@ -911,6 +911,61 @@ await assert('the line breaks were not doubled',
   `select count(*) from pooja_steps where mantra_sanskrit like '%' || chr(10) || chr(10) || '%'`, 0);
 await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
 
+console.log('\n[9ab] 0023 line endings');
+//
+// PGlite reads the .sql files off disk, and those are LF, so a carriage return
+// never appears here on its own -- which is exactly why this harness passed all
+// the way through 0022 while the live database held 681 of them. The CRs come
+// from the transport, not the file: the SQL is pasted into a browser SQL editor,
+// and a textarea normalises every newline inside a quoted literal to CRLF.
+//
+// So the test has to inject what the paste would have, then prove 0023 takes it
+// out. Injecting into deities as well, because 0016 enumerated its tables by
+// hand, missed that one, and left four carriage returns in dhyana_sloka_deva
+// for every release since.
+await step('dirty the data the way a paste would', () => db.exec(`
+  update public.pooja_steps
+     set mantra_sanskrit = replace(mantra_sanskrit, chr(10), chr(13) || chr(10)),
+         mantra_tamil    = replace(mantra_tamil,    chr(10), chr(13) || chr(10)),
+         mantra_translit = replace(mantra_translit, chr(10), chr(13) || chr(10));
+  update public.deities
+     set dhyana_sloka_deva = replace(dhyana_sloka_deva, chr(10), chr(13) || chr(10));
+  update public.archana_items
+     set invoked_name_deva = replace(invoked_name_deva, chr(10), chr(13) || chr(10));
+`));
+const crCount = `select count(*) from pooja_steps where position(chr(13) in mantra_sanskrit) > 0`;
+const dirty = await one(crCount);
+if (Number(Object.values(dirty)[0]) === 0) {
+  failed = true;
+  console.log('  FAIL  the injection did not dirty anything, so the test proves nothing');
+} else {
+  console.log(`  note  ${Object.values(dirty)[0]} step(s) dirtied, as the paste would have`);
+}
+
+await step('0023_normalise_line_endings.sql',
+  () => db.exec(sql(`${MIG}/0023_normalise_line_endings.sql`)));
+await assert('no step carries a carriage return', crCount, 0);
+await assert('no deity carries one either',
+  `select count(*) from deities where position(chr(13) in dhyana_sloka_deva) > 0`, 0);
+await assert('no archana item carries one either',
+  `select count(*) from archana_items where position(chr(13) in invoked_name_deva) > 0`, 0);
+// Stripping CR must not have eaten the line breaks it sat beside.
+await assert('Achamanam still breaks into 3 lines',
+  `select distinct length(mantra_sanskrit) - length(replace(mantra_sanskrit, chr(10), '')) + 1
+     from pooja_steps where step_title_en = 'Achamanam'`, 3);
+await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
+
+console.log('\n[9ac] 0023 idempotency, and the guard the generators now append');
+await step('0023 re-run', () => db.exec(sql(`${MIG}/0023_normalise_line_endings.sql`)));
+await assert('nothing left to strip', crCount, 0);
+// Every generated migration from 0018 on ends with the same sweep, so re-running
+// one of them is also a test of the guard.
+await step('0022 re-run, now carrying the guard',
+  () => db.exec(sql(`${MIG}/0022_sankalpam_and_line_breaks.sql`)));
+await assert('still clean after the guard ran', crCount, 0);
+await assert('line breaks still not doubled',
+  `select count(*) from pooja_steps where mantra_sanskrit like '%' || chr(10) || chr(10) || '%'`, 0);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {

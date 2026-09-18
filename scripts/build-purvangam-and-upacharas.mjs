@@ -55,7 +55,7 @@
  * blanks, and swapping the text under a live template is how you break a
  * sankalpam silently. Flagged, not touched.
  */
-import { writeFileSync } from 'node:fs';
+import { emitMigration } from './_migration.mjs';
 import Sanscript from '@indic-transliteration/sanscript';
 import { transliterate as tr } from './_tamil.mjs';
 import {
@@ -374,8 +374,7 @@ out("--   select pooja_id, step_title_en from pooja_steps where source_ref like 
 const sql = lines.join('\n') + '\n';
 
 if (process.argv.includes('--emit')) {
-  writeFileSync('supabase/migrations/0020_purvangam_and_upacharas.sql', sql);
-  console.log('wrote supabase/migrations/0020_purvangam_and_upacharas.sql');
+  emitMigration('supabase/migrations/0020_purvangam_and_upacharas.sql', sql);
 } else {
   console.log('--- validated, not written (pass --emit) ---\n');
   const seen = new Set();

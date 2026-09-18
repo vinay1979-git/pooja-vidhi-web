@@ -54,7 +54,7 @@
  * a right double quote for the dheergha svarita, which is why loadTelugu needed
  * a vedic option -- Sanscript carries all three straight through otherwise.
  */
-import { writeFileSync } from 'node:fs';
+import { emitMigration } from './_migration.mjs';
 import Sanscript from '@indic-transliteration/sanscript';
 import { transliterate as tr } from './_tamil.mjs';
 import {
@@ -279,8 +279,7 @@ out("--   select pooja_id, length(mantra_sanskrit) from pooja_steps where step_t
 const sql = lines.join('\n') + '\n';
 
 if (process.argv.includes('--emit')) {
-  writeFileSync('supabase/migrations/0021_prana_pratishtha_and_udvasanam.sql', sql);
-  console.log('wrote supabase/migrations/0021_prana_pratishtha_and_udvasanam.sql');
+  emitMigration('supabase/migrations/0021_prana_pratishtha_and_udvasanam.sql', sql);
 } else {
   console.log('--- validated, not written (pass --emit) ---\n');
   for (const s of STEPS) {

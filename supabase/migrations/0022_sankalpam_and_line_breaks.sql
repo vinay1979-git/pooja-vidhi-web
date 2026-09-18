@@ -159,6 +159,35 @@ begin
   if n > 0 then raise exception '% mantras have a space beside a line break', n; end if;
 end $$;
 
+
+-- Carriage returns, from pasting this file into a browser SQL editor. See
+-- scripts/_migration.mjs.
+do $$
+declare
+  r record;
+  n bigint;
+begin
+  for r in
+    select c.table_name, c.column_name
+      from information_schema.columns c
+      join information_schema.tables t
+        on t.table_schema = c.table_schema and t.table_name = c.table_name
+     where c.table_schema = 'public'
+       and t.table_type = 'BASE TABLE'
+       and c.data_type in ('text', 'character varying', 'character')
+  loop
+    execute format(
+      'update public.%I set %I = replace(%I, chr(13), %L)'
+      || ' where position(chr(13) in %I) > 0',
+      r.table_name, r.column_name, r.column_name, '', r.column_name
+    );
+    get diagnostics n = row_count;
+    if n > 0 then
+      raise notice 'stripped CR from % row(s) of %.%', n, r.table_name, r.column_name;
+    end if;
+  end loop;
+end $$;
+
 commit;
 
 -- Verify:
