@@ -456,3 +456,84 @@ the source for the first six and is already cached.
   published source gives it. `na tatra sūryo bhāti` and `karpūragauraṃ` are sung
   at deeparadhana in many houses and are in **none** of the four cached
   vidhanams, so they are not encoded.
+
+---
+
+## The purvangam, and the last of the placeholders
+
+Migration 0020. After it, **one** step in the whole database still carries
+`Tamil draft, pending vaidika review`, and it is the Sankalpam, deliberately.
+
+The eighteen that were left were not equally wrong, and lumping them together
+would have hidden that:
+
+**Already correct, just uncited.** Achamanam, Anga Vandanam, Pranayamam. The
+mantras are right. Only their `source_ref` changes.
+
+**Materially incomplete.** Kalasha Pooja had `gaṅge ca yamune` alone where the
+paddhati has six sections — no `kalaśasya mukhe viṣṇuḥ`, no `āpo vā idaṃ
+sarvaṃ`, no pancha ganga, and **no samprokshana**, which is the point of the
+step: the water is charged so it can be sprinkled on the materials, the deity
+and the performer. Ganesha's Padyam & Arghyam, Snanam & Vastram and
+Gandham/Kumkumam/Pushpam were bare `samarpayāmi` tags with no verse at all —
+three or four upacharas compressed to a line each.
+
+**Wrong.**
+
+| | was | is |
+|---|---|---|
+| Ghanta Pooja | `देवताव्हान` | `देवताह्वान` |
+| Ghanta Pooja | `घन्टा` | `घण्टा` |
+| Avahanam & Asanam | `अस्मिन् हरिद्रा बिम्बे` | invoked into the idol |
+
+`āhvāna` is invocation; **`vhāna` is not a word**. Both spellings were in
+production in both poojas from the first migration. And `asmin haridrā bimbe`
+invoked Ganesha into a turmeric cone — that is the Haridra Ganapati rite, and
+on Chaturthi he is invoked into the idol that was just installed.
+
+### The recension call
+
+StotraNidhi's Smartha purvangam gives the achamanam as `keśavāya svāhā,
+nārāyaṇāya svāhā, mādhavāya svāhā` and twenty-one further names. Ours is
+`acyutāya namaḥ, anantāya namaḥ, govindāya namaḥ`.
+
+**Ours is not replaced.** That page is Telugu Smartha; this app is for Tamil
+Smartha households, where the achamanam is the acyuta-ananta-govinda form and
+the keshava names come afterwards touching the limbs — which is exactly what the
+Anga Vandanam does. Taking the better-cited text would have swapped a correct
+Tamil achamanam for a correct Telugu one. `source_ref` records the difference
+instead of hiding it, and the harness asserts the Tamil form survives.
+
+### The Sankalpam is not touched
+
+It carries the `[DYNAMIC_PANCHANGAM_DATA]` slot the panchangam engine renders
+into, and the published version is a form with blanks. Swapping text under a
+live template is how a sankalpam breaks silently. The harness asserts the slot
+is still there.
+
+### Three traps in reading these pages
+
+Recorded because each produced wrong output that looked plausible:
+
+- **A section that is last on its page has no heading after it.** `ghaṇṭānādam`
+  and the kalpam's `samarpaṇaṃ` ran on into the site footer, and the round-trip
+  check dutifully reported that converting *"Support this Dharma Karya"* to
+  Devanagari and back had lost text. True, and useless. Sections that can run off
+  the end now name the line they stop on.
+- **The Vedic guttural nasal** is written `g` with a macron below
+  (`chandā̱g̱syāpo`) and `g` plus anusvara (`ogṃ`, `idagṃ`). Left as a bare `g`
+  after the accent strip, Sanscript renders `इदग्ं` and `छन्दाग्स्यापो`, which are
+  not words. Folded to the anusvara before stripping.
+- **`āyāntu śrī ____ pūjārthaṃ`** is a form blank. It is filled per pooja. A
+  generator check now refuses any mantra containing a run of underscores, and
+  the harness checks it with `position()` rather than `LIKE '%__%'` — in SQL `_`
+  is a single-character wildcard, so that pattern asks whether the string is at
+  least two characters long and matches everything.
+
+### Consolidation
+
+`scripts/_sources.mjs` now holds the page readers, the round-trip proofs and the
+fault-class checks. They were written inline in `build-upachara-mantras.mjs`,
+and the moment a second generator needed them there were two copies — which is
+the situation `_tamil.mjs` exists to prevent. `0019` was re-emitted after the
+refactor and is byte-identical.

@@ -68,9 +68,12 @@
  * instruction says they carry svara, and rendering svara stays an open
  * feature.
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import Sanscript from '@indic-transliteration/sanscript';
-import { transliterate as tr, PROTECTED } from './_tamil.mjs';
+import { transliterate as tr } from './_tamil.mjs';
+import {
+  loadRoman, loadTelugu, section as sectionOf, teluguToDeva, iastToDeva, normalise, checkScripts,
+} from './_sources.mjs';
 
 const DIR = process.env.NAMAVALI_DIR || 'C:/tmp-pv/namavali/';
 const KALPAM = `${DIR}vvk_te.txt`;
@@ -82,85 +85,16 @@ const fail = (m) => {
 };
 
 // ---------------------------------------------------------------------------
-// The kalpam, in Telugu. Sections are headed "<name> &#8211;".
+// The two cached pages. The readers, the round-trip proofs and the fault-class
+// checks all live in _sources.mjs now: a second generator needed them, and this
+// project has already paid for letting one routine exist in several copies.
 // ---------------------------------------------------------------------------
-const kalpamLines = readFileSync(KALPAM, 'utf8').split('\n').map((l) => l.trimEnd());
+const kalpamLines = loadTelugu(KALPAM);
+const vidhanamLines = loadRoman(VIDHANAM);
 
-/** Every line of the named section, headings excluded. */
-function section(name) {
-  const isHeading = (l) => l.includes('&#8211;');
-  const at = kalpamLines.findIndex((l) => isHeading(l) && l.replace('&#8211;', '').trim() === name);
-  if (at < 0) {
-    fail(`kalpam section "${name}" not found`);
-    return [];
-  }
-  const out = [];
-  for (let i = at + 1; i < kalpamLines.length; i++) {
-    const l = kalpamLines[i];
-    if (isHeading(l)) break;
-    const t = l.trim();
-    if (t && /[\u0C00-\u0C7F]/.test(t)) out.push(t);
-  }
-  if (!out.length) fail(`kalpam section "${name}" is empty`);
-  return out;
-}
-
-/** Telugu -> Devanagari, proving per line that converting back returns it. */
-function teluguToDeva(line) {
-  const conv = (s, from, to) =>
-    s
-      .split(PROTECTED)
-      .map((p) => (p === '' || PROTECTED.test(p) ? p : Sanscript.t(p, from, to)))
-      .join('');
-  const deva = conv(line, 'telugu', 'devanagari');
-  if (conv(deva, 'devanagari', 'telugu') !== line) {
-    fail(`telugu round trip lost text:\n  in   ${line}\n  back ${conv(deva, 'devanagari', 'telugu')}`);
-  }
-  return deva;
-}
-
-// ---------------------------------------------------------------------------
-// The vidhanam, in IAST with svara marks.
-// ---------------------------------------------------------------------------
-// U+0331 macron below, U+030D / U+030E vertical lines above: the Vedic accents
-// as this page writes them in roman. Stripped AFTER NFC composition, so the
-// IAST letters themselves (ā ī ū ṛ ṃ ḥ ś ṣ ñ ṅ) are single code points by then
-// and are not touched. Doing it before would have eaten every long vowel.
-const SVARA = /[\u0331\u030D\u030E\u0951\u0952\u1CDA]/g;
-
-const vidhanamLines = readFileSync(VIDHANAM, 'utf8')
-  .normalize('NFC')
-  .split('\n')
-  .map((l) => l.replace(/&#8211;/g, '').replace(/&#8217;/g, "'").replace(SVARA, '').trim())
-  .filter(Boolean);
-
-/** IAST -> Devanagari, round-trip proved the same way. */
-function iastToDeva(line) {
-  // This page writes the visarga as a plain colon in some words (suva: , na:)
-  // and as ḥ in others. Sanscript passes a colon straight through, so without
-  // this the vyahritis came out as सुव: with an ASCII colon sitting where the
-  // visarga belongs -- visible on screen, and wrong.
-  // Normalise the punctuation BEFORE the round trip, not after. This page
-  // writes the danda as an ASCII pipe; Sanscript returns a real danda, and
-  // comparing the two reported every single line as "round trip lost text"
-  // when nothing had been lost. PROTECTED carries । and ॥ through untouched,
-  // so converting them up front is also what makes the check meaningful.
-  const norm = line
-    .replace(/([aāiīuūṛeo]):/g, '$1ḥ')
-    .replace(/\|\|/g, '॥')
-    .replace(/(?<![॥|])\|(?!\|)/g, '।');
-  if (norm.includes(':')) fail(`unconverted colon left in: ${norm}`);
-  if (norm.includes('|')) fail(`unconverted pipe left in: ${norm}`);
-  const conv = (s, from, to) =>
-    s
-      .split(PROTECTED)
-      .map((p) => (p === '' || PROTECTED.test(p) ? p : Sanscript.t(p, from, to)))
-      .join('');
-  const deva = conv(norm, 'iast', 'devanagari');
-  const back = conv(deva, 'devanagari', 'iast');
-  if (back !== norm) fail(`iast round trip lost text:\n  in   ${norm}\n  back ${back}`);
-  return deva;
-}
+const section = (name) => sectionOf(kalpamLines, name, { script: 'telugu', fail });
+const toDeva = (line) => teluguToDeva(Sanscript, line, fail);
+const toDevaFromIast = (line) => iastToDeva(Sanscript, line, fail);
 
 const frameAt = vidhanamLines.findIndex((l) => l.startsWith('oṃ bhūrbhuvassuva'));
 if (frameAt < 0) fail('the naivedyam frame was not found in the vidhanam');
@@ -202,19 +136,14 @@ for (const l of frame) if (HEADINGS.test(l)) fail(`the page heading "${l}" was c
 // Assemble. `D` marks text already in Devanagari.
 // ---------------------------------------------------------------------------
 const joinDeva = (lines) => lines.join('\n');
-const dandas = (s) =>
-  s
-    .replace(/\|\|/g, '॥')
-    .replace(/(?<![॥|])\|(?!\|)/g, '।')
-    .replace(/(^|\s)ओं(?=\s)/g, '$1ॐ')
-    .replace(/[ \t]+/g, ' ')
-    .trim();
+// Was a local copy of exactly this. It is normalise() in _sources.mjs now.
+const dandas = normalise;
 
-const kalpamDeva = (name) => section(name).map((l) => dandas(teluguToDeva(l)));
-const vidhanamDeva = (lines) => lines.map((l) => dandas(iastToDeva(l)));
+const kalpamDeva = (name) => section(name).map((l) => dandas(toDeva(l)));
+const vidhanamDeva = (lines) => lines.map((l) => dandas(toDevaFromIast(l)));
 
 // deva savitaḥ prasuva -- see the header. Not on either published page.
-const OWNER_LINE = dandas(iastToDeva('deva savitaḥ prasuva |'));
+const OWNER_LINE = dandas(toDevaFromIast('deva savitaḥ prasuva |'));
 
 const FRAME = vidhanamDeva(frame);
 // Split the frame at the point the offering is named: everything before goes
@@ -310,21 +239,8 @@ for (const s of STEPS) {
   s.s = scripts(s.deva);
 }
 
-const checkAll = (label, o) => {
-  for (const [k, v] of Object.entries(o)) {
-    if (typeof v !== 'string') continue;
-    if (v.includes('\r')) fail(`${label}.${k} contains a carriage return`);
-    if (k === 'ta' && /[ௐऽ]/.test(v)) fail(`${label}.${k} carries an om sign or avagraha`);
-    if (/[²³⁴]/.test(v)) fail(`${label}.${k} carries a Grantha superscript`);
-    if (k === 'deva' && /(^|\s)ओं(\s|$)/.test(v)) fail(`${label}.${k} spells the pranava ओं, not ॐ`);
-    if (v.includes('...') || v.includes('…')) fail(`${label}.${k} looks truncated`);
-    if (/[ \t]{2,}/.test(v)) fail(`${label}.${k} has a double space`);
-    if (/[\u0C00-\u0C7F]/.test(v)) fail(`${label}.${k} still has Telugu letters in it`);
-  }
-  if (!/[\u0B80-\u0BFF]/.test(o.ta)) fail(`${label}.ta has no Tamil letters`);
-  if (/[\u0900-\u0963\u0966-\u097F]/.test(o.ta)) fail(`${label}.ta has Devanagari letters in it`);
-  if (!/[\u0900-\u097F]/.test(o.deva)) fail(`${label}.deva has no Devanagari letters`);
-};
+// The fault-class checks are shared too; see _sources.mjs.
+const checkAll = (label, o) => checkScripts(label, o, fail);
 for (const s of STEPS) if (s.s) checkAll(`${s.pooja}/${s.title}`, s.s);
 
 // The whole point of the change: these must be real sequences, not one line.

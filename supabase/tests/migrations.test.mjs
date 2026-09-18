@@ -707,6 +707,81 @@ await assert('the Varalakshmi frame was not wrapped twice',
      from pooja_steps where ${VL_NAIV}`, 1);
 await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
 
+// --- 9v. The purvangam and the remaining upacharas ---------------------------
+console.log('\n[9v] 0020 purvangam and upacharas');
+// Two misspellings that were in production in BOTH poojas from the first
+// migration. avhāna is not a word; the word is āhvāna, invocation.
+await assert('the ghanta misspellings were there',
+  `select count(*) from pooja_steps where step_title_en = 'Ghanta Pooja'
+     and mantra_sanskrit like '%देवताव्हान%' and mantra_sanskrit like '%घन्ट%'`, 2);
+await assert('Ganesha was invoked into a turmeric cone',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Avahanam & Asanam' and mantra_sanskrit like '%हरिद्रा%'`, 1);
+await assert('Kalasha Pooja was one verse',
+  `select count(*) from pooja_steps where step_title_en = 'Kalasha Pooja'
+     and mantra_sanskrit not like '%कलशस्य मुखे%'`, 2);
+await step('0020_purvangam_and_upacharas.sql', () => db.exec(sql(`${MIG}/0020_purvangam_and_upacharas.sql`)));
+
+await assert('the ghanta mantra says devatahvana now, in both poojas',
+  `select count(*) from pooja_steps where step_title_en = 'Ghanta Pooja'
+     and mantra_sanskrit like '%देवताह्वान%' and mantra_sanskrit like '%घण्टा%'`, 2);
+await assert('and the misspellings are gone from the whole table',
+  `select count(*) from pooja_steps
+    where mantra_sanskrit like '%व्हान%' or mantra_sanskrit like '%घन्ट%'
+       or mantra_translit like '%vhāna%' or mantra_translit like '%ghanṭ%'`, 0);
+await assert('no turmeric cone in the Chaturthi avahanam',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Avahanam & Asanam' and mantra_sanskrit like '%हरिद्रा%'`, 0);
+// The samprokshana is the point of the kalasha: the water is charged so it can
+// be sprinkled on the materials, the deity and the performer. None of it was
+// in the step.
+await assert('Kalasha carries the invocation and the sprinkling',
+  `select count(*) from pooja_steps where step_title_en = 'Kalasha Pooja'
+     and mantra_sanskrit like '%कलशस्य मुखे%' and mantra_sanskrit like '%सम्प्रोक्ष्य%'
+     and mantra_sanskrit like '%पञ्चगङ्गाः%'`, 2);
+// The published kalashārādhanam is a form with "śrī ____ pūjārthaṃ" in it.
+// position(), not LIKE. In SQL, _ is a single-character wildcard, so '%__%'
+// asks "is this string at least two characters long" and matched everything.
+await assert('the template blank was filled, not shipped',
+  `select count(*) from pooja_steps where position('__' in mantra_sanskrit) > 0`, 0);
+await assert('each pooja names its own deity in the kalasha',
+  `select count(*) from pooja_steps where step_title_en = 'Kalasha Pooja'
+     and ((pooja_id = 'ganesha_standard' and mantra_sanskrit like '%श्री महागणपति पूजार्थं%')
+       or (pooja_id = 'varalakshmi_vratham' and mantra_sanskrit like '%श्री वरलक्ष्मी पूजार्थं%'))`, 2);
+// The Vedic guttural nasal is written g-with-macron-below and g-plus-anusvara
+// on these pages. Left as a bare g it renders इदग्ं, which is not a word.
+await assert('the guttural nasal folded to an anusvara',
+  `select count(*) from pooja_steps where step_title_en = 'Kalasha Pooja'
+     and mantra_sanskrit like '%आपो वा इदं सर्वं%' and mantra_sanskrit not like '%इदग्%'`, 2);
+// Ganesha's three bare-tag upacharas must have verses now.
+for (const t of ['Padyam & Arghyam', 'Snanam & Vastram', 'Gandham, Kumkumam & Pushpam', 'Avahanam & Asanam']) {
+  await assert(`${t} has verses, not just samarpayami tags`,
+    `select case when (length(mantra_sanskrit) - length(replace(mantra_sanskrit, chr(10), ''))) + 1 >= 6
+            then 1 else 0 end from pooja_steps
+      where pooja_id = 'ganesha_standard' and step_title_en = '${t}'`, 1);
+}
+// The Tamil achamanam recension is kept on purpose; only its citation changes.
+await assert('the Tamil achamanam text is unchanged',
+  `select count(*) from pooja_steps where step_title_en = 'Achamanam'
+     and mantra_sanskrit like '%अच्युताय नमः%' and mantra_sanskrit not like '%केशवाय स्वाहा%'`, 2);
+await assert('and its source_ref says which recension and why',
+  `select count(*) from pooja_steps where step_title_en = 'Achamanam'
+     and source_ref like '%DELIBERATELY NOT%'`, 2);
+// Only the Sankalpam may still be a draft: it holds the dynamic panchangam slot.
+await assert('nothing but the Sankalpam is still an unreviewed draft',
+  `select count(*) from pooja_steps where source_ref like '%Tamil draft, pending vaidika review%'
+     and step_title_en <> 'Sankalpam'`, 0);
+await assert('and the dynamic sankalpam slot is untouched',
+  `select count(*) from pooja_steps where is_dynamic_sankalpam
+     and mantra_sanskrit like '%[DYNAMIC_PANCHANGAM_DATA]%'`, 2);
+
+console.log('\n[9w] 0020 idempotency');
+await step('0020 re-run', () => db.exec(sql(`${MIG}/0020_purvangam_and_upacharas.sql`)));
+await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
+await assert('the kalasha deity name was not doubled',
+  `select (length(mantra_sanskrit) - length(replace(mantra_sanskrit, 'पूजार्थं', ''))) / length('पूजार्थं')
+     from pooja_steps where pooja_id = 'ganesha_standard' and step_title_en = 'Kalasha Pooja'`, 1);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
