@@ -751,3 +751,44 @@ since.
 Harness section `[9ab]` injects the corruption the paste would have caused --
 the harness cannot observe it otherwise -- and then proves 0023 removes it
 without eating the line breaks it sat beside.
+
+## The review sheet
+
+`npm run review` reads the live database and writes `review/pooja-review-sheet.html`
+-- every step of both poojas, print-ready on A4.
+
+It exists because of what is now true of this project and what is not. Every
+mantra traces to a published text, the inventory flags one thin step, and
+`proofread.mjs` passes. **None of it has been read by a vaidika.** That is the
+only thing between here and the beta, and no amount of further sourcing work
+substitutes for it.
+
+Four decisions in the sheet, each one a thing that would otherwise lose a
+correction:
+
+- **Numbered lines.** A correction needs an address. "The third line of step 20"
+  can be applied exactly; "the camphor one, near the end" cannot, and that is the
+  form corrections take when the reviewer has no line numbers to point at.
+- **Three scripts across, on the same line.** The Tamil and the transliteration
+  are generated from the Devanagari, so the question worth putting in front of a
+  reviewer is not "is this good Tamil" but "do these three still say the same
+  thing". Where the three fields do not even have the same number of lines, the
+  sheet says so in red: that is a defect, not a preference.
+- **The open questions printed at the step, not gathered at the end.** Asked at
+  the end whether the neerajanam should carry *na tatra sūryo bhāti*, a reviewer
+  has to page back to see what it currently carries. Asked beside the mantra,
+  they answer in ten seconds.
+- **Ruled space under every step.** A reviewer with nowhere to write writes
+  nothing.
+
+The questions are duplicated: they live in `QUESTIONS` in the script and under
+the "Open for practitioners" headings in this file. That is a known drift risk
+and is accepted for now, because the alternative -- a column in the database --
+puts a question about the content inside the content. When one is answered,
+change both.
+
+The sheet is generated, not committed; `/review/` is gitignored. It is a
+snapshot of live data and goes stale the moment a migration runs, which is why
+it prints its own date and refuses to be quiet about it: if the database still
+carries the carriage returns 0023 removes, the sheet says so at the top, because
+nothing else on the page would reveal them.
