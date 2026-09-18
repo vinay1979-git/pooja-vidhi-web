@@ -69,7 +69,10 @@ export function loadRoman(path) {
     .normalize('NFC')
     .split('\n')
     .map((l) => {
-      let s = l.replace(/&#8211;/g, '–').replace(/&#8217;/g, "'");
+      let s = l
+        .replace(/&#8211;/g, '–')
+        .replace(/&#8217;/g, "'")
+        .replace(/&#8230;/g, '…');
       for (const [re, to] of GUTTURAL_NASAL) s = s.replace(re, to);
       return s.replace(SVARA, '').trim();
     })
@@ -89,7 +92,10 @@ export function loadTelugu(path, { vedic = false } = {}) {
   return readFileSync(path, 'utf8')
     .split('\n')
     .map((l) => {
-      let s = l.replace(/&#8211;/g, '–').replace(/&#8217;/g, "'");
+      // &#8230; is an ellipsis, and these pages use it for a form blank. Decode
+      // it: left encoded it slips straight past every truncation check in this
+      // project, all of which look for "..." or "…".
+      let s = l.replace(/&#8211;/g, '–').replace(/&#8217;/g, "'").replace(/&#8230;/g, '…');
       if (vedic) {
         s = s
           .replace(/&#8221;/g, '')

@@ -608,3 +608,83 @@ are each the one verse their kalpam gives.
 `Tamil draft, pending vaidika review`, it is 275 characters against
 Varalakshmi's 509, and it holds the `[DYNAMIC_PANCHANGAM_DATA]` slot, so it
 needs care rather than a regenerate.
+
+---
+
+## The Sankalpam, and a second implementation nobody was using
+
+Migration 0022. After it **no step in either pooja is an unreviewed draft**.
+
+### The Ganesha Sankalpam
+
+It was the last one, at 275 characters against Varalakshmi's 509, and it had
+**literal ellipses in it** — `भरत खण्डे ... [DYNAMIC_PANCHANGAM_DATA] ... मम उपात्त`
+— which is the exact truncation marker `proofread.mjs` exists to catch, sitting
+in the one step that could not be regenerated without care.
+
+Against the kalpam's own sankalpam it was missing the rest of the geography
+(`meroḥ dakṣiṇe pārśve asmin vartamāne vyāvahārike`) and **every** purpose
+clause: `asmākaṃ sahakuṭumbānāṃ kṣema sthairya dhairya`, the `caturvidha
+puruṣārtha`, `putrapautrābhivṛddhi`, `iṣṭakāmyārtha siddhi`, `samasta
+duritopaśānti`, `samasta maṅgaḷāvāpti`, and the deity's own `uddiśya` /
+`prītyarthaṃ` pair.
+
+**Two things from the kalpam are deliberately not used.** It fixes the date as
+`bhādrapada śukla caturthī puṇyakāle` — the **lunar** month, where Tamil Smartha
+recites the **solar** one, which the panchangam engine computes into the slot.
+Taking it would have hardcoded one day *and* used the wrong reckoning. And its
+`mama upātta ………. sametasya` carries a form blank for family names; the standard
+opener is used instead.
+
+### The duplicate this exposed
+
+Varalakshmi's opens with `pūrvokta evaṃ guṇa viśeṣaṇa viśiṣṭāyāṃ śubhatithau` —
+"at the tithi qualified by the **aforesaid** attributes". In the kalpam that is a
+back-reference: the section is headed *punaḥ* saṅkalpam. Here there is nothing to
+refer back to, and the slot supplies those attributes in full, so the sentence
+said the same phrase twice — once computed, once as a reference to itself.
+Dropped.
+
+### PoojaViewer was rendering its own, worse sankalpam
+
+The real find. `getDynamicMantra` assembled the panchangam **field by field**,
+and assembled a shorter sentence than `src/lib/sankalpam.ts` renders three
+inches up the same screen. It left out:
+
+- the **yoga**
+- the **karana**
+- the **second tithi** when the tithi turns during the day
+
+which are precisely the three things the engine was written to add. It also
+spelt `गोत्रोत्भवस्य` for `गोत्रोद्भवस्य` (*udbhava*), and used the masculine
+ending for everyone.
+
+So the Sankalpam step showed the sentence **twice** — complete in its own card,
+degraded inside the mantra box — and **the degraded one is what a person
+reciting from the mantra would have said**. It now inserts the engine's `core`,
+and the person clause comes from a new `renderPerson()` in `sankalpam.ts` which
+is gender-correct and spelt right. Verified live: `prīti nāma yoga`, `vaṇija
+karaṇa yuktāyām` and `saptamyām upari aṣṭamyām` all appear now, and
+`gotrodbhava` replaces the typo.
+
+### Line breaks
+
+Done as a string replace on whatever is in the column, not by restating the
+text, and only where the mantra is currently one line — so it breaks the data
+rather than what the script believes the data is. Idempotent: after one run
+there is no `danda space` left to split on. The Anga Vandanam is twelve lines
+now, one name per limb; the Achamanam is three, one per sip.
+
+### Where the inventory stands
+
+Section `[11]` of the harness flagged **8** thin steps before this and flags
+**1** after: Sharadu Dharanam, which is the single verse its kalpam gives.
+
+Two splitting traps worth keeping:
+
+- Commas are not clause boundaries in a sankalpam. The Varalakshmi purposes are
+  set without a single comma, so a comma split left them as one 300-character
+  line. The clauses end in `-arthaṃ`.
+- Matching `अर्थं` finds nothing. The clauses read `-yarthaṃ`, `-ptyarthaṃ`,
+  where the *a* of *artha* is the inherent vowel of the preceding consonant and
+  no standalone `अ` exists in the string. The match is on `र्थं`.

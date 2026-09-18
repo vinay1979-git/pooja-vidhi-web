@@ -7,6 +7,7 @@ import { AlertCircle, Award, BookOpen, Calendar, Check, CheckCircle2, ChevronDow
 import { Pooja, PoojaStep, ArchanaItem } from '@/types/pooja';
 import { fetchPanchangamData, PanchangamData } from '@/actions/getSankalpam';
 import { usePreferences, resolveScript, SCRIPT_LABEL } from '@/lib/preferences';
+import { renderPerson } from '@/lib/sankalpam';
 import { TempleBell } from '@/components/TempleBell';
 import type { PoojaMode } from '@/types/pooja';
 
@@ -454,15 +455,27 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
       if (!panchangamData) return originalText;
 
       const p = panchangamData;
-      let dynamicText = '';
 
-      if (script === 'sanskrit') {
-        dynamicText = `${p.samvatsara.sanskrit} ${p.ayana.sanskrit} ${p.ritu.sanskrit} ${p.masa.sanskrit} ${p.paksha.sanskrit} ${p.tithi.sanskrit} ${p.vasara.sanskrit} ${p.nakshatra.sanskrit} नक्षत्र युक्तायाम्, ${sankalpamData.gotra || 'काश्यप'} गोत्रोत्भवस्य ${sankalpamData.devoteeName || 'भक्त'} नामधेयस्य`;
-      } else if (script === 'tamil') {
-        dynamicText = `${p.samvatsara.tamil}, ${p.ayana.tamil}, ${p.ritu.tamil}, ${p.masa.tamil}, ${p.paksha.tamil}, ${p.tithi.tamil}, ${p.vasara.tamil}, ${p.nakshatra.tamil}, ${sankalpamData.gotra || 'காஸ்யப'} கோத்ரத்து ${sankalpamData.devoteeName || 'பக்தர்'} அவர்களுக்கு`;
-      } else {
-        dynamicText = `${p.samvatsara.translit}, ${p.ayana.translit}, ${p.ritu.translit}, ${p.masa.translit}, ${p.paksha.translit}, ${p.tithi.translit}, ${p.vasara.translit}, ${p.nakshatra.translit}, ${sankalpamData.gotra || 'Kashyapa'} Gotra ${sankalpamData.devoteeName || 'Devotee'}`;
-      }
+      // Use the engine's `core`, do not rebuild it.
+      //
+      // This function used to assemble the panchangam itself, field by field,
+      // and it assembled a SHORTER sentence than src/lib/sankalpam.ts renders
+      // three lines further up the same screen: it left out the yoga, the
+      // karana and the second tithi when the tithi turns during the day. Those
+      // three are exactly what the engine was written to add. So the Sankalpam
+      // step showed the sentence twice, once complete in its own card and once
+      // degraded inside the mantra, and the degraded one is the one a person
+      // reciting from the mantra box would have said.
+      const key = script === 'sanskrit' ? 'sanskrit' : script === 'tamil' ? 'tamil' : 'translit';
+      const person = renderPerson(
+        script === 'sanskrit' ? 'deva' : script === 'tamil' ? 'tamil' : 'iast',
+        {
+          gotra: sankalpamData.gotra || undefined,
+          name: sankalpamData.devoteeName || undefined,
+          gender: performerGender,
+        },
+      );
+      const dynamicText = [p.core[key], person].filter(Boolean).join(' ');
 
       if (originalText.includes('[DYNAMIC_PANCHANGAM_DATA]')) {
         return originalText.replace('[DYNAMIC_PANCHANGAM_DATA]', dynamicText);
@@ -473,7 +486,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
       return originalText;
     },
-    [panchangamData, sankalpamData]
+    [panchangamData, sankalpamData, performerGender]
   );
 
   // Slide Animation Variants for Framer Motion

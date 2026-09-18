@@ -207,5 +207,43 @@ export function buildSankalpam(
   };
 }
 
+/**
+ * The performer, in the genitive, to sit between the panchangam and "mama
+ * upātta ... pūjāṃ kariṣye".
+ *
+ * renderSankalpam builds its own person clause in the NOMINATIVE ("X gotraḥ, Y
+ * śarmā ahaṃ") because it puts the opener first. The Sankalpam step's stored
+ * mantra is ordered the other way -- preamble, panchangam, person, purpose --
+ * and there the genitive is what agrees with mama. Both forms are recited; they
+ * are not interchangeable within a sentence.
+ *
+ * This exists because PoojaViewer was assembling the clause inline, where it
+ * had drifted: it spelt गोत्रोत्भवस्य for गोत्रोद्भवस्य (udbhava, "arisen from"),
+ * and it used the masculine ending for everyone.
+ */
+export function renderPerson(
+  script: Script,
+  ctx: { gotra?: string; name?: string; gender?: 'male' | 'female' | 'couple' } = {},
+): string {
+  const f = ctx.gender === 'female';
+  const words: Record<Script, { from: string; named: string }> = {
+    deva: {
+      from: f ? 'गोत्रोद्भवायाः' : 'गोत्रोद्भवस्य',
+      named: f ? 'नामधेयायाः' : 'नामधेयस्य',
+    },
+    iast: {
+      from: f ? 'gotrodbhavāyāḥ' : 'gotrodbhavasya',
+      named: f ? 'nāmadheyāyāḥ' : 'nāmadheyasya',
+    },
+    tamil: { from: '', named: '' },
+  };
+  words.tamil = { from: toTamil(words.deva.from), named: toTamil(words.deva.named) };
+  const w = words[script];
+  const bits: string[] = [];
+  if (ctx.gotra) bits.push(ctx.gotra, w.from);
+  if (ctx.name) bits.push(ctx.name, w.named);
+  return bits.join(' ');
+}
+
 /** Ganesha Chaturthi, for the occasion slot. */
 export const OCCASION_GANESHA_CHATURTHI = 'गणेश चतुर्थ्याम्';

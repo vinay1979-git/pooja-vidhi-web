@@ -844,6 +844,73 @@ await assert('the namaskara was not inserted twice',
      from pooja_steps where ${VL_PP}`, 1);
 await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
 
+// --- 9z. The Sankalpam, and line breaks --------------------------------------
+console.log('\n[9z] 0022 sankalpam and line breaks');
+await assert('the Ganesha sankalpam was the last unreviewed draft',
+  `select count(*) from pooja_steps where source_ref like '%pending vaidika review%'`, 1);
+// Literal ellipses around the slot -- the exact truncation marker proofread.mjs
+// exists to catch, in the one step it could not simply regenerate.
+await assert('and it had ellipses around the dynamic slot',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Sankalpam' and position('...' in mantra_sanskrit) > 0`, 1);
+await assert('three mantras were stored as a single run',
+  `select count(*) from pooja_steps
+    where step_title_en in ('Achamanam', 'Anga Vandanam', 'Manjal Pillaiyar Pooja')
+      and mantra_sanskrit not like '%' || chr(10) || '%'`, 5);
+await step('0022_sankalpam_and_line_breaks.sql',
+  () => db.exec(sql(`${MIG}/0022_sankalpam_and_line_breaks.sql`)));
+
+await assert('no step anywhere is an unreviewed draft now',
+  `select count(*) from pooja_steps
+    where source_ref is null or source_ref like '%pending vaidika review%'`, 0);
+await assert('no ellipsis survives in any mantra',
+  `select count(*) from pooja_steps where position('...' in mantra_sanskrit) > 0
+     or position('…' in mantra_sanskrit) > 0`, 0);
+// The slot must survive in all three scripts: it is a PROTECTED token, and if
+// transliteration ever eats it the sankalpam silently loses its date.
+await assert('both sankalpams keep the dynamic slot in all three scripts',
+  `select count(*) from pooja_steps where step_title_en = 'Sankalpam'
+     and mantra_sanskrit like '%[DYNAMIC_PANCHANGAM_DATA]%'
+     and mantra_tamil like '%[DYNAMIC_PANCHANGAM_DATA]%'
+     and mantra_translit like '%[DYNAMIC_PANCHANGAM_DATA]%'`, 2);
+await assert('the Ganesha sankalpam carries the kalpam purpose clauses',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Sankalpam'
+     and mantra_sanskrit like '%सहकुटुंबानां%' and mantra_sanskrit like '%पुत्रपौत्राभिवृद्ध्यर्थं%'
+     and mantra_sanskrit like '%वरसिद्धिविनायक%'`, 1);
+// The kalpam fixes the date as bhadrapada shukla chaturthi. That is the LUNAR
+// month; Tamil Smartha recites the solar one, which the engine computes.
+await assert('neither sankalpam hardcodes a lunar month',
+  `select count(*) from pooja_steps where mantra_sanskrit like '%भाद्रपद%'`, 0);
+// "purvokta evam guna..." is a back-reference in a punah-sankalpam. Here the
+// slot supplies those attributes, so keeping it said the phrase twice.
+await assert('the back-reference the slot already supplies is gone',
+  `select count(*) from pooja_steps where mantra_sanskrit like '%पूर्वोक्त%'`, 0);
+await assert('both sankalpams read as clauses, not one run',
+  `select count(*) from pooja_steps where step_title_en = 'Sankalpam'
+     and (length(mantra_sanskrit) - length(replace(mantra_sanskrit, chr(10), ''))) >= 9`, 2);
+await assert('the formatted mantras are on multiple lines now',
+  `select count(*) from pooja_steps
+    where step_title_en in ('Achamanam', 'Anga Vandanam', 'Manjal Pillaiyar Pooja')
+      and mantra_sanskrit not like '%' || chr(10) || '%'`, 0);
+await assert('the twelve names of the Anga Vandanam are twelve lines',
+  `select distinct length(mantra_sanskrit) - length(replace(mantra_sanskrit, chr(10), '')) + 1
+     from pooja_steps where step_title_en = 'Anga Vandanam'`, 12);
+await assert('and the achamanam is one line per sip',
+  `select distinct length(mantra_sanskrit) - length(replace(mantra_sanskrit, chr(10), '')) + 1
+     from pooja_steps where step_title_en = 'Achamanam'`, 3);
+// Breaking at the danda must not leave a space stranded beside the break.
+await assert('no mantra has a space against a line break',
+  `select count(*) from pooja_steps
+    where mantra_sanskrit like '% ' || chr(10) || '%' or mantra_sanskrit like '%' || chr(10) || ' %'
+       or mantra_tamil like '% ' || chr(10) || '%' or mantra_translit like '% ' || chr(10) || '%'`, 0);
+
+console.log('\n[9aa] 0022 idempotency');
+await step('0022 re-run', () => db.exec(sql(`${MIG}/0022_sankalpam_and_line_breaks.sql`)));
+await assert('the line breaks were not doubled',
+  `select count(*) from pooja_steps where mantra_sanskrit like '%' || chr(10) || chr(10) || '%'`, 0);
+await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
