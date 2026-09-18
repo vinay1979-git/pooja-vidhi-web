@@ -39,12 +39,18 @@ export const metadata: Metadata = {
 
 // Applied before first paint so a stored light theme does not flash dark.
 // Kept deliberately tiny and dependency-free.
+//
+// Dark is the default, so only an explicit 'light' opts out -- the same test as
+// read() in preferences.tsx, and it has to stay the same test. The catch is not
+// decoration: a private window and blocked site data both throw on
+// localStorage, and a throw here with no fallback leaves <html> with whatever
+// attribute the server sent.
 const THEME_BOOTSTRAP = `
 try {
   var p = JSON.parse(localStorage.getItem('pooja-vidhi:prefs') || '{}');
-  document.documentElement.setAttribute('data-theme', p.theme === 'dark' ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', p.theme === 'light' ? 'light' : 'dark');
 } catch (e) {
-  document.documentElement.setAttribute('data-theme', 'light');
+  document.documentElement.setAttribute('data-theme', 'dark');
 }
 `;
 
@@ -52,7 +58,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html
       lang="en"
-      data-theme="light"
+      data-theme="dark"
       suppressHydrationWarning
       className={`${cinzel.variable} ${outfit.variable} ${notoDevanagari.variable} ${notoTamil.variable} h-full antialiased`}
     >

@@ -152,8 +152,15 @@
 }
 
 /* --- dark: temple sanctum. warm maroon-black, lamplight gold ---------------- */
+/* Listed first and also on :root, so a document that somehow reaches paint with
+   no data-theme attribute is dark rather than unstyled. That is the default. */
 :root,
 [data-theme="dark"] {
+  /* Not cosmetic. Without it the browser keeps painting its own chrome light:
+     a white scrollbar down the side of a maroon page, light form controls, and
+     a white flash before the stylesheet applies. */
+  color-scheme: dark;
+
   --color-stone-950: #120a08;
   --color-stone-900: #1c110d;
   --color-stone-800: #301d16;
@@ -187,6 +194,8 @@
 
 /* --- light: morning pooja room. bright, warm, still saffron ---------------- */
 [data-theme="light"] {
+  color-scheme: light;
+
   --color-stone-950: #fffdf8;
   --color-stone-900: #fbf4e8;
   --color-stone-800: #eddfc6;

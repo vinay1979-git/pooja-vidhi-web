@@ -18,6 +18,12 @@ import React, {
  * Persisted to localStorage and read back on mount. The first paint uses the
  * defaults so server and client markup agree; the stored values are applied
  * immediately afterwards, which avoids a hydration mismatch.
+ *
+ * The theme is the exception: it cannot wait for mount, because by then the
+ * page has already painted in the wrong one. It is set on <html> by an inline
+ * script in layout.tsx before first paint, and the default here has to match
+ * what that script and the CSS both fall back to, or the two disagree for one
+ * frame.
  */
 
 export type InstructionLang = 'en' | 'ta';
@@ -59,7 +65,12 @@ const KEY = 'pooja-vidhi:prefs';
 const DEFAULTS = {
   instructionLang: 'en' as InstructionLang,
   mantraScript: 'sanskrit' as MantraScript,
-  theme: 'light' as Theme,
+  // Dark is the default: the palette is a lit sanctum rather than a lit screen,
+  // and a pooja is performed at dawn or at a lamp rather than in an office.
+  // Changing this is not a one-line change -- see read() below and the
+  // bootstrap in layout.tsx, both of which decide the same thing again and
+  // must decide it the same way.
+  theme: 'dark' as Theme,
 };
 
 const Ctx = createContext<Preferences | null>(null);
@@ -75,7 +86,11 @@ function read(): typeof DEFAULTS {
       // Anything that is not 'tamil' becomes 'sanskrit', which also migrates
       // the stored 'translit' of anyone who had the old "Eng" option selected.
       mantraScript: p.mantraScript === 'tamil' ? 'tamil' : 'sanskrit',
-      theme: p.theme === 'dark' ? 'dark' : 'light',
+      // Only an explicit 'light' opts out. Written the other way round -- as
+      // `p.theme === 'dark' ? 'dark' : 'light'` -- it silently demotes every
+      // unrecognised or missing value to light, which is the default this
+      // project just stopped having.
+      theme: p.theme === 'light' ? 'light' : 'dark',
     };
   } catch {
     // Private windows and blocked site data both throw here.
