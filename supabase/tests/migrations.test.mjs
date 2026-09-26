@@ -1018,6 +1018,74 @@ await assert('still 6 svaha after a re-run',
          / length('स्वाहा') = 6`, 2);
 await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
 
+console.log('\n[9af] 0025 the steps the Ganesha pooja never had');
+await step('0025_ganesha_missing_steps.sql',
+  () => db.exec(sql(`${MIG}/0025_ganesha_missing_steps.sql`)));
+
+await assert('Ganesha now has 37 steps',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'`, 37);
+await assert('its numbers are dense',
+  `select (max(step_number) - min(step_number) + 1) - count(*)
+     from pooja_steps where pooja_id = 'ganesha_standard'`, 0);
+await assert('and start at 1',
+  `select min(step_number) from pooja_steps where pooja_id = 'ganesha_standard'`, 1);
+await assert('nothing left parked above 1000',
+  `select count(*) from pooja_steps where step_number >= 1000`, 0);
+// The rite that removes obstacles before every other rite is itself a Ganesha
+// pooja, and the Ganesha pooja used to skip it.
+await assert('the preliminary Vighneshwara pooja exists',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Vighneshwara Pooja'`, 1);
+await assert('with its sixteen names',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.step_title_en = 'Vighneshwara Shodasha Nama Archana'`, 16);
+// 0024 gave the sankalpam the tail "tadangam kalasha poojam cha karishye",
+// which only parses if the kalasha pooja comes after it.
+await assert('the kalasha pooja follows the sankalpam it is announced in',
+  `select count(*) from pooja_steps s, pooja_steps k
+     where s.pooja_id = 'ganesha_standard' and s.step_title_en = 'Sankalpam'
+       and k.pooja_id = 'ganesha_standard' and k.step_title_en = 'Kalasha Pooja'
+       and k.step_number > s.step_number`, 1);
+await assert('the preliminary rite comes before the main resolve',
+  `select count(*) from pooja_steps p, pooja_steps k
+     where p.pooja_id = 'ganesha_standard' and p.step_title_en = 'Vighneshwara Pooja'
+       and k.pooja_id = 'ganesha_standard' and k.step_title_en = 'Sankalpam'
+       and p.step_number < k.step_number`, 1);
+await assert('and is sent back after it',
+  `select count(*) from pooja_steps u, pooja_steps k
+     where u.pooja_id = 'ganesha_standard' and u.step_title_en = 'Vighneshwara Udvasanam'
+       and k.pooja_id = 'ganesha_standard' and k.step_title_en = 'Sankalpam'
+       and u.step_number > k.step_number`, 1);
+// The second pranayamam could not be its own row -- the natural key would
+// collide -- so it has to be findable in the sankalpam's instruction.
+await assert('the second pranayamam is carried in the sankalpam instruction',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Sankalpam' and instruction_en like 'Perform pranayamam once more%'`, 1);
+await assert('every Ganesha step has Tamil and a source',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and (source_ref is null or instruction_ta is null or step_title_ta is null)`, 0);
+await assert('no step is both a recitation and a list',
+  `select count(*) from pooja_steps s where s.mantra_sanskrit is not null
+     and exists (select 1 from archana_items a where a.pooja_step_id = s.id)`, 0);
+// The natural key this project has always used is now enforced by the database.
+await assert('the natural key is a real constraint',
+  `select count(*) from pg_constraint where conname = 'pooja_steps_pooja_title_uk'`, 1);
+
+console.log('\n[9ag] 0025 idempotency');
+await step('0025 re-run', () => db.exec(sql(`${MIG}/0025_ganesha_missing_steps.sql`)));
+await assert('still 37 Ganesha steps', 
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'`, 37);
+await assert('still dense',
+  `select (max(step_number) - min(step_number) + 1) - count(*)
+     from pooja_steps where pooja_id = 'ganesha_standard'`, 0);
+await assert('the sixteen names were not doubled',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.step_title_en = 'Vighneshwara Shodasha Nama Archana'`, 16);
+await assert('the pranayamam note was not prefixed twice',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Sankalpam'
+     and instruction_en like 'Perform pranayamam once more%Perform pranayamam once more%'`, 0);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
@@ -1052,16 +1120,35 @@ const inv = await db.query(`
            when exists (select 1 from archana_items a where a.pooja_step_id = pooja_steps.id) then 'archana list'
            when source_ref is null then 'NO SOURCE'
            when source_ref like '%pending vaidika review%' then 'DRAFT'
+           -- Two kinds of published source now, and they do not carry the same
+           -- confidence. A web page was read as text and proved by round trip;
+           -- a book page was read off a photograph and cannot be. Printing them
+           -- differently keeps that distinction visible in the one report
+           -- anybody actually reads.
            when source_ref like '%StotraNidhi%' then 'published'
+           when source_ref like '%photograph%' then 'book (photo)'
            else 'other'
          end as origin
     from pooja_steps order by pooja_id, step_number`);
+// Steps whose source really does give one shloka and no more. The flag below
+// means "shorter than it should be", and without this list it stopped meaning
+// that: 0025 added five two-line steps that are two lines in the book, and a
+// warning that fires on correct data is a warning people learn to ignore.
+const SINGLE_SHLOKA = new Set([
+  'Sakala Devata Vandanam', // aabrahmalOkaat, one verse
+  'Deepa Pooja',            // deepajyOtih param brahma, one verse
+  'Asana Pooja',            // pRthvee tvayaa dhRtaa, one verse
+  'Atma Pooja',             // dEhO dEvaalayaha, one verse
+  'Guru Dhyanam',           // gurur brahmaa, one verse
+  'Sharadu Dharanam',       // all its kalpam gives; still open for a vaidika
+]);
 let thin = 0;
 for (const r of inv.rows) {
   // A mantra step with fewer than three lines is the shape the report was
   // about. Namavali and archana steps carry their text in another table.
   const isMantra = r.origin !== 'namavali' && r.origin !== 'archana list';
-  const flag = isMantra && r.lines < 3 ? '  <-- thin' : '';
+  const flag =
+    isMantra && r.lines < 3 && !SINGLE_SHLOKA.has(r.step_title_en) ? '  <-- thin' : '';
   if (flag) thin++;
   console.log(
     `  ${r.pooja_id.padEnd(20)} #${String(r.step_number).padStart(2)} ` +

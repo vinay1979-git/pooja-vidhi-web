@@ -877,3 +877,66 @@ project does not use — so the migration asserted against a string it could nev
 produce and refused to apply. The needles are now **generated** by the same
 `transliterate()` that writes the data. Same class of mistake as the `source_ref`
 that once quoted its own gate's placeholder.
+
+## The steps the Ganesha pooja never had
+
+Migration 0025. The book's purvangam has **eighteen** numbered steps; this pooja
+had seven. Thirteen are added and the order becomes the book's: **24 steps → 37**.
+
+The largest gap was the **preliminary Vighneshwara Pooja** — a complete rite with
+its own upacharas, a sixteen-name archana, naivedyam and camphor, performed
+before every important act. The app's flagship *Ganesha* pooja skipped it, which
+is the one place that omission is least defensible: the rite that removes
+obstacles before every other rite is itself a Ganesha pooja.
+
+### The order matters as much as the additions
+
+The book puts Ghanta Pooja **before** the preliminary rite and Kalasha Pooja
+**after** the main sankalpam. The app had Kalasha before Ghanta and both before
+everything else.
+
+That reordering is not cosmetic, and 0024 had already made it necessary without
+anybody noticing: the sankalpam tail written there ends `tadaṅgaṃ kalaśa pūjāṃ
+ca kariṣye` — *and as a limb of this I shall also perform the kalasha pooja* —
+which only parses if the kalasha pooja comes after it. For one migration it
+didn't. The harness asserts the relative order now, in both directions, so a
+later renumber cannot quietly break the sentence again.
+
+### Two constraints the schema turned out to need
+
+- **`(pooja_id, step_title_en)` is now a real unique constraint.** Every
+  migration in this project addresses a step by that pair — uuids differ per
+  environment and have never been usable — and the database had never enforced
+  it. Two rows sharing a title would have made every later migration update the
+  wrong one, or both, silently. Verified clean on 53 rows first.
+- **The renumber parks every row above 1000 before reassigning.** `(pooja_id,
+  step_number)` is unique, so an in-place shuffle always has an intermediate
+  state with two rows on one number.
+
+### What could not be modelled
+
+The book performs **Pranayamam a second time** between the preliminary rite and
+the main resolve. It cannot be its own row: the natural key above would collide
+with the first Pranayamam. It is carried in the Sankalpam step's instruction,
+where the book places it, and the harness asserts it is there and was not
+prefixed twice.
+
+### Two mistakes worth recording
+
+`modes` is `text[]`, not `jsonb`. PostgREST serialises it as `["main","punar"]`
+in its JSON output, which is exactly what makes it look like jsonb; a `::jsonb`
+cast is rejected outright. Read the column type, not the API's rendering of it.
+
+The thin-step warning in section `[11]` began crying wolf. Five of the new steps
+are genuinely two lines — `ābrahmalokāt`, `dīpajyotiḥ`, `pṛthvī tvayā dhṛtā`,
+`deho devālayaḥ`, `gurur brahmā` are each one shloka and no more — so the flag
+stopped meaning "shorter than its source gives" and started meaning "short". It
+has an allowlist now. A warning that fires on correct data is one people learn
+to ignore.
+
+### Provenance is now printed in two kinds
+
+The inventory distinguishes `published` from `book (photo)`. They are not the
+same confidence: a web page was read as text and proved by round trip, a book
+page was read off a photograph and cannot be. Keeping them apart in the one
+report anybody actually reads is cheaper than remembering the difference.
