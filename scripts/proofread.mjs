@@ -230,6 +230,22 @@ const EXPECT_ARCHANA = {
   'ganesha_standard/Ksheera Arghyam': 4,
   'varalakshmi_vratham/Ksheera Arghyam': 1,
 };
+// A TITLE is a few words. A mantra has dandas and runs to hundreds of
+// characters. 0025 put the Tamil mantra into step_title_ta on twelve steps and
+// every existing gate passed it: a Tamil mantra is well-formed Tamil, is not
+// null and is not truncated. They were all checking the value and none was
+// checking what kind of value it was.
+for (const s of steps) {
+  for (const k of ['step_title_en', 'step_title_ta']) {
+    const v = s[k];
+    if (!v) continue;
+    if (v.length > 60 || /[।॥\n]/.test(v)) {
+      fail(`${s.pooja_id} step ${s.step_number} "${s.step_title_en}"`,
+           `${k} looks like mantra text, not a title`);
+    }
+  }
+}
+
 for (const [k, n] of Object.entries(EXPECT_ARCHANA)) {
   if ((byStep.get(k) ?? 0) !== n) fail(k, `has ${byStep.get(k) ?? 0} archana rows, expected ${n}`);
 }

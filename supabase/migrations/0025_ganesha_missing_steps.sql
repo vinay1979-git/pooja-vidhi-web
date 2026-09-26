@@ -53,9 +53,7 @@ insert into public.pooja_steps
    instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil, mantra_translit,
    variant_mantra_sanskrit, variant_note_en, meaning_en, source_ref, gender_rule, modes)
 values (
-  'ganesha_standard', 5, 'Vighneshwara Sankalpam', 'மமோபாத்த ஸமஸ்த துரிதக்ஷயத்வாரா ஶ்ரீ பரமேஶ்வர ப்ரீத்யர்தம்
-கரிஷ்யமாணஸ்ய கர்மண꞉ நிர்விக்நேந பரிஸமாப்த்யர்தம்
-ஆதௌ விக்நேஶ்வர பூஜாம் கரிஷ்யே ।', 'purvangam',
+  'ganesha_standard', 5, 'Vighneshwara Sankalpam', 'விக்னேஸ்வர சங்கல்பம்', 'purvangam',
   'Hold the left palm upright on the right thigh with the right palm crossed over it, and resolve to perform the Vighneshwara pooja first. This is the SHORT resolve, for the obstacle-removing rite only; the main resolve for the Ganesha pooja itself comes later, after that rite is complete. Wash the hands afterwards.',
   'இடது உள்ளங்கையை வலது தொடையின் மீது நிமிர்த்தி வைத்து, வலது உள்ளங்கையை அதன் மேல் குறுக்காக வைக்கவும். விக்னேஸ்வர பூஜையை முதலில் செய்யச் சங்கல்பம் செய்யவும். இது தடைகளை நீக்கும் சிறு பூஜைக்கான சுருக்கமான சங்கல்பம்; முழு கணேச பூஜைக்கான சங்கல்பம் பின்னர் வரும். பிறகு கைகளைக் கழுவவும்.',
   'ममोपात्त समस्त दुरितक्षयद्वारा श्री परमेश्वर प्रीत्यर्थं
@@ -92,8 +90,7 @@ insert into public.pooja_steps
    instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil, mantra_translit,
    variant_mantra_sanskrit, variant_note_en, meaning_en, source_ref, gender_rule, modes)
 values (
-  'ganesha_standard', 6, 'Sakala Devata Vandanam', 'ஆப்ரஹ்மலோகாத் ஆஶேஷாத் ஆலோகாலோகபர்வதாத் ।
-யே வஸந்தி த்விஜா தேவா꞉ தேப்யோ நித்யம் நமோ நம꞉ ॥', 'purvangam',
+  'ganesha_standard', 6, 'Sakala Devata Vandanam', 'ஸகல தேவதா வந்தனம்', 'purvangam',
   'Join the palms and salute every deity, from the world of Brahma down to the Lokaloka mountain at the edge of the worlds. Nothing is offered here; it is a salutation made before the household rite begins.',
   'கைகளைக் கூப்பி, ப்ரம்மலோகம் முதல் உலகங்களின் எல்லையிலுள்ள லோகாலோக பர்வதம் வரை வாழும் அனைத்து தேவர்களையும் வணங்கவும். இங்கு எதுவும் சமர்ப்பிக்கப்படுவதில்லை; வீட்டுப் பூஜை தொடங்கும் முன் செய்யும் வணக்கம்.',
   'आब्रह्मलोकात् आशेषात् आलोकालोकपर्वतात् ।
@@ -127,8 +124,7 @@ insert into public.pooja_steps
    instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil, mantra_translit,
    variant_mantra_sanskrit, variant_note_en, meaning_en, source_ref, gender_rule, modes)
 values (
-  'ganesha_standard', 7, 'Deepa Pooja', 'தீபஜ்யோதி꞉ பரம் ப்ரஹ்ம தீபஜ்யோதிர்ஜநார்தந꞉ ।
-தீபோ ஹரது மே பாபம் தீபஜ்யோதிர்நமோஸ்து தே ॥', 'purvangam',
+  'ganesha_standard', 7, 'Deepa Pooja', 'தீப பூஜை', 'purvangam',
   'Light the lamps facing east while reciting this. Then apply kumkumam to the base and the rim of the lamp and offer flowers and akshatai to it.',
   'கிழக்கு நோக்கி விளக்குகளை ஏற்றி இதைச் சொல்லவும். பிறகு விளக்கின் அடியிலும் விளிம்பிலும் குங்குமம் இட்டு, பூவும் அட்சதையும் சமர்ப்பிக்கவும்.',
   'दीपज्योतिः परं ब्रह्म दीपज्योतिर्जनार्दनः ।
@@ -162,8 +158,7 @@ insert into public.pooja_steps
    instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil, mantra_translit,
    variant_mantra_sanskrit, variant_note_en, meaning_en, source_ref, gender_rule, modes)
 values (
-  'ganesha_standard', 8, 'Asana Pooja', 'ப்ருத்வீ த்வயா த்ருதா லோகா தேவி த்வம் விஷ்ணுநா த்ருதா ।
-த்வம் ச தாரய மாம் தேவி பவித்ரம் குரு ச ஆஸநம் ॥', 'purvangam',
+  'ganesha_standard', 8, 'Asana Pooja', 'ஆஸன பூஜை', 'purvangam',
   'Sprinkle a little water on your seat while reciting this, sitting OUTSIDE the seat. Then take your place on it. The seat is consecrated before the performer occupies it, not after.',
   'ஆஸனத்திற்கு வெளியே அமர்ந்து, இதைச் சொல்லிக்கொண்டே ஆஸனத்தின் மீது சிறிது நீரைத் தெளிக்கவும். பிறகு அதில் அமரவும். பூஜை செய்பவர் அமருவதற்கு முன்பே ஆஸனம் சுத்தி செய்யப்படுகிறது.',
   'पृथ्वी त्वया धृता लोका देवि त्वं विष्णुना धृता ।
@@ -197,26 +192,7 @@ insert into public.pooja_steps
    instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil, mantra_translit,
    variant_mantra_sanskrit, variant_note_en, meaning_en, source_ref, gender_rule, modes)
 values (
-  'ganesha_standard', 10, 'Vighneshwara Pooja', 'ஶுக்லாம்பரதரம் விஷ்ணும் ஶஶிவர்ணம் சதுர்புஜம் ।
-ப்ரஸந்நவதநம் த்யாயேத் ஸர்வவிக்நோபஶாந்தயே ॥
-ஓம் கணாநாம் த்வா கணபதிம் ஹவாமஹே கவிம் கவீநாமுபமஶ்ரவஸ்தமம் ।
-ஜ்யேஷ்டராஜம் ப்ரஹ்மணாம் ப்ரஹ்மணஸ்பத ஆ ந꞉ ஶ்ருண்வந்நூதிபி꞉ ஸீத ஸாதநம் ॥
-ஓம் பூர்புவஸ்ஸுவரோம் ॥
-அகஜாநந பத்மார்கம் கஜாநநமஹர்நிஶம் ।
-அநேகதம் தம் பக்தாநாம் ஏகதந்தமுபாஸ்மஹே ॥
-அஸ்மிந் ஹரித்ராபிம்பே விக்நேஶ்வரம் த்யாயாமி, விக்நேஶ்வரம் ஆவாஹயாமி ॥
-விக்நேஶ்வராய நம꞉ ஆஸநம் ஸமர்பயாமி ।
-விக்நேஶ்வராய நம꞉ பாத்யம் ஸமர்பயாமி ।
-விக்நேஶ்வராய நம꞉ அர்க்யம் ஸமர்பயாமி ।
-விக்நேஶ்வராய நம꞉ ஆசமநீயம் ஸமர்பயாமி ।
-விக்நேஶ்வராய நம꞉ ஸ்நாநம் ஸமர்பயாமி ।
-விக்நேஶ்வராய நம꞉ ஸ்நாநாநந்தரம் ஆசமநீயம் ஸமர்பயாமி ।
-விக்நேஶ்வராய நம꞉ வஸ்த்ரயுக்மம் ஸமர்பயாமி ।
-விக்நேஶ்வராய நம꞉ யஜ்ஞோபவீதம் ஸமர்பயாமி ।
-விக்நேஶ்வராய நம꞉ கந்தாந் தாரயாமி, கந்தோபரி ஹரித்ரா குங்குமம் ஸமர்பயாமி ।
-விக்நேஶ்வராய நம꞉ ஆபரணம் ஸமர்பயாமி ।
-விக்நேஶ்வராய நம꞉ அக்ஷதாந் ஸமர்பயாமி ।
-விக்நேஶ்வராய நம꞉ புஷ்பமாலாம் ஸமர்பயாமி, புஷ்பை꞉ பூஜயாமி ।', 'purvangam',
+  'ganesha_standard', 10, 'Vighneshwara Pooja', 'விக்னேஸ்வர பூஜை', 'purvangam',
   'This pooja is performed before every important rite and at the start of anything auspicious. Make a small cone of turmeric mixed with water and invoke Ganesha into it. Tap both temples gently five times with the knuckles while reciting the dhyanam. The Vedic gananam tva is for those who have learnt it with the proper intonation; anyone who has not begins at "agajanana padmarkam" instead, which the book gives in its place. Then offer the upacharas in order, using a little water and akshatai for each.',
   'ஒவ்வொரு முக்கியமான காரியத்திற்கும் முன் செய்யப்படும் பூஜை இது. மஞ்சளைத் தண்ணீரில் பிசைந்து சிறு கூம்பு செய்து, அதில் விநாயகரை ஆவாஹனம் செய்யவும். த்யானம் சொல்லும்போது இரு கைகளின் முட்டிகளால் நெற்றிப் பொட்டுகளில் ஐந்து முறை மெதுவாகத் தட்டவும். "கணானாம் த்வா" வேத மந்திரம் முறையான ஸ்வரத்துடன் கற்றவர்களுக்கு மட்டுமே; கற்காதவர்கள் "அகஜானன பத்மார்க்கம்" என்பதிலிருந்து தொடங்கவும். பிறகு உபசாரங்களை வரிசையாக, சிறிது நீரும் அட்சதையும் கொண்டு சமர்ப்பிக்கவும்.',
   'शुक्लाम्बरधरं विष्णुं शशिवर्णं चतुर्भुजम् ।
@@ -364,20 +340,7 @@ insert into public.pooja_steps
    instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil, mantra_translit,
    variant_mantra_sanskrit, variant_note_en, meaning_en, source_ref, gender_rule, modes)
 values (
-  'ganesha_standard', 12, 'Vighneshwara Naivedyam & Neerajanam', 'மஹாகணபதயே நம꞉ நாநாவித பரிமல பத்ர புஷ்பாணி ஸமர்பயாமி ।
-தூபமாக்ராபயாமி, தீபம் தர்ஶயாமி ।
-தூப தீபாநந்தரம் ஆசமநீயம் ஸமர்பயாமி ।
-ஓம் பூர்புவஸ்ஸுவ꞉ ।
-தத்ஸவிதுர்வரேண்யம் பர்கோ தேவஸ்ய தீமஹி, தியோ யோ ந꞉ ப்ரசோதயாத் ।
-தேவஸவித꞉ ப்ரஸுவ । ஸத்யம் த்வர்தேந பரிஷிஞ்சாமி ।
-அம்ருதோபஸ்தரணமஸி ।
-ஓம் ப்ராணாய ஸ்வாஹா । ஓம் அபாநாய ஸ்வாஹா ।
-ஓம் வ்யாநாய ஸ்வாஹா । ஓம் உதாநாய ஸ்வாஹா ।
-ஓம் ஸமாநாய ஸ்வாஹா । ஓம் ப்ரஹ்மணே ஸ்வாஹா ।
-மத்யே மத்யே அம்ருதபாநீயம் ஸமர்பயாமி ।
-அம்ருதாபிதாநமஸி । ஆசமநீயம் ஸமர்பயாமி ।
-உத்தராபோஶநம் ஸமர்பயாமி ।
-கர்பூரநீராஜநம் ஸந்தர்ஶயாமி ।', 'purvangam',
+  'ganesha_standard', 12, 'Vighneshwara Naivedyam & Neerajanam', 'விக்னேஸ்வர நைவேத்யம் & நீராஜனம்', 'purvangam',
   'Offer incense and wave the ghee lamp. Then place the naivedyam — a fruit or a piece of jaggery is enough for this preliminary rite — sprinkle water over it, circle water around the plate clockwise three times, and make the six offerings, gesturing with the right hand as if feeding the deity at each "svaha". Finish by waving camphor clockwise.',
   'தூபம் காட்டி, நெய் தீபம் ஏற்றிக் காட்டவும். பிறகு நைவேத்யத்தை — இந்தச் சிறு பூஜைக்கு ஒரு பழமோ சிறிது வெல்லமோ போதும் — வைத்து, அதன் மீது நீர் தெளித்து, தட்டைச் சுற்றி மூன்று முறை வலம் வரும்படி நீர் சுற்றவும். ஒவ்வொரு "ஸ்வாஹா"விலும் வலக்கையால் ஊட்டுவது போல் சைகை செய்யவும். இறுதியில் கற்பூரம் ஏற்றி வலமாகச் சுற்றிக் காட்டவும்.',
   'महागणपतये नमः नानाविध परिमल पत्र पुष्पाणि समर्पयामि ।
@@ -447,11 +410,7 @@ insert into public.pooja_steps
    instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil, mantra_translit,
    variant_mantra_sanskrit, variant_note_en, meaning_en, source_ref, gender_rule, modes)
 values (
-  'ganesha_standard', 14, 'Vighneshwara Udvasanam', 'வக்ரதுண்ட மஹாகாய கோடிஸூர்யஸமப்ரப ।
-நிர்விக்நம் குரு மே தேவ ஸர்வகார்யேஷு ஸர்வதா ॥
-ஶ்ரீ விக்நேஶ்வரம் யதாஸ்தாநம் ப்ரதிஷ்டாபயாமி,
-ஶோபநார்தே க்ஷேமாய புநராகமநாய ச ।
-விக்நேஶ்வர ப்ரஸாதம் ஶிரஸா க்ருஹ்ணாமி ॥', 'purvangam',
+  'ganesha_standard', 14, 'Vighneshwara Udvasanam', 'விக்னேஸ்வர உத்வாசனம்', 'purvangam',
   'The obstacle-removing rite is complete, so its Ganesha is sent back. Move the turmeric cone a little towards the north. Receive the flowers that were offered to it, touch them to your eyes and place them on your head, or give them to the women of the household. Then take water in the uddharani and wash the hands.',
   'தடை நீக்கும் பூஜை முடிந்ததால், அந்த விநாயகரை யதாஸ்தானம் செய்யவும். மஞ்சள் கூம்பைச் சிறிது வடக்கு நோக்கி நகர்த்தவும். சமர்ப்பித்த பூக்களைப் பக்தியுடன் பெற்று, கண்களில் ஒற்றி, தலையில் வைக்கவும், அல்லது வீட்டுப் பெண்களுக்குக் கொடுக்கவும். பிறகு உத்தரணியில் நீர் எடுத்துக் கைகளைக் கழுவவும்.',
   'वक्रतुण्ड महाकाय कोटिसूर्यसमप्रभ ।
@@ -494,18 +453,7 @@ insert into public.pooja_steps
    instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil, mantra_translit,
    variant_mantra_sanskrit, variant_note_en, meaning_en, source_ref, gender_rule, modes)
 values (
-  'ganesha_standard', 16, 'Shankha Pooja', 'ஶங்கம் சந்த்ரார்க தைவத்யம் மத்யே வருண தைவதம் ।
-ப்ருஷ்டே ப்ரஜாபதி வித்யாத் அக்ரே கங்கா ஸரஸ்வதீ ॥
-த்வம் புரா ஸாகரோத்பந்ந꞉ விஷ்ணுநா வித்ருத꞉ கரே ।
-பூஜித꞉ ஸர்வ தேவைஶ்ச பாஞ்சஜந்ய நமோஸ்து தே ॥
-த்ரைலோக்யே யாநி தீர்தாநி வாஸுதேவஸ்ய ச ஆஜ்ஞயா ।
-ஶங்கே திஷ்டந்தி விப்ரேந்த்ர தஸ்மாச்சங்கம் ப்ரபூஜயேத் ॥
-பாஞ்சஜந்யாய வித்மஹே பவமாநாய தீமஹி ।
-தந்ந꞉ ஶங்க꞉ ப்ரசோதயாத் ॥
-ஶங்காய நம꞉ । பர்ஜந்யாய நம꞉ । பாஞ்சஜந்யாய நம꞉ ।
-அம் அர்கமண்டலாய நம꞉ । ரம் வஹ்நிமண்டலாய நம꞉ ।
-ஸம் ஸோமமண்டலாய நம꞉ । ஸப்தகோடி மஹாதீர்தேப்யோ நம꞉ ।
-ஶங்கராஜாய நம꞉ । ஸமஸ்தோபசாராந் ஸமர்பயாமி ॥', 'purvangam',
+  'ganesha_standard', 16, 'Shankha Pooja', 'ஶங்க பூஜை', 'purvangam',
   'SKIP THIS STEP IF THERE IS NO CONCH IN THE HOUSE — the book says so plainly, while adding that it is worth keeping at least a small one, since the conch stands for the pranava and is a dwelling of Lakshmi. Set the conch on a firm stand, anoint it with sandal paste and kumkumam, and fill it with water from the panchapatra while saying the Gayatri or Om three times. After the mantras, sprinkle every article set aside for the pooja with water from the conch, then refill it.',
   'வீட்டில் ஶங்கு இல்லையென்றால் இந்தப் படியைத் தவிர்க்கலாம் — புத்தகமே இதைத் தெளிவாகச் சொல்கிறது. ஆயினும் ஶங்கு ப்ரணவத்தைக் குறிப்பதாலும் லக்ஷ்மியின் இருப்பிடம் என்பதாலும் சிறியதாவது வைத்திருப்பது நல்லது. ஶங்கை உறுதியான பீடத்தில் வைத்து, சந்தனமும் குங்குமமும் இட்டு, காயத்ரி அல்லது ஓம் மூன்று முறை சொல்லிப் பஞ்சபாத்திரத்திலிருந்து நீர் நிரப்பவும். மந்திரங்களுக்குப் பிறகு, பூஜைக்கு வைத்துள்ள பொருட்கள் அனைத்தின் மீதும் ஶங்கு நீரைத் தெளித்து, மீண்டும் நிரப்பவும்.',
   'शङ्खं चन्द्रार्क दैवत्यं मध्ये वरुण दैवतम् ।
@@ -569,8 +517,7 @@ insert into public.pooja_steps
    instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil, mantra_translit,
    variant_mantra_sanskrit, variant_note_en, meaning_en, source_ref, gender_rule, modes)
 values (
-  'ganesha_standard', 17, 'Atma Pooja', 'தேஹோ தேவாலய꞉ ப்ரோக்த꞉ ஜீவோ தேவ꞉ ஸநாதந꞉ ।
-த்யஜேதஜ்ஞாந நிர்மால்யம் ஸோஹம் பாவேந பூஜயேத் ॥', 'purvangam',
+  'ganesha_standard', 17, 'Atma Pooja', 'ஆத்ம பூஜை', 'purvangam',
   'Turn the mind inward for a few seconds, holding that the self dwelling within pervades the world and is one in essence with the supreme Self. Then place a little akshatai on your own head, as an act of worshipping yourself.',
   'சில வினாடிகள் மனதை உள்நோக்கித் திருப்பி, உள்ளே உறையும் ஆத்மா உலகெங்கும் நிறைந்தது என்றும், பரமாத்மாவுடன் ஒன்றே என்றும் நினைக்கவும். பிறகு உங்கள் தலையிலேயே சிறிது அட்சதை இட்டுக்கொள்ளவும் — அது தன்னைத் தானே பூஜிக்கும் செயல்.',
   'देहो देवालयः प्रोक्तः जीवो देवः सनातनः ।
@@ -604,20 +551,7 @@ insert into public.pooja_steps
    instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil, mantra_translit,
    variant_mantra_sanskrit, variant_note_en, meaning_en, source_ref, gender_rule, modes)
 values (
-  'ganesha_standard', 18, 'Peetha Pooja', 'ஓம் ஆதாரஶக்த்யை நம꞉ ।
-ஓம் மூலப்ரக்ருத்யை நம꞉ ।
-ஓம் ஆதி கூர்மாய நம꞉ ।
-ஓம் ஆதி வராஹாய நம꞉ ।
-ஓம் அநந்தாய நம꞉ ।
-ஓம் ப்ருதிவ்யை நம꞉ ।
-ஓம் ரத்நமண்டபாய நம꞉ ।
-ஓம் ரத்நவேதிகாயை நம꞉ ।
-ஓம் ஸ்வர்ண ஸ்தம்பாய நம꞉ ।
-ஓம் ஶ்வேதச்சத்ராய நம꞉ ।
-ஓம் கல்பக வ்ருக்ஷாய நம꞉ ।
-ஓம் க்ஷீர ஸமுத்ராய நம꞉ ।
-ஓம் ஸித சாமராப்யாம் நம꞉ ।
-ஓம் யோகபீடாஸநாய நம꞉ ॥', 'purvangam',
+  'ganesha_standard', 18, 'Peetha Pooja', 'பீட பூஜை', 'purvangam',
   'Worship the seat on which the deity will be enshrined, offering a flower and akshatai at each name. The fourteen names build the seat upward from the power that holds everything, through the tortoise and the boar and the earth, to the jewelled pavilion, the golden pillar, the white parasol, the wish-giving tree, the ocean of milk, the two white whisks, and last the yoga seat itself.',
   'தெய்வம் எழுந்தருளப் போகும் பீடத்தைப் பூஜிக்கவும்; ஒவ்வொரு நாமத்திலும் ஒரு பூவும் அட்சதையும் சமர்ப்பிக்கவும். இந்தப் பதினான்கு நாமங்கள் அனைத்தையும் தாங்கும் ஆதாரசக்தியிலிருந்து தொடங்கி, கூர்மம், வராகம், பூமி வழியாக, ரத்ன மண்டபம், ஸ்வர்ண ஸ்தம்பம், வெண்குடை, கற்பக விருக்ஷம், க்ஷீர ஸமுத்திரம், வெண் சாமரங்கள், இறுதியாக யோக பீடாஸனம் வரை பீடத்தைக் கட்டுகின்றன.',
   'ॐ आधारशक्त्यै नमः ।
@@ -687,8 +621,7 @@ insert into public.pooja_steps
    instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil, mantra_translit,
    variant_mantra_sanskrit, variant_note_en, meaning_en, source_ref, gender_rule, modes)
 values (
-  'ganesha_standard', 19, 'Guru Dhyanam', 'குருர்ப்ரஹ்மா குருர்விஷ்ணு꞉ குருர்தேவோ மஹேஶ்வர꞉ ।
-குருஸ்ஸாக்ஷாத் பரம் ப்ரஹ்ம தஸ்மை ஶ்ரீ குரவே நம꞉ ॥', 'purvangam',
+  'ganesha_standard', 19, 'Guru Dhyanam', 'குரு த்யானம்', 'purvangam',
   'Contemplate your own teacher, as your family tradition holds. This is the last step before the deity is meditated upon and invoked.',
   'உங்கள் குடும்ப மரபின்படி உங்கள் குருவை த்யானிக்கவும். தெய்வத்தை த்யானித்து ஆவாஹனம் செய்வதற்கு முந்தைய கடைசிப் படி இது.',
   'गुरुर्ब्रह्मा गुरुर्विष्णुः गुरुर्देवो महेश्वरः ।
@@ -722,12 +655,7 @@ insert into public.pooja_steps
    instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil, mantra_translit,
    variant_mantra_sanskrit, variant_note_en, meaning_en, source_ref, gender_rule, modes)
 values (
-  'ganesha_standard', 34, 'Upayana Danam', 'மஹாகணபதி ஸ்வரூபஸ்ய ப்ராஹ்மணஸ்ய இதமாஸநம் ।
-அமீதே கந்தா꞉ ஸகலாராதநை꞉ ஸ்வர்சிதம் ॥
-கணேஶோ ப்ரதிக்ருஹ்ணாதி கணேஶோ வை ததாதி ச ।
-கணேஶஸ்தாரகோத்வாப்யாம் கணேஶாய நமோ நம꞉ ॥
-இதம் உபாயநம் ஸதக்ஷிணாகம் ஸதாம்பூலம்
-மஹாகணபதி ஸ்வரூபாய ப்ராஹ்மணாய துப்யம் அஹம் ஸம்ப்ரததே ந மம ॥', 'uttara',
+  'ganesha_standard', 34, 'Upayana Danam', 'உபாயன தானம்', 'uttara',
   'Give fruit, tambulam and dakshinai either to the priest who performed the pooja or to an elder of the house, after prostrating before them and asking their blessing. Offer them a seat, sandal paste and akshatai first. The words say plainly that the gift is not yours to keep: Ganesha receives it and Ganesha gives it.',
   'பூஜை செய்த புரோகிதருக்கோ, வீட்டின் மூத்தவருக்கோ பழம், தாம்பூலம், தக்ஷிணை ஆகியவற்றை அளிக்கவும். அதற்கு முன் அவர்களை நமஸ்கரித்து ஆசி பெறவும். முதலில் ஆஸனம், சந்தனம், அட்சதை சமர்ப்பிக்கவும். "இது என்னுடையதல்ல" என்று மந்திரமே தெளிவாகச் சொல்கிறது — கணேசரே பெறுகிறார், கணேசரே அளிக்கிறார்.',
   'महागणपति स्वरूपस्य ब्राह्मणस्य इदमासनम् ।

@@ -439,8 +439,17 @@ const built = STEPS.map((s) => {
   seen.add(s.en);
   const o = { ...s };
   if (s.deva) {
-    Object.assign(o, scripts(s.deva.join('\n')));
-    checkScripts(`${s.en}`, masked({ deva: o.deva, ta: o.ta, iast: o.iast }), fail);
+    // NOT Object.assign(o, scripts(...)). scripts() returns a key named `ta`,
+    // and so does a step -- its Tamil TITLE. Assigning one over the other put
+    // the Tamil MANTRA into step_title_ta on twelve of the thirteen steps this
+    // migration added, and checkScripts could not see it because a mantra is
+    // perfectly valid Tamil. Only the archana step, which has no mantra,
+    // escaped. Named explicitly now so the collision cannot recur.
+    const m = scripts(s.deva.join('\n'));
+    o.mantraDeva = m.deva;
+    o.mantraTa = m.ta;
+    o.mantraIast = m.iast;
+    checkScripts(`${s.en}`, masked(m), fail);
   }
   if (s.variantDeva) {
     const v = scripts(s.variantDeva);
@@ -459,6 +468,13 @@ const built = STEPS.map((s) => {
   }
   if (!s.deva && !s.archana) fail(`${s.en} has neither a mantra nor an archana list`);
   if (!s.instrTa) fail(`${s.en} has no Tamil instruction`);
+  // A title is a few words. A mantra has dandas and runs to hundreds of
+  // characters. This is the check that would have caught the collision above.
+  for (const [k, v] of [['en', s.en], ['ta', s.ta]]) {
+    if (v.length > 60 || /[।॥\n]/.test(v)) {
+      fail(`${s.en}: step_title_${k} looks like mantra text, not a title`);
+    }
+  }
   console.log(
     `  ${String(s.n).padStart(2)} ${s.en.padEnd(38)} ${
       s.archana ? `${s.archana.length} offerings` : `${s.deva.length} lines`
@@ -555,9 +571,9 @@ for (const s of built) {
   out(`  ${q(s.instrTa)},`);
   // An archana step has no mantra at all; the three script columns stay null
   // and the offerings carry the text. Asserted at the end of the migration.
-  out(`  ${q(s.deva ? s.deva : null)},`);
-  out(`  ${q(s.deva ? s.ta : null)},`);
-  out(`  ${q(s.deva ? s.iast : null)},`);
+  out(`  ${q(s.mantraDeva ?? null)},`);
+  out(`  ${q(s.mantraTa ?? null)},`);
+  out(`  ${q(s.mantraIast ?? null)},`);
   out(`  ${q(s.variant ?? null)}, ${q(s.variantNote ?? null)},`);
   // modes is text[], NOT jsonb. PostgREST serialises it as ["main","punar"] in
   // its JSON output, which is what made it look like jsonb; the column is an

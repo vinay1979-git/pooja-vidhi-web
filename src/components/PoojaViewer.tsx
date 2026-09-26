@@ -3,11 +3,12 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, Award, BookOpen, Calendar, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, Compass, Flame, Flower2, Globe, Info, Languages, Lightbulb, Loader2, MapPin, Moon, RotateCcw, SearchCheck, Sparkles, Sun, User, Users, Utensils } from 'lucide-react';
+import { AlertCircle, Award, BookOpen, Calendar, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, Compass, Flame, Flower2, Globe, Info, Languages, Lightbulb, Loader2, MapPin, Moon, RotateCcw, SearchCheck, SlidersHorizontal, Sparkles, Sun, User, Users, Utensils, X } from 'lucide-react';
 import { Pooja, PoojaStep, ArchanaItem } from '@/types/pooja';
 import { fetchPanchangamData, PanchangamData } from '@/actions/getSankalpam';
 import { usePreferences, resolveScript, SCRIPT_LABEL } from '@/lib/preferences';
 import { renderPerson } from '@/lib/sankalpam';
+import { uiText } from '@/lib/ui-text';
 import { TempleBell } from '@/components/TempleBell';
 import type { PoojaMode } from '@/types/pooja';
 
@@ -31,9 +32,51 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     mantraScript: mantraLang,
     setMantraScript: setMantraLang,
     theme,
-    toggleTheme,
+    setTheme,
   } = usePreferences();
   const [direction, setDirection] = useState<number>(1);
+
+  /** Every label the app writes itself, in the reader's chosen language. */
+  const t = uiText(instructionLang);
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  /**
+   * Hide the header while the reader is scrolling down through a mantra, bring
+   * it back the instant they scroll up.
+   *
+   * The threshold matters more than it looks. Without one, the sub-pixel
+   * scrolling a phone produces while a finger rests on the screen flickers the
+   * header in and out; 8px is enough to require an intentional drag. The header
+   * also always returns near the top of the page, so it can never be stranded
+   * off-screen with nothing left to scroll up through.
+   */
+  const [chromeHidden, setChromeHidden] = useState(false);
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const delta = y - last;
+      if (Math.abs(delta) < 8) return;
+      last = y;
+      setChromeHidden(y > 120 && delta > 0);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  /**
+   * Opening the sheet also reveals the header.
+   *
+   * Done here rather than in an effect on settingsOpen: an effect that calls
+   * setState during render is the cascading-render lint this file already has
+   * three of, and there is no reason to add a fourth when the only thing that
+   * opens the sheet is this function.
+   */
+  const openSettings = useCallback(() => {
+    setChromeHidden(false);
+    setSettingsOpen(true);
+  }, []);
 
   // Performer Gender State ('male' | 'female' | 'couple')
   const [performerGender, setPerformerGender] = useState<'male' | 'female' | 'couple'>('male');
@@ -508,8 +551,17 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col font-sans selection:bg-amber-500 selection:text-ink-inverse pb-24">
       {/* Top Banner / Sacred Header */}
-      <header className="sticky top-0 z-40 bg-stone-900/90 backdrop-blur-md border-b border-amber-500/20 shadow-xl">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      {/* Slides out of the way when the reader scrolls down and comes back the
+          moment they scroll up. Measured at 375x812: the header was 159px and
+          the footer 69px, so 28% of a phone screen was chrome before any
+          liturgy. The controls that made it three rows tall now live in a
+          sheet, and this hides what is left while reading. */}
+      <header
+        className={`sticky top-0 z-40 bg-stone-900/90 backdrop-blur-md border-b border-amber-500/20 shadow-xl
+          transition-transform duration-300 motion-reduce:transition-none
+          ${chromeHidden ? '-translate-y-full' : 'translate-y-0'}`}
+      >
+        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between gap-3">
           {/* Back to Catalog Link & Title */}
           {/* min-w-0 lets the title truncate instead of wrapping to two lines,
               which on a phone pushed the language toggles down and cost about
@@ -526,97 +578,36 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               aria-label="Back to the pooja catalogue"
             >
               <ChevronLeft className="w-4 h-4 stroke-[3]" />
-              <span>Catalog</span>
+              <span>{t.catalog}</span>
             </Link>
 
+            {/* One title, in the reader's language. Printing both stacked cost a
+                line of header on every screen to say the same thing twice. */}
             <div className="min-w-0">
-              <h1 className="text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-300 bg-clip-text text-transparent tracking-wide truncate">
-                {pooja.title_en}
+              <h1
+                className="text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-300 bg-clip-text text-transparent tracking-wide truncate"
+                lang={instructionLang === 'ta' && pooja.title_ta ? 'ta' : 'en'}
+              >
+                {instructionLang === 'ta' && pooja.title_ta ? pooja.title_ta : pooja.title_en}
               </h1>
-              <p className="text-xs md:text-sm text-amber-400/90 font-medium tracking-wide truncate">
-                {pooja.title_ta}
-              </p>
             </div>
           </div>
 
-          {/* Language Controls */}
-          <div className="flex items-center gap-2 text-xs flex-wrap">
-            {/* Instruction Lang Toggle */}
-            <div className="flex items-center bg-stone-950 rounded-lg p-1 border border-stone-800">
-              <span className="px-2 text-stone-400 flex items-center gap-1 font-medium">
-                <Globe className="w-3.5 h-3.5 text-amber-400" />
-                <span className="hidden sm:inline">Instruction:</span>
-              </span>
-              <button
-                onClick={() => setInstructionLang('en')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                  instructionLang === 'en'
-                    ? 'bg-amber-500 text-ink-inverse shadow-sm'
-                    : 'text-stone-300 hover:text-stone-100'
-                }`}
-              >
-                English
-              </button>
-              <button
-                onClick={() => setInstructionLang('ta')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                  instructionLang === 'ta'
-                    ? 'bg-amber-500 text-ink-inverse shadow-sm'
-                    : 'text-stone-300 hover:text-stone-100'
-                }`}
-              >
-                தமிழ்
-              </button>
-            </div>
-
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              className="flex items-center gap-1.5 bg-stone-950 rounded-lg px-2.5 py-1.5 border border-stone-800 text-stone-300 hover:text-amber-300 hover:border-amber-500/40 transition-colors font-semibold"
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-3.5 h-3.5 text-amber-400" />
-              ) : (
-                <Moon className="w-3.5 h-3.5 text-amber-400" />
-              )}
-              <span className="hidden md:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
-            </button>
-
-            {/* Mantra Script Toggle */}
-            <div className="flex items-center bg-stone-950 rounded-lg p-1 border border-stone-800">
-              <span className="px-2 text-stone-400 flex items-center gap-1 font-medium">
-                <Languages className="w-3.5 h-3.5 text-amber-400" />
-                <span className="hidden sm:inline">Mantra:</span>
-              </span>
-              <button
-                onClick={() => setMantraLang('sanskrit')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                  mantraLang === 'sanskrit'
-                    ? 'bg-amber-500 text-ink-inverse shadow-sm'
-                    : 'text-stone-300 hover:text-stone-100'
-                }`}
-              >
-                संस्कृतम्
-              </button>
-              <button
-                onClick={() => setMantraLang('tamil')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                  mantraLang === 'tamil'
-                    ? 'bg-amber-500 text-ink-inverse shadow-sm'
-                    : 'text-stone-300 hover:text-stone-100'
-                }`}
-              >
-                தமிழ்
-              </button>
-              {/* There is deliberately no third "Eng" button here. It selected
-                  romanised Sanskrit, not English, and fell back to Devanagari
-                  on steps with no roman text -- so the English option showed
-                  Sanskrit. Both remaining scripts carry the roman line beneath
-                  them, and the English is the Meaning block below. */}
-            </div>
-          </div>
+          {/* One button instead of three control groups.
+              The toggles were an Instruction pair, a theme button and a Mantra
+              pair, laid out with flex-wrap. On a phone they wrapped to two rows
+              and made the header 159px tall. They also do not scale: a third
+              instruction language adds a third chip to a row that already
+              wraps. Behind a sheet, adding a language costs nothing on screen. */}
+          <button
+            onClick={openSettings}
+            aria-label={t.settings}
+            title={t.settings}
+            className="shrink-0 flex items-center gap-1.5 bg-stone-950 rounded-lg px-2.5 py-1.5 border border-stone-800 text-stone-300 hover:text-amber-300 hover:border-amber-500/40 transition-colors text-xs font-semibold"
+          >
+            <SlidersHorizontal className="w-4 h-4 text-amber-400" />
+            <span className="hidden sm:inline">{t.settings}</span>
+          </button>
         </div>
 
         {/* Step Progress Bar */}
@@ -635,6 +626,119 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
           </div>
         )}
       </header>
+
+      {/* Settings sheet.
+          Everything that used to sit permanently in the header. A sheet rather
+          than a dropdown because the next thing to land here is a third and
+          fourth instruction language, and a list grows downward for free where
+          a row of chips has to wrap. */}
+      {settingsOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t.settings}
+        >
+          <button
+            className="absolute inset-0 bg-stone-950/70 backdrop-blur-sm"
+            onClick={() => setSettingsOpen(false)}
+            aria-label={t.close}
+            tabIndex={-1}
+          />
+          <div className="relative w-full sm:max-w-sm bg-stone-900 border-t sm:border border-amber-500/25 sm:rounded-2xl rounded-t-2xl shadow-2xl p-5 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-amber-300">
+                {t.settings}
+              </h2>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                aria-label={t.close}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-amber-300 hover:bg-stone-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Instruction language. Governs every word the app writes itself,
+                including these labels -- picking Tamil here changes this sheet
+                under your finger, which is the clearest possible confirmation
+                that the setting took. */}
+            <fieldset className="mb-5">
+              <legend className="flex items-center gap-1.5 text-xs font-semibold text-stone-400 mb-2">
+                <Globe className="w-3.5 h-3.5 text-amber-400" /> {t.instructionLanguage}
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {([['en', 'English'], ['ta', 'தமிழ்']] as const).map(([code, label]) => (
+                  <button
+                    key={code}
+                    onClick={() => setInstructionLang(code)}
+                    aria-pressed={instructionLang === code}
+                    className={`px-3 py-2.5 rounded-lg text-sm font-semibold border transition-colors ${
+                      instructionLang === code
+                        ? 'bg-amber-500 text-ink-inverse border-amber-400'
+                        : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            {/* Deliberately separate from the instruction language: wanting the
+                steps in Tamil and the mantra in Devanagari is the normal case,
+                not an edge one. */}
+            <fieldset className="mb-5">
+              <legend className="flex items-center gap-1.5 text-xs font-semibold text-stone-400 mb-2">
+                <Languages className="w-3.5 h-3.5 text-amber-400" /> {t.mantraScript}
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {([['sanskrit', 'संस्कृतम्'], ['tamil', 'தமிழ்']] as const).map(([code, label]) => (
+                  <button
+                    key={code}
+                    onClick={() => setMantraLang(code)}
+                    aria-pressed={mantraLang === code}
+                    className={`px-3 py-2.5 rounded-lg text-sm font-semibold border transition-colors ${
+                      mantraLang === code
+                        ? 'bg-amber-500 text-ink-inverse border-amber-400'
+                        : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend className="flex items-center gap-1.5 text-xs font-semibold text-stone-400 mb-2">
+                {theme === 'dark' ? (
+                  <Moon className="w-3.5 h-3.5 text-amber-400" />
+                ) : (
+                  <Sun className="w-3.5 h-3.5 text-amber-400" />
+                )}{' '}
+                {t.theme}
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {([['dark', t.themeDark], ['light', t.themeLight]] as const).map(([code, label]) => (
+                  <button
+                    key={code}
+                    onClick={() => setTheme(code)}
+                    aria-pressed={theme === code}
+                    className={`px-3 py-2.5 rounded-lg text-sm font-semibold border transition-colors ${
+                      theme === code
+                        ? 'bg-amber-500 text-ink-inverse border-amber-400'
+                        : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       {/* Clips the step slide transition, which translates content 100px
@@ -667,27 +771,28 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   two buttons now are. */}
               <div className="relative z-10 space-y-3">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold uppercase tracking-wider">
-                  <Sparkles className="w-3.5 h-3.5" /> Ritual Preparation / தயாரிப்பு
+                  <Sparkles className="w-3.5 h-3.5" /> {t.ritualPreparation}
                 </div>
-                <h2 className="text-2xl md:text-3xl font-extrabold text-amber-100">
-                  {pooja.title_en}
+                <h2
+                  className="text-2xl md:text-3xl font-extrabold text-amber-100"
+                  lang={instructionLang === 'ta' && pooja.title_ta ? 'ta' : 'en'}
+                >
+                  {instructionLang === 'ta' && pooja.title_ta ? pooja.title_ta : pooja.title_en}
                 </h2>
                 <p className="text-stone-300 text-sm md:text-base leading-relaxed">
-                  {instructionLang === 'ta'
-                    ? 'பூஜையைத் தொடங்கும் முன் கீழே உள்ள மூன்றையும் முடிக்கவும். இறுதியில் தொடங்கும் பொத்தான் உள்ளது.'
-                    : 'Work down this page before you begin. The button to start is at the end of it.'}
+                  {t.prepLede}
                 </p>
                 <ol className="grid gap-2 sm:grid-cols-3 pt-1">
                   {[
-                    ['1', 'Who is performing, and which day', 'யார், எந்த நாள்'],
-                    ['2', 'Your location, for the Sankalpam', 'இடம், சங்கல்பத்திற்கு'],
-                    ['3', 'Samagri and naivedyam', 'சாமக்ரி & நைவேத்யம்'],
-                  ].map(([n, en, ta]) => (
+                    ['1', t.prepWho],
+                    ['2', t.prepWhere],
+                    ['3', t.prepWhat],
+                  ].map(([n, label]) => (
                     <li key={n} className="flex items-start gap-2.5 text-sm text-stone-300">
                       <span className="shrink-0 w-6 h-6 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center justify-center">
                         {n}
                       </span>
-                      <span className="leading-snug">{instructionLang === 'ta' ? ta : en}</span>
+                      <span className="leading-snug">{label}</span>
                     </li>
                   ))}
                 </ol>
@@ -703,7 +808,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-amber-200">
-                      Sankalpam & Location Geocoding (சங்கல்ப அமைப்புகள்)
+                      {t.sankalpamSettings}
                     </h3>
                     <p className="text-xs text-stone-400">Verified coordinates ensure accurate spacetime ritual alignment</p>
                   </div>
@@ -724,7 +829,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     and last differ from the middle ones. */}
                 <div className="mb-4">
                   <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5 mb-2">
-                    <Calendar className="w-4 h-4 text-amber-400" /> Which day? / எந்த நாள்?
+                    <Calendar className="w-4 h-4 text-amber-400" /> {t.whichDay}
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {([
@@ -776,7 +881,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   </p>
                 </div>
 
-                  <Users className="w-4 h-4 text-amber-400" /> Performed By / வழிபாடு செய்பவர்
+                  <Users className="w-4 h-4 text-amber-400" /> {t.performedBy}
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -787,7 +892,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                         : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
                     }`}
                   >
-                    Male (ஆண்)
+                    {t.male}
                   </button>
                   <button
                     onClick={() => setPerformerGender('female')}
@@ -797,7 +902,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                         : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
                     }`}
                   >
-                    Female (பெண்)
+                    {t.female}
                   </button>
                   <button
                     onClick={() => setPerformerGender('couple')}
@@ -807,7 +912,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                         : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
                     }`}
                   >
-                    Couple (தம்பதி)
+                    {t.couple}
                   </button>
                 </div>
               </div>
@@ -817,7 +922,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 {/* Date Picker */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4 text-amber-400" /> Pooja Date / நாள்
+                    <Calendar className="w-4 h-4 text-amber-400" /> {t.poojaDate}
                   </label>
                   <input
                     type="date"
@@ -831,7 +936,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
-                      <MapPin className="w-4 h-4 text-amber-400" /> City / Location / இடம்
+                      <MapPin className="w-4 h-4 text-amber-400" /> {t.cityLocation}
                     </label>
 
                     <button
@@ -844,7 +949,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                           <Loader2 className="w-3 h-3 animate-spin text-amber-400" /> Detecting...
                         </>
                       ) : (
-                        '📍 Detect GPS Location'
+                        `📍 ${t.detectLocation}`
                       )}
                     </button>
                   </div>
@@ -969,7 +1074,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 {/* Devotee Name */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
-                    <User className="w-4 h-4 text-amber-400" /> Devotee Name / பக்தர் பெயர்
+                    <User className="w-4 h-4 text-amber-400" /> {t.devoteeName}
                   </label>
                   <input
                     type="text"
@@ -983,7 +1088,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 {/* Gotra */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
-                    <Flame className="w-4 h-4 text-amber-400" /> Gotra (Gothram) / கோத்ரம்
+                    <Flame className="w-4 h-4 text-amber-400" /> {t.gotra}
                   </label>
                   <input
                     type="text"
@@ -1119,7 +1224,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-stone-100">
-                    Naivedyam Suggestions (நைவேத்தியம்)
+                    {t.naivedyamSuggestions}
                   </h3>
                   <p className="text-xs text-stone-400">Sacred food offerings recommended for this pooja</p>
                 </div>
@@ -1205,7 +1310,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       off. Stack it and let it take the width it has. */}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <span className="self-start px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-extrabold text-xs tracking-wider uppercase flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5" /> Step {activePosition} of {availableSteps.length}
+                      <Sparkles className="w-3.5 h-3.5" /> {t.stepOf(activePosition, availableSteps.length)}
                     </span>
 
                     {/* Step Jump Select */}
@@ -1289,12 +1394,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                             {/* Say so rather than quietly showing English under a
                                 Tamil setting, which reads as a broken toggle. */}
                             {usingFallback && (
-                              <p className="mt-1.5 text-xs text-stone-400 italic">
-                                <span lang="ta">
-                                  இந்தப் படிக்கு தமிழ் விளக்கம் இன்னும் இல்லை. ஆங்கிலம் காட்டப்படுகிறது.
-                                </span>
-                                <span className="not-italic"> · </span>
-                                No Tamil instruction for this step yet.
+                              <p className="mt-1.5 text-xs text-stone-400 italic" lang="ta">
+                                {t.noTranslationYet}
                               </p>
                             )}
                           </>
@@ -1317,9 +1418,9 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                         </div>
                         <div>
                           <h4 className="font-bold text-amber-200 text-sm md:text-base">
-                            Spiritual Significance / Why We Do This (தத்துவ விளக்கம்)
+                            {t.spiritualSignificance}
                           </h4>
-                          <p className="text-xs text-stone-400">Philosophical roots & symbolic meaning for seekers</p>
+                          <p className="text-xs text-stone-400">{t.spiritualSignificanceSub}</p>
                         </div>
                       </div>
 
@@ -1351,7 +1452,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   <div className="rounded-2xl bg-amber-950/20 border border-amber-500/40 p-4 sm:p-6 shadow-xl space-y-4">
                     <div className="flex flex-col items-start sm:flex-row sm:items-center sm:justify-between gap-2.5 border-b border-amber-500/20 pb-3">
                       <div className="flex items-center gap-2 text-amber-400 font-bold text-base">
-                        <Flame className="w-5 h-5" /> Dynamic Sankalpam (சங்கல்பம்)
+                        <Flame className="w-5 h-5" /> {t.dynamicSankalpam}
                       </div>
                       <span className="text-xs text-amber-300 font-mono">
                         {sankalpamData.devoteeName} ({sankalpamData.gotra})
@@ -1415,7 +1516,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                           <Languages className="w-5 h-5" />
                         </span>
                         <h3 className="text-lg font-bold text-amber-200 uppercase tracking-wider">
-                          Sacred Mantra / வேதம் & ஸ்லோகம்
+                          {t.sacredMantra}
                         </h3>
                       </div>
                       {(() => {
@@ -1495,7 +1596,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 {currentStep.meaning_en && (
                   <div className="rounded-2xl bg-stone-900 border border-amber-500/25 p-6 shadow-xl">
                     <p className="text-xs text-amber-400/80 font-bold uppercase tracking-widest mb-2">
-                      Meaning / அர்த்தம்
+                      {t.meaning}
                     </p>
                     <p className="text-sm md:text-base text-stone-300 italic leading-relaxed">
                       &quot;{currentStep.meaning_en}&quot;
@@ -1511,7 +1612,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                         <Flower2 className="w-5 h-5 text-amber-400" />
                         <h3 className="text-lg font-bold text-amber-200">
                           {currentStep.archana_list.some((i: ArchanaItem) => i.offering_en)
-                            ? `Offerings (${currentStep.archana_list.length})`
+                            ? `${t.offerings} (${currentStep.archana_list.length})`
                             : `Archana Namavali (${currentStep.archana_list.length} Names)`}
                         </h3>
                       </div>
@@ -1521,13 +1622,13 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                             the whole pooja, and un-offering a line left its key
                             behind with a falsy value, so the tally only ever
                             went up and could exceed the number of lines shown. */}
-                        {
+                        {t.offeredCount(
                           currentStep.archana_list.filter(
                             (_: ArchanaItem, i: number) =>
                               archanaProgress[`${currentStep.id}::${i}`],
-                          ).length
-                        }{' '}
-                        of {currentStep.archana_list.length} offered
+                          ).length,
+                          currentStep.archana_list.length,
+                        )}
                       </span>
                     </div>
 
@@ -1542,7 +1643,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                         <div className="rounded-xl bg-stone-950/60 border border-amber-500/20 px-4 py-3">
                           <p className="text-[11px] uppercase tracking-wider font-bold text-amber-500/70 mb-1">
                             {instructionLang === 'ta'
-                              ? 'ஒவ்வொன்றுக்கும் இந்த மந்திரம்'
+                              ? t.sameMantraEach
                               : 'Recite at every offering'}
                           </p>
                           <p className="text-base font-bold text-amber-100">
@@ -1657,7 +1758,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                                 {item.is_substitutable && item.substitute_with && (
                                   <p className="text-xs text-stone-400 mt-0.5">
                                     {instructionLang === 'ta'
-                                      ? `கிடைக்கவில்லையெனில்: ${item.substitute_with}`
+                                      ? t.ifUnavailable(item.substitute_with)
                                       : `If unavailable: ${item.substitute_with}`}
                                   </p>
                                 )}
@@ -1676,7 +1777,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                                   limbs touched in the Anga Pooja and the pourings
                                   of the arghyam, and "Offer Flower" was wrong on
                                   all three. */}
-                              🌸 {isOffered ? 'Offered' : 'Offer'}
+                              🌸 {isOffered ? t.offered : t.offer}
                             </button>
                           </div>
                         );
@@ -1702,7 +1803,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
             <div className="space-y-2">
               <h2 className="text-3xl md:text-4xl font-extrabold text-amber-200">
-                Pooja Sampoornam! (பூஜை பூர்த்தி)
+                {t.poojaComplete}
               </h2>
               <p className="text-stone-300 text-base max-w-xl mx-auto">
                 May the divine blessings of {pooja.title_en} fill your life with peace, prosperity, health, and wisdom.
@@ -1710,7 +1811,9 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
             </div>
 
             <div className="p-4 rounded-xl bg-stone-950/80 border border-amber-500/30 max-w-md mx-auto text-amber-300 font-serif italic text-sm">
-              &quot;Om Shanti Shanti Shantih&quot; • &quot;ஓம் சாந்தி சாந்தி சாந்திஃ&quot;
+              {instructionLang === 'ta'
+                ? '“ஓம் சாந்தி சாந்தி சாந்தி꞉”'
+                : '“Om Shanti Shanti Shantih”'}
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
@@ -1742,7 +1845,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
             <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
             {/* Label hidden on a phone: with the bell now docked here too, four
                 controls in one row wrapped the Start button onto two lines. */}
-            <span className="hidden sm:inline">Previous</span>
+            <span className="hidden sm:inline">{t.previous}</span>
           </button>
 
           {/* The bell lives here rather than floating over the page. Mid-pooja
@@ -1762,7 +1865,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
             ) : (
               <>
                 <span className="hidden sm:inline">
-                  Step {activePosition} of {availableSteps.length}
+                  {t.stepOf(activePosition, availableSteps.length)}
                 </span>
                 <span className="sm:hidden tabular-nums">
                   {activePosition}/{availableSteps.length}
@@ -1787,10 +1890,10 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   Udvasanam is the final row but is udvasana-only -- the button
                   never said Complete. */}
               {currentStepIndex === -1
-                ? 'Start Pooja'
+                ? t.startPooja
                 : activePosition >= availableSteps.length
                 ? 'Complete Pooja'
-                : 'Next Step'}
+                : t.nextStep}
             </span>
             <ChevronRight className="w-5 h-5 stroke-[2.5]" />
           </button>

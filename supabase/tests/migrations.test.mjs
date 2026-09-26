@@ -1227,6 +1227,26 @@ await assert('ekadanta is still last',
   `select seq from archana_items where pooja_step_id = ${PATRA}
      and position('एकदंताय' in invoked_name_deva) > 0`, 21);
 
+console.log('\n[9an] 0029 the Tamil titles 0025 clobbered');
+// 0025 is fixed at source, so in this harness the titles are already right and
+// 0029 finds nothing to repair. That is the point: the assertion below is what
+// did not exist when 0025 ran, and it now guards every title in both poojas.
+await step('0029_repair_tamil_step_titles.sql',
+  () => db.exec(sql(`${MIG}/0029_repair_tamil_step_titles.sql`)));
+await assert('no title in either language is mantra-shaped',
+  `select count(*) from pooja_steps
+     where length(coalesce(step_title_en, '')) > 60
+        or length(coalesce(step_title_ta, '')) > 60
+        or step_title_en like '%' || chr(10) || '%'
+        or step_title_ta like '%' || chr(10) || '%'
+        or step_title_ta like '%।%' or step_title_ta like '%॥%'`, 0);
+await assert('and every step still has both titles',
+  `select count(*) from pooja_steps where step_title_en is null or step_title_ta is null`, 0);
+// The specific one the UI review surfaced.
+await assert('Vighneshwara Pooja has a title, not its own mantra',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Vighneshwara Pooja' and step_title_ta = 'விக்னேஸ்வர பூஜை'`, 1);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
