@@ -1247,6 +1247,127 @@ await assert('Vighneshwara Pooja has a title, not its own mantra',
   `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
      and step_title_en = 'Vighneshwara Pooja' and step_title_ta = 'விக்னேஸ்வர பூஜை'`, 1);
 
+console.log('\n[9ao] 0030 Varalakshmi against the printed book');
+// The premise of the FIRST version of this migration was that three steps had
+// no mantra. They do not: a tickable list lives in archana_items, and the
+// viewer renders that separately from the step's own mantra. Assert that here,
+// so nobody repeats the mistake by reading mantra_sanskrit alone and concluding
+// the step is empty.
+await assert('the anga pooja keeps its content in archana_items, not the mantra',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Anga Pooja'`, 15);
+// The defect being fixed: the milk arghyam reciting the water verse copied from
+// step 12. Assert it is there BEFORE, or the fix below proves nothing.
+await assert('before 0030, the ksheera arghyam recites the water verse',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Ksheera Arghyam'
+       and a.invoked_name_deva like '%शुद्धोदक%'`, 1);
+
+await step('0030_varalakshmi_from_the_book.sql',
+  () => db.exec(sql(`${MIG}/0030_varalakshmi_from_the_book.sql`)));
+
+await assert('after 0030 it recites the milk verse',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Ksheera Arghyam'
+       and a.invoked_name_deva like '%गोक्षीर%'`, 1);
+await assert('and no longer the water verse',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Ksheera Arghyam'
+       and a.invoked_name_deva like '%शुद्धोदक%'`, 0);
+await assert('madhuparkam reached the upachara step',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and step_title_en = 'Padyam, Arghyam & Achamaniyam'
+     and mantra_sanskrit like '%मधुपर्कं%'`, 1);
+await assert('the rajopachara reached the namaskaram step',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and step_title_en = 'Namaskaram & Varalakshmi Prarthana'
+     and mantra_sanskrit like '%छत्र%'`, 1);
+await assert('the brahmarpanam reached the closing step',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and step_title_en = 'Kshama Prarthana & Conclusion'
+     and mantra_sanskrit like '%ब्रह्मार्पणमस्तु%'`, 1);
+await assert('name 106 no longer has the ungrammatical long aa',
+  `select count(*) from namavali_items
+     where namavali_id = 'lakshmi_ashtottara_108' and name_deva like '%ब्रह्माविष्णु%'`, 0);
+await assert('and 106 is the corrected form',
+  `select count(*) from namavali_items
+     where namavali_id = 'lakshmi_ashtottara_108' and seq = 106
+       and name_deva like '%ब्रह्मविष्णुशिवात्मिकायै%'`, 1);
+await assert('nothing was removed: still 29 steps',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'`, 29);
+await assert('the fifteen-limb anga pooja was left alone',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Anga Pooja'`, 15);
+await assert('every varalakshmi step with Devanagari has the other two scripts',
+  `select count(*) from pooja_steps
+     where pooja_id = 'varalakshmi_vratham'
+       and coalesce(trim(mantra_sanskrit), '') <> ''
+       and (mantra_tamil is null or mantra_translit is null)`, 0);
+
+console.log('\n[9ap] 0030 idempotency');
+// The appends are guarded on the text they add; a re-run must not double them.
+await step('0030 re-run', () => db.exec(sql(`${MIG}/0030_varalakshmi_from_the_book.sql`)));
+await assert('madhuparkam is still there exactly once',
+  `select (length(mantra_sanskrit) - length(replace(mantra_sanskrit, 'मधुपर्कं', '')))
+          / length('मधुपर्कं') from pooja_steps
+     where pooja_id = 'varalakshmi_vratham'
+       and step_title_en = 'Padyam, Arghyam & Achamaniyam'`, 2);
+await assert('the brahmarpanam is still there exactly once',
+  `select (length(mantra_sanskrit) - length(replace(mantra_sanskrit, 'ब्रह्मार्पणमस्तु', '')))
+          / length('ब्रह्मार्पणमस्तु') from pooja_steps
+     where pooja_id = 'varalakshmi_vratham'
+       and step_title_en = 'Kshama Prarthana & Conclusion'`, 1);
+
+
+console.log('\n[9aq] 0031 Ganesha against the printed book');
+// Assert the three holes exist BEFORE, so the migration proves something.
+await assert('before 0031 the snanam has no Ganapati Gayatri',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Snanam & Vastram' and mantra_sanskrit like '%तत्पुरुषाय%'`, 0);
+await assert('before 0031 there is no rajopachara',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and mantra_sanskrit like '%राजोपचारार्थं%'`, 0);
+// ...but the word CHatra IS already present, inside shvEtachCHatraaya in the
+// Peetha Pooja. A guard on the bare word would have made this migration a
+// silent no-op. This assertion exists to keep that trap visible.
+await assert('the bare word CHatra already occurs, in the Peetha Pooja',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Peetha Pooja' and mantra_sanskrit like '%छत्र%'`, 1);
+
+await step('0031_ganesha_from_the_book.sql',
+  () => db.exec(sql(`${MIG}/0031_ganesha_from_the_book.sql`)));
+
+await assert('the Ganapati Gayatri reached the snanam',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Snanam & Vastram' and mantra_sanskrit like '%तत्पुरुषाय%'`, 1);
+await assert('and its ten-times rubric reached the instruction',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Snanam & Vastram' and instruction_en like '%ten times%'`, 1);
+await assert('the rajopachara reached the namaskaram step',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Mantra Pushpam & Namaskaram' and mantra_sanskrit like '%राजोपचारार्थं%'`, 1);
+await assert('the brahmarpanam reached the closing step',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Kshama Prarthana & Conclusion' and mantra_sanskrit like '%ब्रह्मार्पणमस्तु%'`, 1);
+await assert('nothing structural changed: still 37 steps',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'`, 37);
+await assert('every ganesha step with Devanagari has all three scripts',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and coalesce(trim(mantra_sanskrit), '') <> ''
+     and (mantra_tamil is null or mantra_translit is null)`, 0);
+
+console.log('\n[9ar] 0031 idempotency');
+await step('0031 re-run', () => db.exec(sql(`${MIG}/0031_ganesha_from_the_book.sql`)));
+await assert('the rajopachara is still there exactly once',
+  `select (length(mantra_sanskrit) - length(replace(mantra_sanskrit, 'राजोपचारार्थं', '')))
+          / length('राजोपचारार्थं') from pooja_steps
+     where pooja_id = 'ganesha_standard' and step_title_en = 'Mantra Pushpam & Namaskaram'`, 1);
+await assert('the ten-times rubric was not appended twice',
+  `select (length(instruction_en) - length(replace(instruction_en, 'ten times', '')))
+          / length('ten times') from pooja_steps
+     where pooja_id = 'ganesha_standard' and step_title_en = 'Snanam & Vastram'`, 1);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
