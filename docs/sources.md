@@ -940,3 +940,67 @@ The inventory distinguishes `published` from `book (photo)`. They are not the
 same confidence: a web page was read as text and proved by round trip, a book
 page was read off a photograph and cannot be. Keeping them apart in the one
 report anybody actually reads is cheaper than remembering the difference.
+
+## Prana Pratishtha, whole
+
+Migration 0026. **This step has been wrong twice, in two different ways.**
+
+First it was *invented*: it said, in effect, "I shall now perform prana
+pratishtha", with no mantra behind it. Migration 0021 replaced that with the
+genuine Vedic core — `asunītē punarasmāsu cakṣuḥ` and `amṛtaṃ vai prāṇāḥ` — which
+was right as far as it went. **It went about a fifth of the way.** The rite the
+book prints runs six pages (pp.19–25), and what 0021 restored is the passage in
+the middle of it.
+
+What was missing, in order: the **viniyoga** (rishi, chhandas, devata, and the
+bīja, śakti and kīlaka); the **kara nyāsa**, six syllables placed on the fingers
+and palms; the **anga nyāsa**, six more on the body, and the **digbandha**; the
+**dhyānam of Prāṇa Śakti** herself; the bīja string and `haṃsaḥ so'ham`; and
+`asyāṃ mūrtau prāṇastiṣṭhatu` — the sentence that actually does the work, asking
+the breath, the life, and every named sense and faculty to come and stay.
+
+That last one is the point. The previous text asked for nothing in particular.
+The book's asks for speech, mind, skin, eye, ear, tongue, nose, hands, feet and
+the organs below, and the five breaths, by name.
+
+### A defect the book exposed
+
+Pages 24–25 print the **bhava lines in two parallel columns** — masculine for a
+god, feminine for a goddess:
+
+| Swāmī | Devī |
+| --- | --- |
+| āvāhito bhava | āvāhitā bhava |
+| supreeto bhava | supreetā bhava |
+| sumukho bhava | sumukhī bhava |
+| varado bhava | varadā bhava |
+
+The app had **three** of the nine. Worse, Varalakshmi's were a **mixture**:
+feminine `āvāhitā`, `sthāpitā` and `varadā`, with **masculine `suprasanno`**
+standing among them. One word is corrected here and nothing else, because
+Varalakshmi is on hold until its own section of the book is photographed.
+
+The book also prints three alternatives for what the deity is asked to remain in
+— `bimbe'smin`, `kalaśe'smin`, `pratimāyām` — and expects one to be chosen.
+Ganesha is invoked into a clay image, so `bimbe'smin`. Picking the right one is
+the whole reason the book prints all three.
+
+### The diff caught a near-removal
+
+The dry run showed `sthiro bhava` and `sthirāsanaṃ kuru` about to disappear —
+they came from the Telugu kalpam by way of 0021 and the book does not print
+them. The rule says a shorter printed recension is not evidence against a longer
+recitation, so they went back in. This is the second time the diff has caught
+this project breaking its own rule; the first was the ṣoḍaśopacāra declaration
+in 0024.
+
+One phrase *is* replaced: the deity address `śrī mahāgaṇapataye namaḥ` becomes
+`ॐ śrī siddhivināyaka svāmine namaḥ`, which is what every other step in this
+pooja uses.
+
+### Counting a fragment counts other words
+
+The first version asserted "nine bhava lines" by counting the substring `भव`.
+It found **eleven** — because the dhyānam says `bhavatu sukhakarī`. Both the
+generator and the migration now check the nine **phrases** by name. A check that
+counts a fragment of a word counts other words.

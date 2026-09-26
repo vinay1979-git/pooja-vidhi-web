@@ -1086,6 +1086,58 @@ await assert('the pranayamam note was not prefixed twice',
      and step_title_en = 'Sankalpam'
      and instruction_en like 'Perform pranayamam once more%Perform pranayamam once more%'`, 0);
 
+console.log('\n[9ah] 0026 prana pratishtha, whole');
+await step('0026_prana_pratishtha_nyasa.sql',
+  () => db.exec(sql(`${MIG}/0026_prana_pratishtha_nyasa.sql`)));
+
+// The rite runs six pages in the book. 0021 restored the passage in the middle
+// of it and this adds the rest, so the assertions name each section.
+for (const [label, needle] of [
+  ['the viniyoga', 'प्राण प्रतिष्ठार्थे जपे विनियोगः'],
+  ['the kara nyasa', 'करतलकरपृष्ठाभ्यां'],
+  ['the anga nyasa', 'नेत्रत्रयाय वौषट्'],
+  ['the digbandha', 'दिग्बन्धः'],
+  ['the dhyanam of Prana Shakti', 'प्राणशक्तिः परा नः'],
+  ['the bija string', 'हंसः सोऽहं'],
+  ['the request itself', 'अस्यां मूर्तौ प्राणस्तिष्ठतु'],
+  ['the Vedic core 0021 restored', 'असुनीते पुनरस्मासु'],
+  ['the request to remain', 'यावत्पूजावसानकाले'],
+]) {
+  await assert(`Ganesha prana pratishtha has ${label}`,
+    `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+       and step_title_en = 'Prana Pratishtha' and mantra_sanskrit like '%' || '${needle}' || '%'`, 1);
+}
+// The book prints the bhava lines in masculine and feminine columns. Each pooja
+// must take one column and not a mixture -- which is exactly what Varalakshmi
+// had.
+await assert('no feminine bhava line in the Ganesha step',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Prana Pratishtha'
+     and (mantra_sanskrit like '%आवाहिता भव%' or mantra_sanskrit like '%सुप्रसन्ना भव%'
+          or mantra_sanskrit like '%वरदा भव%' or mantra_sanskrit like '%सुमुखी भव%')`, 0);
+await assert('no masculine bhava line in the Varalakshmi step',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and step_title_en = 'Prana Pratishtha' and mantra_sanskrit like '%सुप्रसन्नो भव%'`, 0);
+await assert('and the Varalakshmi line was corrected, not just deleted',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and step_title_en = 'Prana Pratishtha' and mantra_sanskrit like '%सुप्रसन्ना भव%'`, 1);
+// Nothing the previous text had may have been dropped in the rewrite.
+await assert('the phrases 0021 sourced are still there',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Prana Pratishtha'
+     and mantra_sanskrit like '%अमृतं वै प्राणा%'
+     and mantra_sanskrit like '%स्थिरो भव%'
+     and mantra_sanskrit like '%स्थिरासनं कुरु%'`, 1);
+
+console.log('\n[9ai] 0026 idempotency');
+await step('0026 re-run', () => db.exec(sql(`${MIG}/0026_prana_pratishtha_nyasa.sql`)));
+await assert('the Varalakshmi replace did not run twice',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and step_title_en = 'Prana Pratishtha'
+     and mantra_sanskrit like '%सुप्रसन्ना भव%सुप्रसन्ना भव%'`, 0);
+await assert('still 37 Ganesha steps',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'`, 37);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
