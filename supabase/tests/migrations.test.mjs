@@ -1172,6 +1172,61 @@ await assert('the provenance note was not appended twice',
   `select count(*) from pooja_steps
      where source_ref like '%not taken from a source%not taken from a source%'`, 0);
 
+console.log('\n[9al] 0028 the leaf and flower pairings');
+await step('0028_patra_pushpa_pairings.sql',
+  () => db.exec(sql(`${MIG}/0028_patra_pushpa_pairings.sql`)));
+
+const PATRA = `(select id from pooja_steps where pooja_id = 'ganesha_standard'
+                 and step_title_en = 'Patra Pooja (21 Leaves)')`;
+const PUSHPA = `(select id from pooja_steps where pooja_id = 'ganesha_standard'
+                  and step_title_en = 'Pushpa Pooja (21 Flowers)')`;
+
+await assert('still 21 leaves', `select count(*) from archana_items where pooja_step_id = ${PATRA}`, 21);
+await assert('the leaf sequence is dense',
+  `select (max(seq) - min(seq) + 1) - count(*) from archana_items where pooja_step_id = ${PATRA}`, 0);
+await assert('and starts at 1',
+  `select min(seq) from archana_items where pooja_step_id = ${PATRA}`, 1);
+await assert('nothing left parked',
+  `select count(*) from archana_items where seq >= 1000`, 0);
+// The one pair of the seven that was actually wrong. A name meaning "he whose
+// matted hair is the bhringaraja" was being given a peepal leaf.
+await assert('bhringarajatkata gets the bhringaraja leaf',
+  `select count(*) from archana_items where pooja_step_id = ${PATRA}
+     and position('भृंगराजत्कटाय' in invoked_name_deva) > 0
+     and offering_deva like '%भृंगराज%'`, 1);
+await assert('and no ashvattha leaf remains',
+  `select count(*) from archana_items where pooja_step_id = ${PATRA}
+     and offering_deva like '%अश्वत्थ%'`, 0);
+await assert('ekadanta/dadimi is last, as the book has it',
+  `select seq from archana_items where pooja_step_id = ${PATRA}
+     and position('एकदंताय' in invoked_name_deva) > 0`, 21);
+// shamyaaka and shyaamaka are the same four syllables in a different order.
+await assert('the flower metathesis is corrected',
+  `select count(*) from archana_items where pooja_step_id = ${PUSHPA}
+     and offering_deva like '%श्यामक%'`, 1);
+await assert('and the garbled form is gone',
+  `select count(*) from archana_items where pooja_step_id = ${PUSHPA}
+     and offering_deva like '%शम्याक%'`, 0);
+await assert('neither list still says dhattoora',
+  `select count(*) from archana_items
+     where pooja_step_id in (${PATRA}, ${PUSHPA}) and offering_deva like '%धत्तूर%'`, 0);
+// gaNDalee is deliberately left unidentified rather than inheriting the Latin
+// name recorded for gaNDavee, which is a different word.
+await assert('gandali carries no invented botanical',
+  `select count(*) from archana_items where pooja_step_id = ${PATRA}
+     and offering_deva like '%गंडली%' and botanical is not null`, 0);
+await assert('the deity leaf list agrees at 21',
+  `select jsonb_array_length(permitted_offerings::jsonb -> 'leaves')
+     from deities where id = 'ganesha'`, 21);
+
+console.log('\n[9am] 0028 idempotency');
+await step('0028 re-run', () => db.exec(sql(`${MIG}/0028_patra_pushpa_pairings.sql`)));
+await assert('still 21 leaves, still dense',
+  `select (max(seq) - min(seq) + 1) - count(*) from archana_items where pooja_step_id = ${PATRA}`, 0);
+await assert('ekadanta is still last',
+  `select seq from archana_items where pooja_step_id = ${PATRA}
+     and position('एकदंताय' in invoked_name_deva) > 0`, 21);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {

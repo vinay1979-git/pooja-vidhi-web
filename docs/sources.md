@@ -1004,3 +1004,75 @@ The first version asserted "nine bhava lines" by counting the substring `भव`
 It found **eleven** — because the dhyānam says `bhavatu sukhakarī`. Both the
 generator and the migration now check the nine **phrases** by name. A check that
 counts a fragment of a word counts other words.
+
+## The 21 leaves and the 21 flowers
+
+Migration 0028. This closes the oldest open question in this file.
+
+> *The 21 leaves are paired with 21 names. 14 of the 21 pairs alliterate, which
+> suggests the pairing is intended and that the other 7 may be mismatched.*
+
+**The alliteration is the design — and only one of the seven was wrong.**
+
+The book pairs kapila with karavīra, amala with āmalakī, arjunadanta with
+arjuna, viṣṇustuta with viṣṇukrānta. The pattern is real. But six of the seven
+non-alliterating pairs are printed that way in the book too, deliberately:
+umāputra/macī, heramba/bṛhatī, lambodara/bilva, dvaimātura/tulasī,
+gajānana/jātī and ekadanta/dāḍimī. The hypothesis was right about the principle
+and wrong about the count.
+
+The seventh was real:
+
+| | leaf offered |
+| --- | --- |
+| this app | `bhṛṅgarājatkaṭāya namaḥ` → **aśvattha** patram |
+| the book | `bhṛṅgarājatkaṭāya namaḥ` → **bhṛṅgarāja** patram |
+
+A name meaning *he whose matted hair is the bhṛṅgarāja* was being given a peepal
+leaf.
+
+### Four more that alliteration would never have caught
+
+| name | app | book |
+| --- | --- | --- |
+| dhūmaketu | dhattūra | **durdhūra** (two names for the same plant, Datura metel) |
+| sindhura | sindhuvāra | **sindhūra** |
+| gaṇḍagaḷanmada | gaṇḍavī | **gaṇḍalī** |
+| — | śaṅkarapriya | **śaṅkarīpriya** |
+
+…and the **order**: ekadanta/dāḍimī sat at position 12 where the book has it at
+21, so everything from 12 down was shifted by one.
+
+### Two in the flowers, one of them the clearest transcription error yet
+
+`vidyā gaṇapati` took dhattūra where the book has durdhūra, and:
+
+```
+app    शम्याक  śamyāka
+book   श्यामक  śyāmaka
+```
+
+The same four syllables in a different order.
+
+### Three lists that should have been one
+
+The `deities` row keeps its own `permitted_offerings.leaves`, and it agreed with
+neither the book nor the archana rows — `devadāru` where the archana had
+`āmalakī`, `gaṇḍakī` where the archana had `gaṇḍavī` and the book has `gaṇḍalī`.
+It is now the book's list, and the harness asserts both are 21.
+
+### What is deliberately left blank
+
+`gaṇḍalī` carries **no botanical name**. The value the row held described
+`gaṇḍavī`, a different word, and carrying it across would have transferred an
+unsupported identification onto a new plant. It is the only one of the
+twenty-one without a Latin name, and it is now a question on the review sheet
+rather than a guess in the database.
+
+### The match key that stopped matching halfway through
+
+The reorder keys each row by a fragment of its invoked name — and one of those
+rows is *renamed* by an earlier statement in the same migration, from
+`śaṅkarapriyāya` to `śaṅkarīpriyāya`. The key stopped matching at that point and
+the row was left parked above 1000. The harness caught it. The key for that row
+is now the shared prefix, which matches before and after.

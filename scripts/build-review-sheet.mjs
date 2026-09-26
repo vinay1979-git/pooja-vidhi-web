@@ -119,10 +119,16 @@ const QUESTIONS = {
       'else. Both are in this step, one after the other. Should the app ask who is performing and ' +
       'show only one, and if so, what is the right way to ask?',
   ],
+  // ANSWERED by the book, pp.63-64. The alliteration IS the design, and exactly
+  // one of the seven non-alliterating pairs was an error here; the other six are
+  // paired the same way in print. What is left is one plant nobody can name.
   'Patra Pooja (21 Leaves)': [
-    'The 21 leaves are paired with 21 names. 14 of the 21 pairs alliterate, which suggests the ' +
-      'pairing is intended and that the other 7 may be mismatched. Please check the pairing, not ' +
-      'just the names.',
+    'The sixteenth leaf is "gaṇḍalī", paired with gaṇḍagaḷanmada. It is printed in the book but ' +
+      'this project cannot identify the plant, so it is the only one of the twenty-one shown ' +
+      'without a botanical name. What is it, and is there a common substitute?',
+    'The fourteenth is "sindhūra", where several other lists print "sindhuvāra" (Vitex negundo). ' +
+      'The book’s spelling is used and Vitex negundo is kept as the identification. Is that right, ' +
+      'or is sindhūra a different plant?',
   ],
   'Karpura Neerajanam': [
     'This does NOT carry "na tatra sūryo bhāti" or "karpūragauraṃ", which are commonly recited ' +
