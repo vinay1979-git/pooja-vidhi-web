@@ -9,32 +9,44 @@ import { Bell, BellOff } from 'lucide-react';
  * Rung continuously while the upachara is offered, as it is held in the left
  * hand at home, rather than one chime per click.
  *
- * Synthesised rather than sampled: zero network, zero latency, no asset to
- * ship, and the timbre stays adjustable.
+ * A RECORDING of a real household bell, not a synthesised one. The previous
+ * version built the sound from seven sine partials, which was defensible --
+ * nothing to ship, nothing to load -- and it did not sound like a bell. Additive
+ * synthesis gets the pitch right and the metal wrong: what is missing is the
+ * inharmonic clatter of the clapper and the irregularity of a hand shaking, and
+ * those are not reachable by adding more partials.
  */
 
-// A small brass pooja hand bell, not a temple or church bell.
-//
-// The difference is mostly the hum partial and the decay. A large bell has a
-// strong partial an octave BELOW the strike note and rings for seconds, which
-// is what gives it that cathedral body. A little hand bell has almost no hum,
-// its energy sits in the bright upper partials, and it dies away in well under
-// a second. It is also shaken rather than struck, so the strikes come fast and
-// slightly unevenly, and the clapper rebounds off the far wall of the bell.
-const PARTIALS: { ratio: number; gain: number; decay: number }[] = [
-  { ratio: 1.0, gain: 0.42, decay: 0.5 }, // strike note
-  { ratio: 1.51, gain: 0.3, decay: 0.36 },
-  { ratio: 2.14, gain: 0.26, decay: 0.27 },
-  { ratio: 2.93, gain: 0.19, decay: 0.2 },
-  { ratio: 3.81, gain: 0.13, decay: 0.15 },
-  { ratio: 5.17, gain: 0.08, decay: 0.1 },
-  { ratio: 6.72, gain: 0.05, decay: 0.07 },
-];
+const SRC = '/audio/temple-bell.mp3';
 
-const BASE_HZ = 1760; // A6. Small bells sit far above a temple bell's D5.
-const STRIKE_INTERVAL_MS = 165; // shaken, not tolled
-const REBOUND_MS = 62; // clapper coming back off the opposite wall
-const REBOUND_GAIN = 0.45;
+/** Below this, treat the sample as silence when trimming the loop. */
+const SILENCE = 0.004;
+/** Fade applied when the ring stops, so releasing does not click. */
+const RELEASE_S = 0.18;
+
+/**
+ * The encoded file, fetched at most once for the whole app.
+ *
+ * Module level, not a ref: the prefetch and the decode are triggered from
+ * different places, two screens can each mount a bell, and React's development
+ * StrictMode mounts every component twice. Held in a ref this was six requests
+ * for one 230KB asset -- measured, not guessed.
+ */
+let rawPromise: Promise<ArrayBuffer> | null = null;
+
+function fetchRaw(): Promise<ArrayBuffer> {
+  if (!rawPromise) {
+    rawPromise = fetch(SRC).then((r) => {
+      if (!r.ok) throw new Error(`${SRC}: ${r.status}`);
+      return r.arrayBuffer();
+    });
+    // Do not cache a failure: let the next press try the network again.
+    rawPromise.catch(() => {
+      rawPromise = null;
+    });
+  }
+  return rawPromise;
+}
 
 interface TempleBellProps {
   /**
@@ -45,98 +57,164 @@ interface TempleBellProps {
   variant?: 'floating' | 'docked';
 }
 
+/**
+ * Where the sound actually starts and ends inside the file.
+ *
+ * A recording has a little silence at each end, and looping the whole buffer
+ * would put that silence in the middle of a continuous ring -- a gap every few
+ * seconds, which is the one thing a held bell must not do. Rather than trim the
+ * asset by hand and hope, find the edges from the samples.
+ */
+function findLoopPoints(buf: AudioBuffer): { start: number; end: number } {
+  const ch = buf.getChannelData(0);
+  const step = Math.max(1, Math.floor(buf.sampleRate / 1000)); // ~1ms resolution
+  let first = 0;
+  let last = ch.length - 1;
+  for (let i = 0; i < ch.length; i += step) {
+    if (Math.abs(ch[i]) > SILENCE) { first = i; break; }
+  }
+  for (let i = ch.length - 1; i >= 0; i -= step) {
+    if (Math.abs(ch[i]) > SILENCE) { last = i; break; }
+  }
+  if (last <= first) return { start: 0, end: buf.duration };
+  return { start: first / buf.sampleRate, end: last / buf.sampleRate };
+}
+
 export const TempleBell: React.FC<TempleBellProps> = ({ variant = 'floating' }) => {
   const [isRinging, setIsRinging] = useState(false);
   const ctxRef = useRef<AudioContext | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const bufRef = useRef<AudioBuffer | null>(null);
+  const loadRef = useRef<Promise<AudioBuffer | null> | null>(null);
+  const srcRef = useRef<AudioBufferSourceNode | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
   const ringingRef = useRef(false);
 
-  const strike = useCallback((scale = 1) => {
-    const ctx = ctxRef.current;
-    if (!ctx) return;
-    const now = ctx.currentTime;
-
-    const master = ctx.createGain();
-    // Roll off the low end so it reads as small brass rather than boomy.
-    const hp = ctx.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 900;
-    master.connect(hp);
-    hp.connect(ctx.destination);
-
-    // Vary each strike so a held ring does not sound like a loop.
-    const jitter = 0.97 + Math.random() * 0.06;
-    master.gain.setValueAtTime(0.0001, now);
-    master.gain.exponentialRampToValueAtTime(0.16 * scale * jitter, now + 0.002);
-
-    let longest = 0;
-    for (const p of PARTIALS) {
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = BASE_HZ * p.ratio * jitter;
-
-      g.gain.setValueAtTime(0.0001, now);
-      // Very fast attack: a small bell has almost no strike transient.
-      g.gain.exponentialRampToValueAtTime(p.gain, now + 0.002);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + p.decay);
-
-      osc.connect(g);
-      g.connect(master);
-      osc.start(now);
-      osc.stop(now + p.decay + 0.03);
-      longest = Math.max(longest, p.decay);
-    }
-
-    // Release the nodes once the tail has died, or a long ring leaks them.
-    window.setTimeout(() => {
-      master.disconnect();
-      hp.disconnect();
-    }, (longest + 0.15) * 1000);
+  const audioContext = useCallback((): AudioContext | null => {
+    if (ctxRef.current) return ctxRef.current;
+    const Ctor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    ctxRef.current = new Ctor();
+    return ctxRef.current;
   }, []);
 
-  // One shake: the strike, then the clapper rebounding off the far wall.
-  const shake = useCallback(() => {
-    strike(1);
-    window.setTimeout(() => {
-      if (ringingRef.current) strike(REBOUND_GAIN);
-    }, REBOUND_MS);
-  }, [strike]);
+  /** Fetch and decode once; every later ring reuses the buffer. */
+  const load = useCallback((): Promise<AudioBuffer | null> => {
+    if (bufRef.current) return Promise.resolve(bufRef.current);
+    if (loadRef.current) return loadRef.current;
+    const ctx = audioContext();
+    if (!ctx) return Promise.resolve(null);
+    loadRef.current = fetchRaw()
+      // decodeAudioData DETACHES the ArrayBuffer it is given, so hand it a copy
+      // and leave the shared one intact for a retry or a second bell.
+      .then((ab) => ab.slice(0))
+      // The callback form, not the promise form: Safari still ships the old
+      // signature and returns undefined from decodeAudioData.
+      .then((ab) => new Promise<AudioBuffer>((res, rej) => ctx.decodeAudioData(ab, res, rej)))
+      .then((buf) => {
+        bufRef.current = buf;
+        return buf;
+      })
+      .catch(() => {
+        // A bell that cannot load is not a reason to break the page. Let the
+        // next press try again rather than caching the failure forever.
+        loadRef.current = null;
+        return null;
+      });
+    return loadRef.current;
+  }, [audioContext]);
 
   const stop = useCallback(() => {
     ringingRef.current = false;
     setIsRinging(false);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+    const ctx = ctxRef.current;
+    const src = srcRef.current;
+    const gain = gainRef.current;
+    srcRef.current = null;
+    gainRef.current = null;
+    if (!ctx || !src || !gain) return;
+    // Ramp down rather than cutting: stopping a loud loop dead is a click.
+    const now = ctx.currentTime;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.linearRampToValueAtTime(0.0001, now + RELEASE_S);
+    try {
+      src.stop(now + RELEASE_S + 0.02);
+    } catch {
+      // already stopped
     }
+    src.onended = () => {
+      src.disconnect();
+      gain.disconnect();
+    };
   }, []);
 
   const start = useCallback(async () => {
-    if (!ctxRef.current) {
-      const Ctor =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext })
-          .webkitAudioContext;
-      if (!Ctor) return;
-      ctxRef.current = new Ctor();
-    }
+    const ctx = audioContext();
+    if (!ctx) return;
     // Browsers start the context suspended until a user gesture.
-    if (ctxRef.current.state === 'suspended') await ctxRef.current.resume();
+    if (ctx.state === 'suspended') await ctx.resume();
 
-    ringingRef.current = true;
-    setIsRinging(true);
-    shake();
-    timerRef.current = setInterval(() => {
-      if (!ringingRef.current) return;
-      shake();
-    }, STRIKE_INTERVAL_MS);
-  }, [shake]);
+    const buf = await load();
+    // The press may have been released while the file was still decoding.
+    if (!buf || !ringingRef.current) return;
+    // A second press landed first; do not stack two loops.
+    if (srcRef.current) return;
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const { start: loopStart, end: loopEnd } = findLoopPoints(buf);
+    src.loop = true;
+    src.loopStart = loopStart;
+    src.loopEnd = loopEnd;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.01);
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    // Begin at the first real sample, not at the file's leading silence.
+    src.start(0, loopStart);
+
+    srcRef.current = src;
+    gainRef.current = gain;
+  }, [audioContext, load]);
 
   const toggle = useCallback(() => {
-    if (ringingRef.current) stop();
-    else void start();
+    if (ringingRef.current) {
+      stop();
+    } else {
+      ringingRef.current = true;
+      setIsRinging(true);
+      void start();
+    }
   }, [start, stop]);
+
+  // Warm the sample once the page is idle, so the first ring is immediate
+  // rather than waiting on a 230KB fetch. Idle, not on mount: this must never
+  // compete with the step content for bandwidth.
+  useEffect(() => {
+    const w = window as unknown as {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (h: number) => void;
+    };
+    let idle: number | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Only prefetch; creating the AudioContext is left to the user gesture,
+    // because a context built without one starts suspended on iOS and some
+    // browsers warn about it. The decode then reuses these bytes rather than
+    // asking the network a second time.
+    const warm = () => {
+      void fetchRaw().catch(() => {});
+    };
+    if (w.requestIdleCallback) idle = w.requestIdleCallback(warm, { timeout: 4000 });
+    else timer = setTimeout(warm, 2000);
+    return () => {
+      if (idle !== undefined) w.cancelIdleCallback?.(idle);
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
 
   // Stop on unmount and when the tab is hidden: a bell ringing from a
   // backgrounded tab is a good way to get the app closed.
