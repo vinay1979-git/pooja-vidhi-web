@@ -94,24 +94,41 @@ const QUESTIONS = {
     'This has a single offering, where the Ganesha pooja has four. It was left as the source ' +
       'gave it rather than made to match. Should it be one, or the same sequence as Ganesha?',
   ],
+  // ANSWERED by Sampradaya Vratha Pooja Vidhi (Giri) p.76 and no longer asked:
+  // the placement of "deva savitaḥ prasuva" after the gāyatrī, which the book
+  // prints exactly where this app had it. A sheet that asks a settled question
+  // spends the reviewer's hour on something already known.
   'Naivedyam & Tambulam': [
-    'The frame runs: vyahritis, then gayatri, then the five pranas, then the naivedyam is named. ' +
-      'Is "deva savitaḥ prasuva" in the right place? It appears in neither published page this was ' +
-      'built from, and sits here on the strength of the spoken description only.',
+    'The book gives a MORNING and an EVENING form of the savitā line, and this step now carries ' +
+      'both — the evening one appears in its own box when the pooja is performed after noon. ' +
+      'Is the switch at noon right, or is it tied to something else (sunset, the sandhya)?',
   ],
   'Naivedyam, Paniyam & Tambulam': [
-    'Same frame as the Ganesha step, and the same question about where ' +
-      '"deva savitaḥ prasuva" belongs.',
+    'Same morning/evening pair as the Ganesha step, and the same question about when the ' +
+      'evening form takes over.',
   ],
-  'Karpura Neerajanam': [
-    'Should this carry "na tatra sūryo bhāti" and/or "karpūragauraṃ"? Both are commonly recited ' +
-      'here and neither appears in any of the five published vidhanams consulted, so neither was ' +
-      'added. If they belong, say which and in what order.',
+  'Anga Vandanam': [
+    'The book prints these twelve as bare names — "keshava", "narayana" — laid against the limb ' +
+      'each one touches. This app recites them as "ōṃ keśavāya namaḥ". The bare form was read as ' +
+      'a teaching layout rather than a recitation line, since it carries no namaḥ where the ' +
+      'achamanam lines all do. Which is actually said aloud?',
+  ],
+  'Vighneshwara Pooja': [
+    'The Vedic "gaṇānāṃ tvā" is printed with the note that it may be recited only by those who ' +
+      'have learnt it with the proper intonation, and "agajānana padmārkaṃ" is given for everyone ' +
+      'else. Both are in this step, one after the other. Should the app ask who is performing and ' +
+      'show only one, and if so, what is the right way to ask?',
   ],
   'Patra Pooja (21 Leaves)': [
     'The 21 leaves are paired with 21 names. 14 of the 21 pairs alliterate, which suggests the ' +
       'pairing is intended and that the other 7 may be mismatched. Please check the pairing, not ' +
       'just the names.',
+  ],
+  'Karpura Neerajanam': [
+    'This does NOT carry "na tatra sūryo bhāti" or "karpūragauraṃ", which are commonly recited ' +
+      'here. Six published vidhanams have now been checked, including a printed Tamil Smartha ' +
+      'one, and none of them prints either. Leaving them out is a deliberate decision against ' +
+      'common practice — confirm it, or say where they belong.',
   ],
   'Sharadu Dharanam': [
     'The shortest mantra in either pooja, at two lines. That is all its kalpam gives. ' +
