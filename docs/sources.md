@@ -792,3 +792,88 @@ snapshot of live data and goes stale the moment a migration runs, which is why
 it prints its own date and refuses to be quiet about it: if the database still
 carries the carriage returns 0023 removes, the sheet says so at the top, because
 nothing else on the page would reveal them.
+
+## A printed source, and what it changed
+
+Until 2026-09-26 every one of the 53 steps traced to **one publisher**, and
+mostly to its **Telugu** pages:
+
+```
+ 15  StotraNidhi Sri Varalakshmi Vrata Kalpam (Telugu)
+ 13  StotraNidhi Sri Siddhi Vinayaka Vrata Kalpam (Telugu)
+  8  StotraNidhi
+  4  StotraNidhi Sri Haridra Ganapati Puja (Telugu)
+  …
+  0  printed books
+```
+
+The sourcing discipline was real but rigorous about the wrong axis. It proved
+each mantra came from *a* published text. It could not prove the text was the
+one this audience recites, because there was only ever one witness and it was in
+the wrong recension.
+
+The user supplied **Sampradaya Vratha Pooja Vidhi (Giri)**, a printed Tamil
+Smartha vrata collection, as scans. The full review is in the Drive folder
+beside the PDFs as `REVIEW-2026-09-26-book-vs-app.md`. Migration 0024 is the
+first correction from it.
+
+### Photographs break the verification model
+
+Every other source here is read as text and proved by round trip: convert, convert
+back, assert the input returns. **A photograph has no such proof.** The pages
+carry no text layer; the Devanagari is read off an image by eye, and a Grantha
+ligature can be misread with complete confidence.
+
+So `scripts/build-ganesha-book-corrections.mjs` substitutes a different check.
+It prints a **line-by-line diff against the live database** on every dry run, and
+refuses nothing silently: each line is either identical to the existing text --
+two independent witnesses, and it does not move -- or a difference a human has
+to agree with. Every `source_ref` it writes ends with a sentence saying the text
+came from a photograph, and the harness asserts that sentence is present, so
+book-derived text can never quietly inherit the confidence of a round-tripped
+string.
+
+### The rule, because "correct it against the book" is ambiguous
+
+- **Add** what the book has and the app lacks.
+- **Do not remove** what the app has and the book lacks. A shorter printed
+  recension is not evidence that a longer recitation is wrong.
+- **Replace** only where the book gives a direct alternative for the same slot,
+  or where the app has a demonstrable defect.
+
+The first draft of 0024 broke this rule inside the same file: it dropped
+`kalpokta-prakāreṇa yāvacchakti dhyānāvāhanādi ṣoḍaśopacāra-pūjāṃ kariṣye` from
+the sankalpam merely because the book's tail is shorter. The diff made it
+visible, and it was put back.
+
+### What 0024 changed
+
+Additions: the praṇava on the achamanam; two dhyāna verses and the Vedic
+`gaṇānāṃ tvā`; `asmin mṛttikābimbe`, the clause naming the clay image the deity
+is invoked into; `ॐ ब्रह्मणे स्वाहा` as the sixth naivedya offering; the evening
+`savitā` form, in the `variant_mantra_sanskrit` column that already existed and
+was unused; the Vedic **mantra puṣpam**; `śakābde` and `prabhavādīnāṃ ṣaṣṭyāḥ
+saṃvatsarāṇāṃ madhye` in the sankalpam.
+
+Four replacements, each argued at its definition: `gaurīgarbhasamudbhava` →
+`gīrvāṇa surapūjita`; `satyaṃ tvā ṛtena` → `satyaṃ tvartena`; the sankalpam
+clause order, which `renderSankalpam()` had been right about all along; and the
+**duplicated prāṇa block** in Varalakshmi, the only outright bug — its five
+offerings were stored twice, so anyone reciting from the screen said them twice.
+
+### The biggest single find
+
+The step titled **Mantra Pushpam** did not contain a mantra puṣpam. It opened
+with a Ganesha namaskāra shloka. The actual Vedic passage, `yo'pāṃ puṣpaṃ veda`
+from the Taittirīya Āraṇyaka, was absent from both poojas. It is now first, with
+the existing verses kept after it — they are a genuine puṣpāñjali and the book
+places one in the same position.
+
+### A mistake the assertion caught
+
+The migration asserts the new offering reached all three scripts. The Tamil
+needle was hand-typed as `ப்³ரஹ்மணே` — with the Grantha voicing superscript this
+project does not use — so the migration asserted against a string it could never
+produce and refused to apply. The needles are now **generated** by the same
+`transliterate()` that writes the data. Same class of mistake as the `source_ref`
+that once quoted its own gate's placeholder.

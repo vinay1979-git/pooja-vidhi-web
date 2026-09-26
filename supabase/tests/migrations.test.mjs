@@ -966,6 +966,58 @@ await assert('still clean after the guard ran', crCount, 0);
 await assert('line breaks still not doubled',
   `select count(*) from pooja_steps where mantra_sanskrit like '%' || chr(10) || chr(10) || '%'`, 0);
 
+console.log('\n[9ad] 0024 corrections against the printed book');
+//
+// The first migration in this project whose text came from a photograph rather
+// than a machine-readable page, so there is no round-trip proof behind it. The
+// assertions here are correspondingly about CONTENT, not about conversion.
+await step('0024_ganesha_book_corrections.sql',
+  () => db.exec(sql(`${MIG}/0024_ganesha_book_corrections.sql`)));
+
+await assert('the achamanam carries the pranava',
+  `select count(*) from pooja_steps where step_title_en = 'Achamanam'
+     and mantra_sanskrit like 'ॐ अच्युताय%'`, 1);
+// Six offerings, not five: the five pranas and then brahman.
+await assert('both naivedyams offer svaha exactly 6 times',
+  `select count(*) from pooja_steps where step_title_en like 'Naivedyam%'
+     and (length(mantra_sanskrit) - length(replace(mantra_sanskrit, 'स्वाहा', '')))
+         / length('स्वाहा') = 6`, 2);
+// The duplicated prana block in Varalakshmi is gone.
+await assert('no naivedyam repeats the prana line',
+  `select count(*) from pooja_steps where step_title_en like 'Naivedyam%'
+     and mantra_sanskrit like '%ॐ प्राणाय स्वाहा । ॐ अपानाय स्वाहा । ॐ व्यानाय%'`, 0);
+await assert('both naivedyams carry the evening variant',
+  `select count(*) from pooja_steps where step_title_en like 'Naivedyam%'
+     and variant_mantra_sanskrit like '%ऋतं त्वा सत्येन%'`, 2);
+await assert('the mantra pushpam is the Vedic one',
+  `select count(*) from pooja_steps where step_title_en = 'Mantra Pushpam & Namaskaram'
+     and mantra_sanskrit like '%योऽपां पुष्पं वेद%'`, 1);
+await assert('the avahanam names what the deity enters',
+  `select count(*) from pooja_steps where step_title_en = 'Avahanam & Asanam'
+     and mantra_sanskrit like '%मृत्तिकाबिम्बे%'`, 1);
+await assert('the sankalpam opens with the resolve',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and step_title_en = 'Sankalpam' and mantra_sanskrit like 'मम उपात्त%'`, 1);
+// Every book-sourced row says so, so its confidence is never mistaken for that
+// of a round-tripped string.
+await assert('book-sourced steps declare the photograph',
+  `select count(*) from pooja_steps
+     where source_ref like '%Sampradaya Vratha Pooja Vidhi%'
+       and source_ref not like '%photograph%'`, 0);
+
+console.log('\n[9ae] 0024 idempotency');
+await step('0024 re-run', () => db.exec(sql(`${MIG}/0024_ganesha_book_corrections.sql`)));
+// The mantra pushpam is PREPENDED, which is the one edit here that could stack.
+await assert('the mantra pushpam was not inserted twice',
+  `select count(*) from pooja_steps
+     where (length(mantra_sanskrit) - length(replace(mantra_sanskrit, 'योऽपां पुष्पं वेद', '')))
+           > length('योऽपां पुष्पं वेद')`, 0);
+await assert('still 6 svaha after a re-run',
+  `select count(*) from pooja_steps where step_title_en like 'Naivedyam%'
+     and (length(mantra_sanskrit) - length(replace(mantra_sanskrit, 'स्वाहा', '')))
+         / length('स्वाहा') = 6`, 2);
+await assert('still 53 steps', 'select count(*) from pooja_steps', 53);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
