@@ -1332,11 +1332,11 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                             value={idx}
                             disabled={!isStepAvailableForGender(s)}
                           >
-                            Step {idx + 1}:{' '}
+                            {t.stepNumber(idx + 1)}:{' '}
                             {instructionLang === 'ta' && s.step_title_ta
                               ? s.step_title_ta
                               : s.step_title_en}{' '}
-                            {!isStepAvailableForGender(s) ? '(Skipped)' : ''}
+                            {!isStepAvailableForGender(s) ? `(${t.skipped})` : ''}
                           </option>
                         )
                       )}
@@ -1345,9 +1345,13 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
                   <div>
                     {(() => {
-                      // Whichever language is selected leads; the other follows
-                      // underneath. Picking Tamil and still getting an English
-                      // headline is what made the toggle feel inert.
+                      // ONE title, in the chosen language. This used to print the
+                      // other one underneath as a gloss, which is defensible on
+                      // its own -- people know these steps by their English
+                      // names -- but it is the same two-languages-at-once the
+                      // rest of this screen was asked to stop doing, and it
+                      // costs a line of the fold on a phone. The English name is
+                      // still one tap away in the step-jump list.
                       const ta = currentStep.step_title_ta;
                       const wantsTamil = instructionLang === 'ta' && Boolean(ta);
                       return (
@@ -1360,16 +1364,6 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                           >
                             {wantsTamil ? ta : currentStep.step_title_en}
                           </h2>
-                          {(wantsTamil || ta) && (
-                            <p
-                              className={`text-base text-amber-400 font-semibold mt-1 ${
-                                wantsTamil ? '' : 'font-tamil'
-                              }`}
-                              lang={wantsTamil ? 'en' : 'ta'}
-                            >
-                              {wantsTamil ? currentStep.step_title_en : ta}
-                            </p>
-                          )}
                         </>
                       );
                     })()}

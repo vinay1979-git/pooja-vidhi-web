@@ -38,6 +38,9 @@ export interface UiText {
 
   /* navigation */
   stepOf: (n: number, total: number) => string;
+  /** The prefix in the step-jump list, where the total is already obvious. */
+  stepNumber: (n: number) => string;
+  skipped: string;
   previous: string;
   nextStep: string;
   startPooja: string;
@@ -93,6 +96,8 @@ const en: UiText = {
   close: 'Close',
 
   stepOf: (n, total) => `Step ${n} of ${total}`,
+  stepNumber: (n) => `Step ${n}`,
+  skipped: 'Skipped',
   previous: 'Previous',
   nextStep: 'Next Step',
   startPooja: 'Start Pooja',
@@ -145,6 +150,8 @@ const ta: UiText = {
   close: 'மூடு',
 
   stepOf: (n, total) => `படி ${n} / ${total}`,
+  stepNumber: (n) => `படி ${n}`,
+  skipped: 'தவிர்க்கப்பட்டது',
   previous: 'முந்தைய',
   nextStep: 'அடுத்த படி',
   startPooja: 'பூஜையைத் தொடங்கு',
