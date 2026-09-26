@@ -218,6 +218,10 @@ const EXPECT_ARCHANA = {
   'ganesha_standard/Patra Pooja (21 Leaves)': 21,
   'ganesha_standard/Pushpa Pooja (21 Flowers)': 21,
   'ganesha_standard/Durva Pooja (21 Names)': 21,
+  // The sixteen names of the preliminary Vighneshwara pooja, added in 0025.
+  // The obstacle-removing rite has its own archana, distinct from the main
+  // pooja's Anga, Patra, Pushpa and Durva lists.
+  'ganesha_standard/Vighneshwara Shodasha Nama Archana': 16,
   'varalakshmi_vratham/Anga Pooja': 15,
   'varalakshmi_vratham/Nonbu Sharadu Pooja': 9,
   // Not a namavali: the arghyam verses, each with its pouring refrain, moved

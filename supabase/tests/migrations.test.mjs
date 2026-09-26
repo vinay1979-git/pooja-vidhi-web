@@ -1138,6 +1138,40 @@ await assert('the Varalakshmi replace did not run twice',
 await assert('still 37 Ganesha steps',
   `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'`, 37);
 
+console.log('\n[9aj] 0027 the why for the new steps');
+await step('0027_new_step_philosophy.sql',
+  () => db.exec(sql(`${MIG}/0027_new_step_philosophy.sql`)));
+await assert('no Ganesha step is left without a philosophy',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and (philosophy_en is null or btrim(philosophy_en) = '')`, 0);
+// Two steps sharing this text WITHIN one pooja is invisible on screen. Across
+// poojas it is correct: the purvangam belongs to the act, not the deity, so
+// Achamanam, Anga Vandanam, Vighneshwara Dhyanam, Pranayamam, Ghanta Pooja and
+// Kalasha Pooja each carry one explanation that both poojas use. An unscoped
+// version of this check failed on exactly those six.
+await assert('no two steps in one pooja share a philosophy',
+  `select count(*) from (select pooja_id, philosophy_en from pooja_steps
+     where philosophy_en is not null group by 1, 2 having count(*) > 1) x`, 0);
+await assert('the shared purvangam explanations are still shared across poojas',
+  `select count(*) from (select philosophy_en from pooja_steps
+     where philosophy_en is not null group by 1 having count(*) > 1) x`, 6);
+// Unsourced prose under a source_ref that cites a printed book is a quiet
+// overclaim, so the thirteen rows 0027 wrote say which part is the project's
+// own. Exactly thirteen: an earlier version asserted that EVERY step citing the
+// book carried the note, which failed on six whose mantra comes from the book
+// but whose philosophy was written long before it arrived. Those six are not
+// wrong, they are just older, and retrofitting the note to all 53 steps is its
+// own job.
+await assert('the thirteen new steps declare their prose as unsourced',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+     and source_ref like '%not taken from a source%'`, 13);
+
+console.log('\n[9ak] 0027 idempotency');
+await step('0027 re-run', () => db.exec(sql(`${MIG}/0027_new_step_philosophy.sql`)));
+await assert('the provenance note was not appended twice',
+  `select count(*) from pooja_steps
+     where source_ref like '%not taken from a source%not taken from a source%'`, 0);
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
