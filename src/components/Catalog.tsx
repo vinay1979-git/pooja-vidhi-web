@@ -81,7 +81,7 @@ export default async function Catalog({ section }: { section: CatalogSection }) 
     <div className="min-h-screen bg-stone-950 text-stone-100 font-sans selection:bg-amber-500 selection:text-ink-inverse pb-20">
       {/* Top Divine Navigation Bar */}
       <header className="sticky top-0 z-40 bg-stone-900/90 backdrop-blur-md border-b border-amber-500/20 shadow-xl">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-y-3 gap-x-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-ink-inverse shadow-lg shadow-amber-600/30">
               <Flame className="w-6 h-6 fill-stone-950" />
@@ -96,7 +96,42 @@ export default async function Catalog({ section }: { section: CatalogSection }) 
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-3 text-xs font-semibold text-amber-300">
+          {/* WHICH SHELF, at the top of the page and inside the sticky bar, so it
+              is the first thing seen and never scrolls away. It was below the
+              hero banner first, which put the app's two halves underneath a
+              paragraph about the app.
+
+              Two routes rather than a client-side filter, so the tab you are on
+              is a URL: bookmarkable, sendable, server-rendered, no JavaScript. */}
+          <nav
+            className="order-3 w-full sm:order-none sm:w-auto flex items-center gap-2"
+            aria-label="Catalogue sections"
+          >
+            {(['pooja', 'nitya'] as CatalogSection[]).map((key) => {
+              const sec = SECTIONS[key];
+              const active = key === section;
+              return (
+                <Link
+                  key={key}
+                  href={sec.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-colors ${
+                    active
+                      ? 'bg-amber-500 text-ink-inverse border-amber-400 shadow-md'
+                      : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40 hover:text-amber-300'
+                  }`}
+                >
+                  {key === 'nitya' ? <Sunrise className="w-4 h-4" /> : <Flame className="w-4 h-4" />}
+                  {sec.tab}
+                  <span className={`text-xs font-semibold ${active ? 'opacity-70' : 'text-stone-500'}`}>
+                    {counts[key]}
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="hidden lg:flex items-center gap-3 text-xs font-semibold text-amber-300">
             <span className="px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Auspicious Panchangam Live
             </span>
@@ -133,34 +168,6 @@ export default async function Catalog({ section }: { section: CatalogSection }) 
             </div>
           </div>
         </section>
-
-        {/* Which shelf. Two routes rather than a client-side filter, so each is
-            linkable, server-rendered and costs no JavaScript -- and so the tab
-            you are on survives being bookmarked or sent to someone. */}
-        <nav className="flex items-center gap-2" aria-label="Catalogue sections">
-          {(['pooja', 'nitya'] as CatalogSection[]).map((key) => {
-            const s = SECTIONS[key];
-            const active = key === section;
-            return (
-              <Link
-                key={key}
-                href={s.href}
-                aria-current={active ? 'page' : undefined}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors ${
-                  active
-                    ? 'bg-amber-500 text-ink-inverse border-amber-400 shadow-md'
-                    : 'bg-stone-900 text-stone-300 border-stone-800 hover:border-amber-500/40 hover:text-amber-300'
-                }`}
-              >
-                {key === 'nitya' ? <Sunrise className="w-4 h-4" /> : <Flame className="w-4 h-4" />}
-                {s.tab}
-                <span className={`text-xs font-semibold ${active ? 'opacity-70' : 'text-stone-500'}`}>
-                  {counts[key]}
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
 
         {/* Catalog Search & Grid Section */}
         <section className="space-y-6">
