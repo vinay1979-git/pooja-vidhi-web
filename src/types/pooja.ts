@@ -113,6 +113,15 @@ export interface Pooja {
    * exist. Absent or 'published' behaves exactly as before.
    */
   status?: 'published' | 'planned';
+  /**
+   * Why the rite is kept at all: purpose, the idea behind its shape, what it is
+   * for. Four to seven sentences, shown on the preparation screen.
+   *
+   * Distinct from PoojaStep.philosophy_en, which explains one step. This is the
+   * answer to "why are you doing this", not "why this bit of it".
+   */
+  why_en?: string;
+  why_ta?: string;
 }
 
 export interface PoojaStep {

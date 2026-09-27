@@ -1734,6 +1734,48 @@ await assert('and the gendered pronoun went with the noun',
      where philosophy_en like '%what he is about to become%'`, 0);
 
 
+console.log('\n[9bf] 0043 nitya karmas listed before they are written');
+await assert('before 0043 there is no status column',
+  `select count(*) from information_schema.columns
+     where table_schema = 'public' and table_name = 'poojas' and column_name = 'status'`, 0);
+await step('0043_nitya_karma_placeholders.sql',
+  () => db.exec(sql(`${MIG}/0043_nitya_karma_placeholders.sql`)));
+await assert('four rites are listed as planned',
+  `select count(*) from poojas where status = 'planned' and ritual_class = 'nitya'`, 4);
+// The existing three must not have been knocked off published by a default.
+await assert('and everything that was here stays published',
+  `select count(*) from poojas
+     where id in ('ganesha_standard','varalakshmi_vratham','nitya_panchayatana')
+       and status = 'published'`, 3);
+// What "planned" MEANS. A planned pooja with steps is a rite the catalogue is
+// hiding, which is the failure nobody would notice -- nothing errors.
+await assert('no planned rite has steps',
+  `select count(*) from pooja_steps s join poojas p on p.id = s.pooja_id
+     where p.status = 'planned'`, 0);
+// deities has five NOT NULL columns; an insert naming only name_en parses and
+// then fails at run time. Agni is supplied whole.
+await assert('Agni arrived with its dative',
+  `select count(*) from deities where id = 'agni' and name_dative_deva is not null`, 1);
+
+
+console.log('\n[9bg] 0044 why we do it');
+await assert('before 0044 no pooja explains itself',
+  `select count(*) from information_schema.columns
+     where table_schema = 'public' and table_name = 'poojas' and column_name = 'why_en'`, 0);
+await step('0044_why_we_do_it.sql', () => db.exec(sql(`${MIG}/0044_why_we_do_it.sql`)));
+await assert('every published pooja now does',
+  `select count(*) from poojas
+     where status = 'published' and coalesce(trim(why_en), '') <> ''
+       and coalesce(trim(why_ta), '') <> ''`, 3);
+// One template filled three times is how the five nitya archanas ended up
+// sharing a paragraph; see 0040. Three rites, three answers.
+await assert('and no two of them say the same thing',
+  `select count(distinct why_en) from poojas where why_en is not null`, 3);
+await assert('planned rites carry none, having nowhere to show it',
+  `select count(*) from poojas
+     where status = 'planned' and coalesce(trim(why_en), '') <> ''`, 0);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {

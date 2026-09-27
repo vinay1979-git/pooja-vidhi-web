@@ -42,7 +42,8 @@ function toLegacyGender(rule: GenderRule | null): 'all' | 'male' | 'female' {
 }
 
 // Columns that arrive with a later migration than the code that asks for them:
-// recipe_note_ta with 0007, karta_recommended with 0041. Selecting a column
+// recipe_note_ta with 0007, karta_recommended with 0041, status with 0043 and
+// why_en/why_ta with 0044. Selecting a column
 // that does not exist yet fails the WHOLE query, so the app would break in the
 // window between deploying the code and running the migration.
 //
@@ -53,7 +54,9 @@ function toLegacyGender(rule: GenderRule | null): 'all' | 'male' | 'female' {
 // display data, so degrading is correct; a genuinely broken query still throws.
 const POOJA_SELECT = (withOptional: boolean) => `
   id, title_en, title_ta, description_en, description_ta, duration_mins,
-  ritual_class, deity_id, eligibility${withOptional ? ', karta_recommended' : ''},
+  ritual_class, deity_id, eligibility${
+    withOptional ? ', status, karta_recommended, why_en, why_ta' : ''
+  },
   samagri_items ( seq, item_en, item_ta, quantity, category, is_required ),
   naivedyam_items ( tier, seq, name_en, name_ta, recipe_note${
     withOptional ? ', recipe_note_ta' : ''
@@ -97,7 +100,10 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
     description_en: string | null;
     description_ta: string | null;
     duration_mins: number | null;
+    status?: string | null;
     karta_recommended?: string | null;
+    why_en?: string | null;
+    why_ta?: string | null;
     samagri_items?: Record<string, unknown>[];
     naivedyam_items?: Record<string, unknown>[];
   };
@@ -146,6 +152,9 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
     karta_recommended: KARTA_GENDERS.includes(row.karta_recommended as KartaGender)
       ? (row.karta_recommended as KartaGender)
       : undefined,
+    status: row.status === 'planned' ? 'planned' : 'published',
+    why_en: row.why_en ?? undefined,
+    why_ta: row.why_ta ?? undefined,
     samagri_list: samagri,
     naivedyam_suggestions: naivedyam,
     naivedyam_avoid: naivedyamRows

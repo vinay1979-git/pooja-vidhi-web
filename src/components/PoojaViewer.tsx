@@ -1147,6 +1147,34 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               </div>
             </div>
 
+            {/* Why this rite is kept at all.
+
+                Above the resume card and the sankalpam settings on purpose: it
+                is the only thing on this screen that is not a control, and
+                someone meeting the rite for the first time should read it
+                before being asked for their gotra.
+
+                English falls back silently when there is no Tamil. The step
+                instruction announces its fallback because a missing
+                translation there is a gap you can measure against the English
+                beside it; here there is nothing to compare, so a notice would
+                be noise. */}
+            {pooja.why_en && (
+              <div className="rounded-2xl bg-gradient-to-br from-amber-950/25 via-stone-900 to-stone-950 border border-amber-500/25 p-4 sm:p-6 shadow-lg space-y-2.5">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                  <Lightbulb className="w-4 h-4 text-amber-400" /> {t.whyWeDoIt}
+                </h3>
+                <p
+                  className={`text-sm text-stone-300 leading-relaxed ${
+                    uiLang === 'ta' && pooja.why_ta ? 'font-tamil' : ''
+                  }`}
+                  lang={uiLang === 'ta' && pooja.why_ta ? 'ta' : 'en'}
+                >
+                  {(uiLang === 'ta' && pooja.why_ta) || pooja.why_en}
+                </p>
+              </div>
+            )}
+
             {/* Somewhere to pick up, and a way to look at the whole rite.
 
                 The resume card appears only when there is a saved position

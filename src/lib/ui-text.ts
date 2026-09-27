@@ -101,6 +101,9 @@ export interface UiText {
   ifUnavailable: (what: string) => string;
   poojaComplete: string;
 
+  /** Heading over the pooja-level "why is this kept at all" card. */
+  whyWeDoIt: string;
+
   /* steps sheet and resuming */
   /** Title of the sheet that lists every step. */
   stepsTitle: string;
@@ -197,6 +200,7 @@ const en: UiText = {
   ifUnavailable: (what) => `If unavailable: ${what}`,
   poojaComplete: 'Pooja Sampoornam!',
 
+  whyWeDoIt: 'Why we do it',
   stepsTitle: 'Steps',
   phasePurvangam: 'Purvangam — the opening',
   phasePradhana: 'Pradhana — the worship itself',
@@ -266,6 +270,7 @@ const ta: UiText = {
 
   // Shown when the DATA has no Tamil, not when the chrome has none. The chrome
   // above is always complete; some step content is not yet translated.
+  whyWeDoIt: 'ஏன் இந்த வழிபாடு',
   stepsTitle: 'படிகள்',
   phasePurvangam: 'பூர்வாங்கம் — தொடக்கம்',
   phasePradhana: 'ப்ரதானம் — மூல வழிபாடு',

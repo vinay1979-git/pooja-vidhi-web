@@ -501,6 +501,22 @@ for (const p of poojas) {
   }
   if (!p.description_en) warn(p.id, 'has no description_en');
   if (!p.description_ta) warn(p.id, 'has no description_ta');
+
+  // "Why we do it", 0044. The app explained every step and never the rite, and
+  // the point of a gate here is that the next pooja added cannot quietly ship
+  // without one -- it is the easiest section to forget, because nothing on
+  // screen looks broken when it is missing.
+  //
+  // Absent on a planned rite is correct: there is no preparation screen to
+  // show it on, and writing it before transcribing the book would be writing
+  // about something nobody has read.
+  if (!isPlanned(p)) {
+    if (!p.why_en) fail(p.id, 'has no "why we do it" text');
+    if (!p.why_ta) warn(p.id, 'has no Tamil "why we do it" text');
+    else checkTamil(`${p.id}.why_ta`, p.why_ta);
+  } else if (p.why_en) {
+    fail(p.id, 'is planned but carries "why we do it" text, which nothing shows');
+  }
   // A nitya rite has no calendar rule because it is performed every day. 0002
   // makes rule_type nullable for precisely this, so the absence is correct
   // rather than missing.
