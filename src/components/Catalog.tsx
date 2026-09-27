@@ -195,12 +195,24 @@ export default async function Catalog({ section }: { section: CatalogSection }) 
             <p className="text-sm text-stone-400 py-8 text-center">{copy.empty}</p>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {visible.map((pooja) => (
-              <Link
-                key={pooja.id}
-                href={`/pooja/${pooja.id}`}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-stone-900/80 border border-stone-800 hover:border-amber-500/50 p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-amber-950/40"
-              >
+            {visible.map((pooja) => {
+              // A planned rite is a card, not a link. The viewer would not
+              // error on one -- it would cheerfully render a preparation screen
+              // and a Start button for a pooja with no steps -- so the guard
+              // has to be here, where the link is made.
+              //
+              // Two explicit branches rather than one polymorphic element: a
+              // `const Card = planned ? 'div' : Link` needs href to be
+              // optional, and Link's href is not, so it only typechecks with a
+              // cast that would hide exactly the mistake worth catching.
+              const planned = pooja.status === 'planned';
+              const cls = `group relative flex flex-col justify-between overflow-hidden rounded-2xl border p-6 transition-all duration-300 ${
+                planned
+                  ? 'bg-stone-900/40 border-stone-800/70 opacity-75'
+                  : 'bg-stone-900/80 border-stone-800 hover:border-amber-500/50 hover:-translate-y-1 hover:shadow-2xl hover:shadow-amber-950/40'
+              }`;
+              const body = (
+                <>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl group-hover:bg-amber-500/15 transition-all pointer-events-none" />
 
                 <div className="space-y-4">
@@ -234,14 +246,31 @@ export default async function Catalog({ section }: { section: CatalogSection }) 
                 </div>
 
                 {/* Bottom Action Link */}
-                <div className="pt-6 border-t border-stone-800/80 flex items-center justify-between text-xs font-bold text-amber-400 group-hover:text-amber-300 transition-colors">
-                  <span>Begin Vidhi (பூஜை தொடங்கு)</span>
-                  <div className="p-2 rounded-lg bg-stone-800 group-hover:bg-amber-500 group-hover:text-ink-inverse transition-colors">
-                    <ArrowRight className="w-4 h-4" />
+                {planned ? (
+                  <div className="pt-6 border-t border-stone-800/80 flex items-center gap-2 text-xs font-bold text-stone-500">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Being transcribed — not ready yet</span>
                   </div>
+                ) : (
+                  <div className="pt-6 border-t border-stone-800/80 flex items-center justify-between text-xs font-bold text-amber-400 group-hover:text-amber-300 transition-colors">
+                    <span>Begin Vidhi (பூஜை தொடங்கு)</span>
+                    <div className="p-2 rounded-lg bg-stone-800 group-hover:bg-amber-500 group-hover:text-ink-inverse transition-colors">
+                      <ArrowRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                )}
+                </>
+              );
+              return planned ? (
+                <div key={pooja.id} className={cls} aria-disabled>
+                  {body}
                 </div>
-              </Link>
-            ))}
+              ) : (
+                <Link key={pooja.id} href={`/pooja/${pooja.id}`} className={cls}>
+                  {body}
+                </Link>
+              );
+            })}
           </div>
         </section>
       </main>

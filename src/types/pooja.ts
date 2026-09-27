@@ -106,6 +106,13 @@ export interface Pooja {
    * opening value of the karta toggle.
    */
   karta_recommended?: KartaGender;
+  /**
+   * 'planned' means listed but not yet written: the catalogue shows a card
+   * rather than a link, because the rite has no steps and opening it would
+   * give a preparation screen and a Start button for something that does not
+   * exist. Absent or 'published' behaves exactly as before.
+   */
+  status?: 'published' | 'planned';
 }
 
 export interface PoojaStep {
