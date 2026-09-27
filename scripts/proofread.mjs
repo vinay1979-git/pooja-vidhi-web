@@ -167,8 +167,20 @@ for (const p of poojas) {
   const mine = steps.filter((s) => s.pooja_id === p.id).map((s) => s.step_number).sort((a, b) => a - b);
   mine.forEach((n, i) => { if (n !== i + 1) fail(p.id, `step numbers are not 1..n: expected ${i + 1}, got ${n}`); });
   if (!mine.length) fail(p.id, 'has no steps');
-  // Every pooja must be walkable in each mode it claims.
-  for (const mode of ['main', 'punar', 'udvasana']) {
+  // Every pooja must be walkable in each mode IT CLAIMS -- not in a fixed list.
+  //
+  // This used to require punar and udvasana of every pooja, which is wrong for a
+  // nitya rite: it is performed every morning, so there is no second day to
+  // return for and no image to release. Demanding those modes of it would have
+  // forced empty steps into the data to satisfy a checker.
+  //
+  // 'main' is still required of everything: a pooja nobody can walk once is not
+  // a pooja. Beyond that, a mode has to be walkable only if some step claims it.
+  const claimed = new Set(['main']);
+  for (const s of steps) {
+    if (s.pooja_id === p.id) for (const m of s.modes ?? []) claimed.add(m);
+  }
+  for (const mode of claimed) {
     const n = steps.filter((s) => s.pooja_id === p.id && s.modes?.includes(mode)).length;
     if (n === 0) fail(p.id, `mode "${mode}" has no steps`);
     if (n === 1) warn(p.id, `mode "${mode}" has only one step`);
@@ -178,7 +190,17 @@ for (const p of poojas) {
 // --- prose that should not be shared ----------------------------------------
 // The six purvangam steps are copied between poojas on purpose. Anything else
 // sharing an instruction or a philosophy is likely a copy-paste slip.
-const SHARED_OK = new Set(['Achamanam', 'Anga Vandanam', 'Vighneshwara Dhyanam', 'Pranayamam', 'Kalasha Pooja', 'Ghanta Pooja']);
+// Steps that are deliberately the SAME text in more than one pooja. The book
+// works this way too: its Nitya section lists the shared opening as page
+// references into the Purvanga rather than reprinting it, and 0037 copies these
+// from the Ganesha pooja for exactly that reason. Identical text here is the
+// design, not a smell -- and a warning that fires fifteen times on purpose is a
+// warning nobody reads.
+const SHARED_OK = new Set([
+  'Achamanam', 'Anga Vandanam', 'Vighneshwara Dhyanam', 'Pranayamam',
+  'Kalasha Pooja', 'Ghanta Pooja',
+  'Asana Pooja', 'Shankha Pooja', 'Atma Pooja', 'Peetha Pooja', 'Guru Dhyanam',
+]);
 for (const field of ['instruction_en', 'meaning_en', 'philosophy_en']) {
   const seen = new Map();
   for (const s of steps) {
@@ -235,6 +257,16 @@ const EXPECT_ARCHANA = {
   // off. Four for Ganesha, from the kalpam's punararghyam; one for Varalakshmi.
   'ganesha_standard/Ksheera Arghyam': 4,
   'varalakshmi_vratham/Ksheera Arghyam': 1,
+  // The daily rite worships five deities, so it has five archanas rather than
+  // one, each with its own flower. The Vishnu list is twenty-four counted names:
+  // the book prints a twenty-fifth, hayagreevaaya, in brackets and does not
+  // count it, the same convention as the two bracketed names in the Lakshmi 108.
+  'nitya_panchayatana/Archana — Vinayaka': 16,
+  'nitya_panchayatana/Archana — Surya': 12,
+  'nitya_panchayatana/Archana — Vishnu': 24,
+  'nitya_panchayatana/Archana — Shiva': 8,
+  'nitya_panchayatana/Archana — Devi': 8,
+  'nitya_panchayatana/Deva Tarpanam': 17,
 };
 // A TITLE is a few words. A mantra has dandas and runs to hundreds of
 // characters. 0025 put the Tamil mantra into step_title_ta on twelve steps and
@@ -326,13 +358,21 @@ const EXPECT_PROSE_COUNT = {
   // leaving a standing warning nobody reads.
   'ganesha_standard/Ksheera Arghyam': null,
   'varalakshmi_vratham/Ksheera Arghyam': null,
+  'nitya_panchayatana/Archana — Vinayaka': 'sixteen',
+  'nitya_panchayatana/Archana — Surya': 'twelve',
+  'nitya_panchayatana/Archana — Vishnu': 'twenty-four',
+  'nitya_panchayatana/Archana — Shiva': 'eight',
+  'nitya_panchayatana/Archana — Devi': 'eight',
+  // The tarpanam's prose counts 8 + 8 + 1 rather than 17, and says so in the
+  // philosophy: "Seventeen offerings, not sixteen".
+  'nitya_panchayatana/Deva Tarpanam': 'seventeen',
 };
 for (const s of steps) {
   const key = `${s.pooja_id}/${s.step_title_en}`;
   if (!(key in EXPECT_PROSE_COUNT)) continue;
   const word = EXPECT_PROSE_COUNT[key];
   if (word === null) continue;   // declared exempt, see the table
-  const prose = [s.instruction_en, s.meaning_en].filter(Boolean).join(' ');
+  const prose = [s.instruction_en, s.meaning_en, s.philosophy_en].filter(Boolean).join(' ');
   if (!prose) continue;
   if (!new RegExp(`\\b${word}\\b`, 'i').test(prose)) {
     fail(key, `has ${byStep.get(key) ?? 0} archana rows but its prose never says "${word}"`);
@@ -416,7 +456,13 @@ for (const p of poojas) {
   if (p.title_ta) checkTamil(`${p.id}.title_ta`, p.title_ta);
   if (!p.deity_id) fail(p.id, 'has no deity');
   else if (!deities.some((d) => d.id === p.deity_id)) fail(p.id, `deity "${p.deity_id}" does not exist`);
-  if (!p.rule_type) warn(p.id, 'has no calendar rule');
+  // A nitya rite has no calendar rule because it is performed every day. 0002
+  // makes rule_type nullable for precisely this, so the absence is correct
+  // rather than missing.
+  if (!p.rule_type && p.ritual_class !== 'nitya') warn(p.id, 'has no calendar rule');
+  if (p.rule_type && p.ritual_class === 'nitya') {
+    fail(p.id, 'is nitya but carries a calendar rule; a daily rite has no date');
+  }
   if (!p.description_en) warn(p.id, 'has no description_en');
 }
 for (const d of deities) {

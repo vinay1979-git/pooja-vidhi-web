@@ -1518,6 +1518,170 @@ await assert('and the Devanagari visarga U+0903',
        and a.invoked_name_deva like '%' || chr(2307) || '%'`, 24);
 
 
+console.log('\n[9ax] 0036/0037 the Nitya Panchayatana Pooja');
+await assert('before, the app has two poojas', `select count(*) from poojas`, 2);
+// The enum value has to be committed before the insert that names it, which is
+// why these are two migrations rather than one.
+await step('0036_ritual_class_nitya.sql',
+  () => db.exec(sql(`${MIG}/0036_ritual_class_nitya.sql`)));
+await step('0037_nitya_panchayatana_pooja.sql',
+  () => db.exec(sql(`${MIG}/0037_nitya_panchayatana_pooja.sql`)));
+
+await assert('now there are three', `select count(*) from poojas`, 3);
+await assert('and it is classed nitya, with no calendar rule',
+  `select count(*) from poojas where id = 'nitya_panchayatana'
+     and ritual_class = 'nitya' and rule_type is null`, 1);
+await assert('39 steps', `select count(*) from pooja_steps
+  where pooja_id = 'nitya_panchayatana'`, 39);
+await assert('numbered 1..39 with no gaps', `select count(distinct step_number)
+  from pooja_steps where pooja_id = 'nitya_panchayatana'`, 39);
+// The shape that makes this pooja different from the other two.
+await assert('five avahanams', `select count(*) from pooja_steps
+  where pooja_id = 'nitya_panchayatana' and step_title_en like 'Avahanam%'`, 5);
+await assert('five archanas', `select count(*) from pooja_steps
+  where pooja_id = 'nitya_panchayatana' and step_title_en like 'Archana%'`, 5);
+await assert('the four new deities exist', `select count(*) from deities
+  where id in ('shiva','vishnu','surya','ambika')`, 4);
+// The purvangam was copied from Ganesha, so it must have arrived with content.
+await assert('twelve purvangam steps, none of them empty',
+  `select count(*) from pooja_steps where pooja_id = 'nitya_panchayatana'
+     and phase = 'purvangam' and coalesce(trim(mantra_sanskrit), '') <> ''`, 12);
+await assert('and the copied Achamanam is identical to the Ganesha one',
+  `select count(*) from pooja_steps a join pooja_steps b
+     on a.mantra_sanskrit = b.mantra_sanskrit
+   where a.pooja_id = 'nitya_panchayatana' and a.step_title_en = 'Achamanam'
+     and b.pooja_id = 'ganesha_standard'  and b.step_title_en = 'Achamanam'`, 1);
+await assert('the Vishnu archana has the book twenty-four names',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'nitya_panchayatana' and s.step_title_en like 'Archana%Vishnu%'`, 24);
+await assert('the tarpanam has seventeen offerings, not sixteen',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'nitya_panchayatana' and s.step_title_en = 'Deva Tarpanam'`, 17);
+await assert('every nitya step has both instruction languages',
+  `select count(*) from pooja_steps where pooja_id = 'nitya_panchayatana'
+     and (coalesce(trim(instruction_en), '') = '' or coalesce(trim(instruction_ta), '') = '')`, 0);
+await assert('no ASCII colon anywhere in it',
+  `select count(*) from pooja_steps where pooja_id = 'nitya_panchayatana'
+     and (mantra_sanskrit like '%:%' or mantra_tamil like '%:%'
+       or mantra_translit like '%:%')`, 0);
+
+console.log('\n[9ay] 0037 idempotency');
+await step('0037 re-run', () => db.exec(sql(`${MIG}/0037_nitya_panchayatana_pooja.sql`)));
+await assert('still 39 steps', `select count(*) from pooja_steps
+  where pooja_id = 'nitya_panchayatana'`, 39);
+await assert('and the Vinayaka archana is still sixteen names, not thirty-two',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'nitya_panchayatana' and s.step_title_en like 'Archana%Vinayaka%'`, 16);
+
+
+console.log('\n[9az] 0038 row level security');
+// In THIS harness poojas and pooja_steps already have RLS, because the stub at
+// the top of the file turns it on -- those two tables predate the tracked
+// migrations and are not protected by any file in supabase/migrations. That is
+// the gap 0038 closes: a database built from migrations alone would have them
+// open, and nothing in the repo would say so.
+await assert('the ten tables 0001 protects already have RLS here',
+  `select count(*) from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
+     where ns.nspname = 'public' and c.relrowsecurity
+       and c.relname in ('deities','namavalis','namavali_items','archana_items',
+                         'samagri_items','naivedyam_items')`, 6);
+await assert('and no migration protects poojas or pooja_steps',
+  `select count(*) from pg_policies where schemaname = 'public'
+     and tablename in ('poojas','pooja_steps')
+     and policyname like 'public read%'`, 0);
+
+await step('0038_rls_read_only.sql',
+  () => db.exec(sql(`${MIG}/0038_rls_read_only.sql`)));
+
+await assert('every content table now has row level security',
+  `select count(*) from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
+     where ns.nspname = 'public'
+       and c.relname in ('poojas','pooja_steps','deities','namavalis','namavali_items',
+                         'archana_items','samagri_items','naivedyam_items')
+       and not c.relrowsecurity`, 0);
+await assert('each has a select policy, so the app can still read',
+  `select count(distinct tablename) from pg_policies
+     where schemaname = 'public' and cmd = 'SELECT'
+       and tablename in ('poojas','pooja_steps','deities','namavalis','namavali_items',
+                         'archana_items','samagri_items','naivedyam_items')`, 8);
+await assert('and none of them has any write policy',
+  `select count(*) from pg_policies
+     where schemaname = 'public' and cmd <> 'SELECT'
+       and tablename in ('poojas','pooja_steps','deities','namavalis','namavali_items',
+                         'archana_items','samagri_items','naivedyam_items')`, 0);
+// The one table that MUST keep its write policies.
+await assert('user_sessions keeps its own per-user write policies',
+  `select count(*) from pg_policies
+     where schemaname = 'public' and tablename = 'user_sessions' and cmd <> 'SELECT'`, 3);
+// And the data is still there and still readable.
+await assert('the three poojas survived', `select count(*) from poojas`, 3);
+
+console.log('\n[9ba] 0038 idempotency');
+await step('0038 re-run', () => db.exec(sql(`${MIG}/0038_rls_read_only.sql`)));
+// 0038 adds its own 'public read pooja_steps'; the dashboard-era policy under a
+// different name stays. Two permissive SELECT policies are OR'd, so reads still
+// work -- what matters is that a re-run does not keep adding more.
+await assert('the re-run adds no further policy',
+  `select count(*) from pg_policies
+     where schemaname = 'public' and tablename = 'pooja_steps'
+       and policyname = 'public read pooja_steps'`, 1);
+
+
+console.log('\n[9bb] 0039 the four faults 0037 shipped');
+// Every one of these asserts the BROKEN state first. The [9ax] block asserted
+// there were seventeen tarpanam rows, and there were -- the faults were inside
+// the rows, which is exactly what a count cannot see.
+await assert('before 0039, the tarpanam is invoked by row numbers',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'nitya_panchayatana' and s.step_title_en = 'Deva Tarpanam'
+       and a.invoked_name_deva ~ '^[0-9]+$'`, 17);
+await assert('before 0039, a mantra contains the word Morning',
+  `select count(*) from pooja_steps where pooja_id = 'nitya_panchayatana'
+     and mantra_sanskrit like '%Morning%'`, 1);
+await assert('before 0039, the sankalpam has no dynamic slot',
+  `select count(*) from pooja_steps where pooja_id = 'nitya_panchayatana'
+     and step_title_en = 'Sankalpam'
+     and mantra_sanskrit like '%DYNAMIC_PANCHANGAM_DATA%'`, 0);
+await assert('before 0039, there is no samagri',
+  `select count(*) from samagri_items where pooja_id = 'nitya_panchayatana'`, 0);
+
+await step('0039_nitya_repair.sql',
+  () => db.exec(sql(`${MIG}/0039_nitya_repair.sql`)));
+
+await assert('no tarpanam row is invoked by a number',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'nitya_panchayatana' and s.step_title_en = 'Deva Tarpanam'
+       and a.invoked_name_deva ~ '^[0-9]+$'`, 0);
+await assert('and all seventeen have a Devanagari name',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'nitya_panchayatana' and s.step_title_en = 'Deva Tarpanam'
+       and a.invoked_name_deva ~ '[ऀ-ॿ]'`, 17);
+await assert('no Latin left in any nitya mantra but the dynamic slot',
+  `select count(*) from pooja_steps where pooja_id = 'nitya_panchayatana'
+     and replace(coalesce(mantra_sanskrit, ''), '[DYNAMIC_PANCHANGAM_DATA]', '') ~ '[A-Za-z]'`, 0);
+await assert('the sankalpam is dynamic and carries no almanac blanks',
+  `select count(*) from pooja_steps where pooja_id = 'nitya_panchayatana'
+     and step_title_en = 'Sankalpam' and is_dynamic_sankalpam
+     and mantra_sanskrit like '%DYNAMIC_PANCHANGAM_DATA%'
+     and mantra_sanskrit not like '%*%'`, 1);
+await assert('samagri exists', `select count(*) from samagri_items
+  where pooja_id = 'nitya_panchayatana'`, 23);
+await assert('and a primary naivedyam', `select count(*) from naivedyam_items
+  where pooja_id = 'nitya_panchayatana' and tier = 'primary'`, 3);
+
+
+console.log('\n[9bc] 0040 five archanas, five explanations');
+await assert('before 0040 the five archanas share one philosophy',
+  `select count(distinct philosophy_en) from pooja_steps
+     where pooja_id = 'nitya_panchayatana' and step_title_en like 'Archana%'`, 1);
+await step('0040_nitya_archana_prose.sql',
+  () => db.exec(sql(`${MIG}/0040_nitya_archana_prose.sql`)));
+await assert('now each has its own', `select count(distinct philosophy_en) from pooja_steps
+  where pooja_id = 'nitya_panchayatana' and step_title_en like 'Archana%'`, 5);
+await assert('and its own meaning', `select count(distinct meaning_en) from pooja_steps
+  where pooja_id = 'nitya_panchayatana' and step_title_en like 'Archana%'`, 5);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
