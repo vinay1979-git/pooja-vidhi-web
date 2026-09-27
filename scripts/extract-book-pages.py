@@ -23,6 +23,12 @@ SLUGS = {
     "2.Nitya Pooja .pdf":                 "2-nitya",
     "3.Siddhivinayak Vratha Pooja.pdf":   "3-siddhivinayaka",
     "4. Varalakshmi Vratha Pooja.pdf":    "4-varalakshmi",
+    # A second book, and a different kind of source. The first five are phone
+    # photographs of a Giri edition; this is a library scan of Bhavan's 1974
+    # Sandhyavandanam, downloaded from archive.org. Lower resolution --
+    # 1374x2036 against ~1900x3500 -- but flat, evenly lit and never at an
+    # angle, which is the trade that matters for reading vowel signs.
+    "5. Sandhyavandanam (Bhavan 1974).pdf": "5-sandhyavandanam",
 }
 
 def main():
