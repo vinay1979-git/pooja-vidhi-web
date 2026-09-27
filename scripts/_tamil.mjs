@@ -30,6 +30,32 @@
  *   of modern Tamil and render as tofu in most fonts.
  */
 
+/**
+ * The Yajurveda gm nasal, U+A8F3.
+ *
+ * Krishna Yajurveda prints a nasal before a sibilant or a semivowel as ꣳ --
+ * गणपतिꣳ हवामहे, पार्थिवꣳरजः, ओꣳ सुवः. It is a separate letter and it lives in
+ * Devanagari EXTENDED (U+A8E0-U+A8FF), not the Devanagari block, which is why
+ * it slipped past two guards at once.
+ *
+ * Sanscript does not map it. Left alone it passes straight through into Tamil
+ * as a raw Devanagari codepoint -- ஓꣳ ஸுவ꞉ -- and into IAST as m̐, a
+ * candrabindu, which is neither what the book says nor something a reciter can
+ * pronounce. That is the avagraha, the om sign and the visarga for a fourth
+ * time: a character Sanscript cannot see, leaking into the output script.
+ *
+ * WHAT IT SHOULD BE IS NOT A JUDGEMENT CALL, because the book romanises it
+ * itself: gaNapatigum havaamahE. So gum, and கும் in Tamil.
+ *
+ * Handled by swapping it for a protected token BEFORE transliteration and
+ * expanding the token per target script afterwards. Post-processing the output
+ * instead would mean turning m̐ into gum in IAST, which would also corrupt a
+ * genuine candrabindu ँ -- Sanscript renders both the same way.
+ */
+const GM = 'ꣳ';
+const GM_TOKEN = '[VEDICGM]';
+const GM_AS = { tamil: 'கும்', default: 'gum' };
+
 /** Sanscript defers a voicing mark past a following ra or la. Undo that. */
 const MISPLACED_SUPERSCRIPT = /([க-ஹ])([ா-்]*)([ரல])([ா-்]*)([²³⁴])/g;
 
@@ -59,12 +85,17 @@ export const PROTECTED = /(\[[A-Z0-9_]+\]|[।॥])/;
 
 /** Devanagari -> `to`, leaving the protected tokens alone. */
 export function transliterate(Sanscript, text, to) {
+  // GM_TOKEN matches PROTECTED, so the split below carries it through
+  // untouched and it is expanded once the script is known.
+  const gm = to.startsWith('tamil') ? GM_AS.tamil : GM_AS.default;
   return String(text)
+    .replaceAll(GM, GM_TOKEN)
     .split(PROTECTED)
     .map((part) => {
       if (part === '' || PROTECTED.test(part)) return part;
       const done = Sanscript.t(part, 'devanagari', to);
       return to.startsWith('tamil') ? tidyTamil(fixSuperscripts(done)) : done;
     })
-    .join('');
+    .join('')
+    .replaceAll(GM_TOKEN, gm);
 }

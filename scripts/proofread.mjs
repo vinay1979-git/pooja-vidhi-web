@@ -44,7 +44,14 @@ const get = async (path) => {
 // them too, and the generators preserve them deliberately. They are not
 // evidence of Devanagari leaking into a Tamil field.
 const DANDA = /[।॥]/g;
-const DEVA = /[ऀ-ॣ०-ॿ]/;
+// Devanagari proper AND Devanagari Extended (U+A8E0-U+A8FF), which is where the
+// Vedic accent marks and the Yajurveda gm nasal live.
+//
+// The narrow range missed the gm sign. Transliterating the Sandhyavandanam
+// vyahritis produced Tamil reading `ஓꣳ ஸுவ꞉` -- a raw Devanagari codepoint
+// sitting inside a Tamil string, which is the avagraha, the om sign and the
+// visarga all over again, and this gate would have waved it through.
+const DEVA = /[ऀ-ॣ०-ॿ꣠-ꣿ]/;
 const TAMIL = /[஀-௿]/;
 const TELUGU = /[ఀ-౿]/;
 const BENGALI = /[ঀ-৿]/;

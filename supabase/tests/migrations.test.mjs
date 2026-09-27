@@ -1776,6 +1776,35 @@ await assert('planned rites carry none, having nowhere to show it',
      where status = 'planned' and coalesce(trim(why_en), '') <> ''`, 0);
 
 
+console.log('\n[9bh] 0045 the Yajurveda gm nasal');
+// The Devanagari is RIGHT and must stay right; only the derived columns are
+// wrong. Both halves asserted, because "no longer broken" and "still correct"
+// are different claims and a careless fix satisfies only the first.
+await assert('before 0045 four Tamil mantras carry a Devanagari-Extended sign',
+  `select count(*) from pooja_steps
+     where coalesce(mantra_tamil, '') ~ '[꣠-ꣿ]'`, 4);
+await assert('and their Devanagari carries it too, which is correct',
+  `select count(*) from pooja_steps
+     where coalesce(mantra_sanskrit, '') ~ '[꣠-ꣿ]'`, 4);
+await step('0045_vedic_gm_repair.sql', () => db.exec(sql(`${MIG}/0045_vedic_gm_repair.sql`)));
+await assert('no Tamil mantra carries it now',
+  `select count(*) from pooja_steps
+     where coalesce(mantra_tamil, '') ~ '[꣠-ꣿ]'`, 0);
+await assert('the Devanagari still does',
+  `select count(*) from pooja_steps
+     where coalesce(mantra_sanskrit, '') ~ '[꣠-ꣿ]'`, 4);
+// Scoped to the four repaired steps. Unscoped this returns eight: ku followed
+// by m is an ordinary Tamil sequence and occurs in mantras that have nothing to
+// do with this sign, so the loose version would pass on the wrong four rows.
+await assert('and the Tamil now reads kum, as the book romanises it',
+  `select count(*) from pooja_steps
+     where pooja_id = 'nitya_panchayatana'
+       and step_title_en in ('Naivedyam','Avahanam — Vinayaka','Dhoopam & Deepam','Karpura Neerajanam')
+       and mantra_tamil like '%கும்%'`, 4);
+await assert('no roman mantra keeps the candrabindu',
+  `select count(*) from pooja_steps where coalesce(mantra_translit, '') like '%m̐%'`, 0);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
