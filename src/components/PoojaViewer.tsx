@@ -13,6 +13,8 @@ import { LANGUAGES, SCRIPTS, coverageFor } from '@/lib/languages';
 import { SettingRow, SettingsPicker, type PickerOption } from '@/components/SettingsPicker';
 import { TempleBell } from '@/components/TempleBell';
 import { GopuramIcon } from '@/components/GopuramIcon';
+import { StepSheet } from '@/components/StepSheet';
+import { agoText, clearProgress, loadProgress, saveProgress, type SavedProgress } from '@/lib/progress';
 import type { KartaGender, PoojaMode } from '@/types/pooja';
 
 interface PoojaViewerProps {
@@ -79,6 +81,24 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   /** null = the settings list itself; otherwise the drill-down that is open. */
   const [picker, setPicker] = useState<'language' | 'script' | null>(null);
+
+  const [stepSheetOpen, setStepSheetOpen] = useState(false);
+
+  /**
+   * The furthest step reached this sitting, which is what makes a check mark
+   * mean something. currentStepIndex alone cannot: jump back to step 3 to
+   * re-read it and every step after it would stop looking done, although you
+   * did them.
+   */
+  const [furthestIndex, setFurthestIndex] = useState(-1);
+
+  /**
+   * Progress found in storage, offered rather than applied. Read in an effect
+   * rather than in useState's initialiser because localStorage does not exist
+   * on the server, and seeding state from it would make the first client render
+   * disagree with the server's.
+   */
+  const [resumable, setResumable] = useState<SavedProgress | null>(null);
 
   /**
    * Hide the header while the reader is scrolling down through a mantra, bring
@@ -492,12 +512,16 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   };
 
   // Helper to check if step is allowed for current kartaGender
+  // `who` defaults to the karta currently selected. It is a parameter because
+  // the resume card has to ask this question about the karta that was SAVED,
+  // before restoring it -- and duplicating the rule there is how the two copies
+  // drift apart.
   const isStepAvailableForGender = useCallback(
-    (step: PoojaStep) => {
-      if (!step.gender_target || step.gender_target === 'all' || kartaGender === 'couple') {
+    (step: PoojaStep, who: KartaGender = kartaGender) => {
+      if (!step.gender_target || step.gender_target === 'all' || who === 'couple') {
         return true;
       }
-      return step.gender_target === kartaGender;
+      return step.gender_target === who;
     },
     [kartaGender]
   );
@@ -534,10 +558,11 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     ? poojaMode
     : ((offeredModes.values().next().value as PoojaMode) ?? 'main');
 
+  /** Same reason as above for the parameter. */
   const isStepInMode = useCallback(
-    (step: PoojaStep) => {
+    (step: PoojaStep, mode: PoojaMode = effectiveMode) => {
       if (!modesTagged) return true;
-      return (step.modes ?? ['main']).includes(effectiveMode);
+      return (step.modes ?? ['main']).includes(mode);
     },
     [effectiveMode, modesTagged]
   );
@@ -619,6 +644,55 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     return parsedSamagriList.filter((item) => checkedSamagri[item.id]).length;
   }, [parsedSamagriList, checkedSamagri]);
 
+  /**
+   * Look for somewhere to pick up, once, on mount.
+   *
+   * Nothing is applied here. The reader lands on the preparation screen as
+   * always and is offered the choice, because opening the app and being moved
+   * somewhere you did not ask to go is worse than one extra tap -- and the
+   * preparation screen is where you would check your samagri before resuming
+   * anyway.
+   */
+  useEffect(() => {
+    // setState in an effect, deliberately, and the one render it costs is the
+    // price of not lying to the server.
+    //
+    // localStorage does not exist during SSR. Seeding this with a lazy useState
+    // initialiser would make the server render no banner and the client render
+    // one, which is a hydration mismatch. useSyncExternalStore is the usual
+    // answer for reading an external store, and does not fit either: its
+    // getSnapshot must return a referentially stable value or React loops, and
+    // this state also has to be dismissable locally -- Continue hides the
+    // banner without clearing the saved progress, which a store read cannot
+    // express. preferences.tsx reads its own storage the same way for the same
+    // reason.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setResumable(loadProgress(pooja.id));
+  }, [pooja.id]);
+
+  /**
+   * Write it back whenever anything worth keeping moves.
+   *
+   * Skipped while still on the preparation screen: -1 is not progress, and
+   * saving it would overwrite a real position from earlier in the day with
+   * nothing the moment the page loaded.
+   */
+  useEffect(() => {
+    if (currentStepIndex < 0) return;
+    saveProgress(pooja.id, {
+      stepIndex: currentStepIndex,
+      mode: poojaMode,
+      karta: kartaGender,
+      samagri: checkedSamagri,
+      archana: archanaProgress,
+    });
+  }, [pooja.id, currentStepIndex, poojaMode, kartaGender, checkedSamagri, archanaProgress]);
+
+  /** A finished pooja is not a half-finished one. Nothing left to resume. */
+  useEffect(() => {
+    if (isCompleted) clearProgress(pooja.id);
+  }, [isCompleted, pooja.id]);
+
   // Handle Step Navigation with Gender-aware skipping
   const goToStep = async (newIndex: number) => {
     if (newIndex >= 0 && (!panchangamData || !resolvedGeo)) {
@@ -626,8 +700,53 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     }
     setDirection(newIndex > currentStepIndex ? 1 : -1);
     setCurrentStepIndex(newIndex);
+    // Only ever grows. Going back to re-read a step must not un-do the ones
+    // after it.
+    setFurthestIndex((f) => Math.max(f, newIndex));
     if (isCompleted) setIsCompleted(false);
   };
+
+  /** Put back everything that was saved, then go there. */
+  const resumeHere = useCallback(async () => {
+    if (!resumable) return;
+    setPoojaMode(resumable.mode);
+    setKartaGender(resumable.karta);
+    setCheckedSamagri(resumable.samagri ?? {});
+    setArchanaProgress(resumable.archana ?? {});
+    setFurthestIndex(resumable.stepIndex);
+    setResumable(null);
+    await goToStep(resumable.stepIndex);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumable]);
+
+  /**
+   * Where the saved step sits in the list the reader will actually see.
+   *
+   * Counted with the SAVED mode and karta rather than the current ones, because
+   * the card is shown before either has been restored. Using steps.length
+   * instead would have printed "step 10 of 37" over a header that then said
+   * "Step 10 of 36" -- the raw count includes the steps this karta does not
+   * perform, and the header does not.
+   */
+  const resumeAt = useMemo(() => {
+    if (!resumable) return null;
+    const target = steps[resumable.stepIndex];
+    if (!target) return null;
+    const shown = steps.filter(
+      (st) => isStepInMode(st, resumable.mode) && isStepAvailableForGender(st, resumable.karta),
+    );
+    const at = shown.indexOf(target);
+    return {
+      at: at >= 0 ? at + 1 : resumable.stepIndex + 1,
+      total: shown.length,
+      title: (uiLang === 'ta' && target.step_title_ta) || target.step_title_en || '',
+    };
+  }, [resumable, steps, isStepInMode, isStepAvailableForGender, uiLang]);
+
+  const startOver = useCallback(() => {
+    clearProgress(pooja.id);
+    setResumable(null);
+  }, [pooja.id]);
 
   const handleNextStep = () => {
     if (!resolvedGeo) return;
@@ -923,6 +1042,52 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
         </div>
       )}
 
+      {/* The step sheet. Same surface as the settings sheet -- bottom sheet on a
+          phone, centred dialog from sm -- because it is the same gesture, and
+          learning one place where lists open is better than learning two. */}
+      {stepSheetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t.stepsTitle}
+        >
+          <button
+            className="absolute inset-0 bg-stone-950/70 backdrop-blur-sm"
+            onClick={() => setStepSheetOpen(false)}
+            aria-label={t.close}
+            tabIndex={-1}
+          />
+          <div className="relative w-full sm:max-w-md bg-stone-900 border-t sm:border border-amber-500/25 sm:rounded-2xl rounded-t-2xl shadow-2xl p-5 max-h-[85vh] overflow-y-auto">
+            <StepSheet
+              title={t.stepsTitle}
+              closeLabel={t.close}
+              steps={steps}
+              currentIndex={currentStepIndex}
+              furthestIndex={furthestIndex}
+              isInMode={isStepInMode}
+              isForKarta={isStepAvailableForGender}
+              titleOf={(st) =>
+                (uiLang === 'ta' && st.step_title_ta) || st.step_title_en
+              }
+              phaseLabel={(ph) =>
+                ph === 'purvangam'
+                  ? t.phasePurvangam
+                  : ph === 'uttara'
+                    ? t.phaseUttara
+                    : t.phasePradhana
+              }
+              skippedLabel={t.skipped}
+              onPick={(i) => {
+                setStepSheetOpen(false);
+                goToStep(i);
+              }}
+              onClose={() => setStepSheetOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area */}
       {/* Clips the step slide transition, which translates content 100px
           sideways on the way in and out; without it a phone can be dragged
@@ -981,6 +1146,60 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 </ol>
               </div>
             </div>
+
+            {/* Somewhere to pick up, and a way to look at the whole rite.
+
+                The resume card appears only when there is a saved position
+                from today -- progress lapses at midnight, because a rite
+                belongs to its sitting and being offered last Tuesday's
+                half-finished vratham is not helpful.
+
+                "See all the steps" is here whether or not there is progress: it
+                doubles as a table of contents, which is worth having before you
+                begin and not only once you are lost in the middle. */}
+            {(resumable || steps.length > 0) && (
+              <div className="rounded-2xl bg-stone-900/70 border border-amber-500/25 p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row sm:items-center gap-3">
+                {resumable ? (
+                  <>
+                    <RotateCcw className="w-5 h-5 text-amber-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-amber-100">
+                        {resumeAt &&
+                          t.resumeHeading(resumeAt.at, resumeAt.total, resumeAt.title)}
+                      </p>
+                      <p className="text-xs text-stone-400">{agoText(resumable.at)}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={resumeHere}
+                        className="px-4 py-2 rounded-xl bg-amber-500 text-ink-inverse text-xs font-bold border border-amber-400 shadow-md hover:bg-amber-400 transition-colors"
+                      >
+                        {t.resumeContinue}
+                      </button>
+                      <button
+                        onClick={startOver}
+                        className="px-4 py-2 rounded-xl bg-stone-950 text-stone-300 text-xs font-bold border border-stone-800 hover:border-amber-500/40 transition-colors"
+                      >
+                        {t.resumeStartOver}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <BookOpen className="w-5 h-5 text-amber-400 shrink-0" />
+                    <p className="flex-1 text-sm text-stone-300">
+                      {availableSteps.length} steps
+                    </p>
+                    <button
+                      onClick={() => setStepSheetOpen(true)}
+                      className="shrink-0 px-4 py-2 rounded-xl bg-stone-950 text-amber-300 text-xs font-bold border border-amber-500/30 hover:border-amber-500/60 transition-colors"
+                    >
+                      {t.browseSteps}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* SANKALPAM & NOMINATIM GEOLOCATION CONFIGURATION CARD */}
             <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-amber-950/20 to-stone-950 border border-amber-500/40 p-4 sm:p-6 shadow-xl space-y-6">
@@ -1485,44 +1704,24 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               >
                 {/* Step Header Card */}
                 <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-stone-900 to-stone-950 border border-amber-500/30 p-6 shadow-2xl space-y-4">
-                  {/* The jump menu sizes itself to its longest option, which is
-                      a full step title. Beside the badge on a 375px screen that
-                      pushed it 60px past the card and the option text was cut
-                      off. Stack it and let it take the width it has. */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <span className="self-start px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-extrabold text-xs tracking-wider uppercase flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5" /> {t.stepOf(activePosition, availableSteps.length)}
-                    </span>
+                  {/* One tap to the whole rite, from the badge that already
+                      says where you are.
 
-                    {/* Step Jump Select */}
-                    <select
-                      value={currentStepIndex}
-                      onChange={(e) => goToStep(Number(e.target.value))}
-                      aria-label="Jump to a step"
-                      className="w-full sm:w-auto sm:max-w-[60%] bg-stone-950 text-amber-300 text-xs font-semibold px-3 py-2 sm:py-1.5 rounded-lg border border-amber-500/30 focus:outline-none focus:border-amber-500"
-                    >
-                      {steps.map((s, idx) =>
-                        // A step belonging to a different day is not part of
-                        // this pooja at all, so it is left out rather than
-                        // greyed. Gender exclusions stay visible and marked,
-                        // because knowing a step exists and is not yours is
-                        // useful; knowing about tomorrow's steps is not.
-                        !isStepInMode(s) ? null : (
-                          <option
-                            key={s.id || idx}
-                            value={idx}
-                            disabled={!isStepAvailableForGender(s)}
-                          >
-                            {t.stepNumber(idx + 1)}:{' '}
-                            {uiLang === 'ta' && s.step_title_ta
-                              ? s.step_title_ta
-                              : s.step_title_en}{' '}
-                            {!isStepAvailableForGender(s) ? `(${t.skipped})` : ''}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </div>
+                      This was a native <select> of thirty-nine options. It
+                      worked and nobody found it: it looks like a form field
+                      rather than navigation, it exists only once you are
+                      already inside a step, and it says nothing about what you
+                      have done. The badge is the obvious thing to press and it
+                      was inert. */}
+                  <button
+                    onClick={() => setStepSheetOpen(true)}
+                    aria-haspopup="dialog"
+                    className="self-start px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-extrabold text-xs tracking-wider uppercase flex items-center gap-1.5 hover:border-amber-500/60 hover:text-amber-300 transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {t.stepOf(activePosition, availableSteps.length)}
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
 
                   <div>
                     {(() => {

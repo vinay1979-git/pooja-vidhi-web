@@ -101,6 +101,20 @@ export interface UiText {
   ifUnavailable: (what: string) => string;
   poojaComplete: string;
 
+  /* steps sheet and resuming */
+  /** Title of the sheet that lists every step. */
+  stepsTitle: string;
+  /** The three sections of a rite, as pooja_steps.phase names them. */
+  phasePurvangam: string;
+  phasePradhana: string;
+  phaseUttara: string;
+  /** The preparation-screen offer to pick up where you stopped. */
+  resumeHeading: (step: number, total: number, title: string) => string;
+  resumeContinue: string;
+  resumeStartOver: string;
+  /** Opens the step sheet from the preparation screen. */
+  browseSteps: string;
+
   /* the honest gap */
   noTranslationYet: string;
 }
@@ -183,6 +197,14 @@ const en: UiText = {
   ifUnavailable: (what) => `If unavailable: ${what}`,
   poojaComplete: 'Pooja Sampoornam!',
 
+  stepsTitle: 'Steps',
+  phasePurvangam: 'Purvangam — the opening',
+  phasePradhana: 'Pradhana — the worship itself',
+  phaseUttara: 'Uttara — the closing',
+  resumeHeading: (step, total, title) => `You stopped at step ${step} of ${total} — ${title}`,
+  resumeContinue: 'Continue',
+  resumeStartOver: 'Start over',
+  browseSteps: 'See all the steps',
   noTranslationYet: 'No Tamil text for this step yet — showing English.',
 };
 
@@ -244,6 +266,15 @@ const ta: UiText = {
 
   // Shown when the DATA has no Tamil, not when the chrome has none. The chrome
   // above is always complete; some step content is not yet translated.
+  stepsTitle: 'படிகள்',
+  phasePurvangam: 'பூர்வாங்கம் — தொடக்கம்',
+  phasePradhana: 'ப்ரதானம் — மூல வழிபாடு',
+  phaseUttara: 'உத்தரம் — நிறைவு',
+  resumeHeading: (step, total, title) =>
+    `${total}-இல் ${step}-வது படியில் நிறுத்தினீர்கள் — ${title}`,
+  resumeContinue: 'தொடர்க',
+  resumeStartOver: 'முதலிலிருந்து',
+  browseSteps: 'எல்லா படிகளையும் பார்',
   noTranslationYet: 'இந்தப் படிக்கு தமிழ் விளக்கம் இன்னும் இல்லை. ஆங்கிலம் காட்டப்படுகிறது.',
 };
 
