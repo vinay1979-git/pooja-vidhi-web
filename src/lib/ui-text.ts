@@ -54,10 +54,29 @@ export interface UiText {
   prepWhat: string;
   sankalpamSettings: string;
   whichDay: string;
-  performedBy: string;
+  /**
+   * The heading over the karta buttons, in the form that matches the selection.
+   *
+   * Karta is the masculine nominative of the stem kartR. A woman performing is
+   * a kartri -- Whitney: the feminine of a -tR agent noun is made with -ii, as
+   * daatR gives daatrii -- and a husband and wife performing together are the
+   * dampati, which is the word the tradition uses for the pair and is itself
+   * already dual. So the heading inflects rather than calling every karta by
+   * the masculine form.
+   */
+  kartaHeading: (who: 'male' | 'female' | 'couple') => string;
+  /** That word on its own, for prose that has to name it mid-sentence. */
+  kartaTerm: (who: 'male' | 'female' | 'couple') => string;
   male: string;
   female: string;
   couple: string;
+  /** Badge under the karta this rite is traditionally performed by. */
+  recommended: string;
+  /**
+   * The line under the karta buttons, when the rite recommends one.
+   * `who` is the button word ("Female"), `term` the Sanskrit one ("Kartri").
+   */
+  kartaRecommendation: (who: string, term: string) => string;
   poojaDate: string;
   cityLocation: string;
   detectLocation: string;
@@ -85,6 +104,29 @@ export interface UiText {
   noTranslationYet: string;
 }
 
+/**
+ * What to call the person performing, in the form that fits who they are.
+ *
+ * KARTA is the masculine nominative singular of the agent stem kartR, so
+ * calling a woman the karta is not a neutral choice but a masculine one. The
+ * feminine is KARTRI: Whitney's rule for the -tR agent nouns is that the
+ * feminine stem is made with -ii -- daatR gives daatrii, netR gives netrii --
+ * so kartR gives kartrii, कर्त्री.
+ *
+ * DAMPATI for the two of them together. The strict dual of the agent noun would
+ * be kartaarau, "the two doers", but dampati is the word the tradition actually
+ * uses for a husband and wife acting as one -- etymologically the joint owners
+ * of a household, and the unit the grihya sutras make responsible for the five
+ * daily yajnas. It is already a dual, so it needs no help to mean both of them.
+ * The Tamil side has said thampathi all along.
+ *
+ * NOT romanised in IAST here, unlike the mantra columns. These are chrome, read
+ * at a glance by someone who is about to light a lamp, and kartrii with its
+ * macrons would be the only word on the screen wearing them.
+ */
+const KARTA_TERM_EN = { male: 'Karta', female: 'Kartri', couple: 'Dampati' } as const;
+const KARTA_TERM_TA = { male: 'கர்த்தா', female: 'கர்த்ரீ', couple: 'தம்பதி' } as const;
+
 const en: UiText = {
   catalog: 'Catalog',
   settings: 'Settings',
@@ -105,15 +147,19 @@ const en: UiText = {
 
   ritualPreparation: 'Ritual Preparation',
   prepLede: 'Work down this page before you begin. The button to start is at the end of it.',
-  prepWho: 'Who is performing, and which day',
+  prepWho: 'The karta, and which day',
   prepWhere: 'Your location, for the Sankalpam',
   prepWhat: 'Samagri and naivedyam',
   sankalpamSettings: 'Sankalpam & Location',
   whichDay: 'Which day?',
-  performedBy: 'Performed by',
+  kartaHeading: (who) => `${KARTA_TERM_EN[who]} — who is performing`,
+  kartaTerm: (who) => KARTA_TERM_EN[who],
   male: 'Male',
   female: 'Female',
   couple: 'Couple',
+  recommended: 'Recommended',
+  kartaRecommendation: (who, term) =>
+    `Traditionally kept by a ${who.toLowerCase()} karta, so ${term} is pre-selected. It is a recommendation, not a rule — choose whichever fits your household.`,
   poojaDate: 'Pooja date',
   cityLocation: 'City / Location',
   detectLocation: 'Detect GPS Location',
@@ -160,15 +206,19 @@ const ta: UiText = {
   ritualPreparation: 'தயாரிப்பு',
   prepLede:
     'பூஜையைத் தொடங்கும் முன் இந்தப் பக்கத்தை முழுவதும் பார்க்கவும். தொடங்கும் பொத்தான் இறுதியில் உள்ளது.',
-  prepWho: 'யார் செய்கிறார், எந்த நாள்',
+  prepWho: 'கர்த்தா, எந்த நாள்',
   prepWhere: 'இடம், சங்கல்பத்திற்கு',
   prepWhat: 'சாமக்ரி மற்றும் நைவேத்யம்',
   sankalpamSettings: 'சங்கல்பம் & இடம்',
   whichDay: 'எந்த நாள்?',
-  performedBy: 'வழிபாடு செய்பவர்',
+  kartaHeading: (who) => `${KARTA_TERM_TA[who]} — யார் செய்கிறார்`,
+  kartaTerm: (who) => KARTA_TERM_TA[who],
   male: 'ஆண்',
   female: 'பெண்',
   couple: 'தம்பதி',
+  recommended: 'பரிந்துரை',
+  kartaRecommendation: (who, term) =>
+    `இந்த வழிபாடு மரபாக ${who} கர்த்தாவால் செய்யப்படுகிறது; எனவே ${term} முன்னே தேர்ந்தெடுக்கப்பட்டுள்ளது. இது ஒரு பரிந்துரையே, கட்டாயம் அல்ல — உங்கள் குடும்பத்திற்கு ஏற்றதைத் தேர்ந்தெடுக்கவும்.`,
   poojaDate: 'பூஜை நாள்',
   cityLocation: 'ஊர் / இடம்',
   detectLocation: 'இடத்தைக் கண்டறி',

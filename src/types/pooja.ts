@@ -44,6 +44,34 @@ export interface SamagriItem {
  */
 export type PoojaMode = 'main' | 'punar' | 'udvasana';
 
+/**
+ * Who performs the rite. Karta is the ordinary word for the one performing it --
+ * the karta of a shraddha, the karta of the household -- so it is the word the
+ * app uses; "performer" was a translation of a term the reader already had.
+ *
+ * THE FORM IS INFLECTED, which matters because the app pre-selects a woman for
+ * Varalakshmi. Karta is the masculine nominative singular of the stem kartR, so
+ * calling a woman the karta is a masculine choice rather than a neutral one.
+ * The screen therefore says Karta, Kartri or Dampati according to what is
+ * selected; the forms and the grammar behind them are in KARTA_TERM_EN in
+ * lib/ui-text.ts.
+ *
+ * Living usage would have allowed the lazier answer -- karta is widely treated
+ * as a role title that takes any karta, Hindupedia's Shraddha article writes of
+ * the karta invoking "his/her parent", and Indian law has recognised a female
+ * Karta of a joint family since Sujata Sharma v Manu Gupta (Delhi HC, 2016),
+ * upheld 2023. The app takes the stricter reading because it is the one place
+ * on the screen that knows who is sitting there. Step PROSE keeps the bare role
+ * noun, since those sentences are about whoever is performing rather than about
+ * a particular karta.
+ *
+ * 'couple' is not a third gender. It is the dampati case, where husband and
+ * wife perform together, and it is modelled here rather than as a pair of
+ * kartas because every rule in the data that turns on this asks one question:
+ * does this step apply to the person in front of the lamp.
+ */
+export type KartaGender = 'male' | 'female' | 'couple';
+
 export interface NaivedyamAvoidItem {
   name_en: string;
   name_ta?: string;
@@ -68,6 +96,16 @@ export interface Pooja {
   image_url?: string;
   category?: string;
   deity?: string;
+  /**
+   * The karta this rite is traditionally performed by, if it has one.
+   *
+   * A RECOMMENDATION, deliberately not a rule, and deliberately not the
+   * `eligibility` column -- that one is worded male_only / female_only and
+   * would be a claim the book does not make. Undefined means the rite makes no
+   * recommendation and the app makes none either. All it does is choose the
+   * opening value of the karta toggle.
+   */
+  karta_recommended?: KartaGender;
 }
 
 export interface PoojaStep {

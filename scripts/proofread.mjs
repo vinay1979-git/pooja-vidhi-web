@@ -343,6 +343,22 @@ for (const a of archana) {
   }
 }
 
+// The app says karta. "The performer" was a translation of a word the reader
+// already has -- the sankalpam they recite names them the karta -- and it made
+// the prose describe the rite from outside it. 0042 replaced the eight
+// mentions; this keeps them from coming back one meaning_en at a time.
+//
+// The word boundary matters. Two steps say a household vidhi "expects to be
+// performed by real households", which is the ordinary verb and must survive.
+for (const s of steps) {
+  for (const f of ['instruction_en', 'meaning_en', 'philosophy_en']) {
+    if (/\bperformers?\b/i.test(s[f] || '')) {
+      fail(`${s.pooja_id} step ${s.step_number} "${s.step_title_en}"`,
+           `${f} says "performer"; this project says karta`);
+    }
+  }
+}
+
 const EXPECT_PROSE_COUNT = {
   'ganesha_standard/Anga Pooja': 'twenty-nine',
   'ganesha_standard/Patra Pooja (21 Leaves)': 'twenty-one',
@@ -464,6 +480,19 @@ for (const p of poojas) {
     fail(p.id, 'is nitya but carries a calendar rule; a daily rite has no date');
   }
   if (!p.description_en) warn(p.id, 'has no description_en');
+  // karta_recommended arrives with 0041 and is absent before it, which is not a
+  // fault. What would be a fault is a value the karta toggle has no button for:
+  // the app drops anything it does not recognise, so the recommendation would
+  // simply vanish rather than announce itself.
+  if (p.karta_recommended != null && !['male', 'female', 'couple'].includes(p.karta_recommended)) {
+    fail(p.id, `karta_recommended is "${p.karta_recommended}", which is not male, female or couple`);
+  }
+  // eligibility says who MAY perform the rite and is a prohibition. Nothing in
+  // the book supports one, so anything but 'all' should have arrived with a
+  // source, not with a migration nobody argued for.
+  if (p.eligibility && p.eligibility !== 'all') {
+    warn(p.id, `eligibility is "${p.eligibility}" -- that is a prohibition; the book makes none, and a recommendation belongs in karta_recommended`);
+  }
 }
 for (const d of deities) {
   if (d.name_ta) checkTamil(`deity ${d.id}.name_ta`, d.name_ta);

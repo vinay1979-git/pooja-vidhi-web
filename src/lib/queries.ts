@@ -1,5 +1,10 @@
 import { supabase } from '@/lib/supabase';
-import type { Pooja, PoojaStep, ArchanaItem, SamagriItem, NaivedyamItem } from '@/types/pooja';
+import type {
+  Pooja, PoojaStep, ArchanaItem, SamagriItem, NaivedyamItem, KartaGender,
+} from '@/types/pooja';
+
+/** The only values karta_recommended may hold. Mirrors the check constraint. */
+const KARTA_GENDERS: readonly KartaGender[] = ['male', 'female', 'couple'];
 
 /**
  * Data access for the migrated schema.
@@ -36,17 +41,22 @@ function toLegacyGender(rule: GenderRule | null): 'all' | 'male' | 'female' {
   }
 }
 
-// recipe_note_ta arrives with migration 0007. Selecting a column that does not
-// exist yet fails the whole query, so the app would break between deploying the
-// code and running the migration. Ask for it, and fall back to the older shape
-// if Postgres says it is not there (42703). Purely additive display data, so
-// degrading is correct; a genuinely broken query still throws below.
-const POOJA_SELECT = (withTamilNotes: boolean) => `
+// Columns that arrive with a later migration than the code that asks for them:
+// recipe_note_ta with 0007, karta_recommended with 0041. Selecting a column
+// that does not exist yet fails the WHOLE query, so the app would break in the
+// window between deploying the code and running the migration.
+//
+// So the optional columns are asked for together and dropped together on 42703
+// (undefined_column). Two attempts, not one per column: which of them is
+// missing does not change what we do about it, and pairing each new column with
+// its own retry would have made this a truth table. All of them are additive
+// display data, so degrading is correct; a genuinely broken query still throws.
+const POOJA_SELECT = (withOptional: boolean) => `
   id, title_en, title_ta, description_en, description_ta, duration_mins,
-  ritual_class, deity_id, eligibility,
+  ritual_class, deity_id, eligibility${withOptional ? ', karta_recommended' : ''},
   samagri_items ( seq, item_en, item_ta, quantity, category, is_required ),
   naivedyam_items ( tier, seq, name_en, name_ta, recipe_note${
-    withTamilNotes ? ', recipe_note_ta' : ''
+    withOptional ? ', recipe_note_ta' : ''
   }, prohibition_basis, reason_en )`;
 
 export async function getPooja(poojaId: string): Promise<Pooja | null> {
@@ -87,6 +97,7 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
     description_en: string | null;
     description_ta: string | null;
     duration_mins: number | null;
+    karta_recommended?: string | null;
     samagri_items?: Record<string, unknown>[];
     naivedyam_items?: Record<string, unknown>[];
   };
@@ -129,6 +140,12 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
     description_en: row.description_en ?? undefined,
     description_ta: row.description_ta ?? undefined,
     duration_mins: row.duration_mins ?? undefined,
+    // Anything the database does not recognise is dropped rather than passed
+    // through: a typo in this column must not become a karta the toggle has no
+    // button for, which would leave every button looking unselected.
+    karta_recommended: KARTA_GENDERS.includes(row.karta_recommended as KartaGender)
+      ? (row.karta_recommended as KartaGender)
+      : undefined,
     samagri_list: samagri,
     naivedyam_suggestions: naivedyam,
     naivedyam_avoid: naivedyamRows

@@ -1682,6 +1682,58 @@ await assert('and its own meaning', `select count(distinct meaning_en) from pooj
   where pooja_id = 'nitya_panchayatana' and step_title_en like 'Archana%'`, 5);
 
 
+console.log('\n[9bd] 0041 a pooja may recommend a karta');
+await assert('before 0041 there is no such column',
+  `select count(*) from information_schema.columns
+     where table_schema = 'public' and table_name = 'poojas'
+       and column_name = 'karta_recommended'`, 0);
+await step('0041_karta_recommendation.sql',
+  () => db.exec(sql(`${MIG}/0041_karta_recommendation.sql`)));
+await assert('Varalakshmi recommends a female karta',
+  `select count(*) from poojas
+     where id = 'varalakshmi_vratham' and karta_recommended = 'female'`, 1);
+// The point of the column is that it is OPTIONAL. If everything ended up with a
+// recommendation the app would pre-select a karta for rites that do not ask for
+// one, which is the invented prohibition this design exists to avoid.
+await assert('and it is the only pooja that recommends anything',
+  `select count(*) from poojas where karta_recommended is not null`, 1);
+// eligibility is the permission column and says who MAY. The book makes no
+// such rule, so this migration must not have quietly written one.
+await assert('eligibility is untouched',
+  `select count(*) from poojas where eligibility <> 'all'`, 0);
+await step('0041 re-run', () => db.exec(sql(`${MIG}/0041_karta_recommendation.sql`)));
+await assert('still exactly one recommendation after a re-run',
+  `select count(*) from poojas where karta_recommended is not null`, 1);
+
+
+console.log('\n[9be] 0042 the app says karta, not "the performer"');
+await assert('before 0042 the noun is in seven rows',
+  `select count(*) from pooja_steps
+     where coalesce(instruction_en, '') ~* '\\mperformer\\M'
+        or coalesce(philosophy_en, '')  ~* '\\mperformer\\M'`, 7);
+await step('0042_karta_vocabulary.sql',
+  () => db.exec(sql(`${MIG}/0042_karta_vocabulary.sql`)));
+await assert('the noun is gone',
+  `select count(*) from pooja_steps
+     where coalesce(instruction_en, '') ~* '\\mperformer\\M'
+        or coalesce(meaning_en, '')     ~* '\\mperformer\\M'
+        or coalesce(philosophy_en, '')  ~* '\\mperformer\\M'`, 0);
+// Seven, not eight: Asana Pooja carries the word in its instruction AND its
+// philosophy, which is two mentions on one row.
+await assert('and the same seven rows say karta',
+  `select count(*) from pooja_steps
+     where coalesce(instruction_en, '') ~* '\\mkarta\\M'
+        or coalesce(philosophy_en, '')  ~* '\\mkarta\\M'`, 7);
+// The failure this guards is a regex that ate the ordinary verb along with the
+// noun. "expects to be performed by real households" must survive verbatim.
+await assert('the ordinary verb survived',
+  `select count(*) from pooja_steps
+     where philosophy_en like '%expects to be performed by real households%'`, 2);
+await assert('and the gendered pronoun went with the noun',
+  `select count(*) from pooja_steps
+     where philosophy_en like '%what he is about to become%'`, 0);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
