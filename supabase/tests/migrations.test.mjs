@@ -1805,6 +1805,24 @@ await assert('no roman mantra keeps the candrabindu',
   `select count(*) from pooja_steps where coalesce(mantra_translit, '') like '%m̐%'`, 0);
 
 
+console.log('\n[9bi] 0046 the gm nasal is spelled gm in roman');
+await assert('after 0045 the roman says gum',
+  `select count(*) from pooja_steps where coalesce(mantra_translit, '') like '%gum%'`, 4);
+await step('0046_gm_roman_spelling.sql', () => db.exec(sql(`${MIG}/0046_gm_roman_spelling.sql`)));
+await assert('now none of it does',
+  `select count(*) from pooja_steps where coalesce(mantra_translit, '') like '%gum%'`, 0);
+// Roman only. The Devanagari is the same sign either way, and Tamil cannot
+// write a bare gm without a vowel, so கும் must survive untouched.
+await assert('the Tamil kept kum',
+  `select count(*) from pooja_steps
+     where pooja_id = 'nitya_panchayatana'
+       and step_title_en in ('Naivedyam','Avahanam — Vinayaka','Dhoopam & Deepam','Karpura Neerajanam')
+       and mantra_tamil like '%கும்%'`, 4);
+await assert('and the Devanagari kept the sign',
+  `select count(*) from pooja_steps
+     where coalesce(mantra_sanskrit, '') ~ '[꣠-ꣿ]'`, 4);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {

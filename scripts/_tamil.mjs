@@ -44,8 +44,16 @@
  * pronounce. That is the avagraha, the om sign and the visarga for a fourth
  * time: a character Sanscript cannot see, leaking into the output script.
  *
- * WHAT IT SHOULD BE IS NOT A JUDGEMENT CALL, because the book romanises it
- * itself: gaNapatigum havaamahE. So gum, and கும் in Tamil.
+ * WHAT IT SHOULD BE IS NOT A JUDGEMENT CALL, because the books romanise it
+ * themselves -- but they do not agree, and the majority wins.
+ *
+ *   Sandhyavandanam (Giri, Parthasarathi):  gm    idagm, chandaagmsyaapaha,
+ *                                                 jyoteegmshyaapaha, ogm
+ *   Nitya Pooja (Giri, different hand):     gum   gaNapatigum havaamahE
+ *
+ * Four spellings to one on page 20 alone, so gum is the outlier. Roman takes
+ * gm. Tamil takes கும் regardless, because Tamil cannot write a bare gm
+ * without a vowel and கும் is the only sensible rendering.
  *
  * Handled by swapping it for a protected token BEFORE transliteration and
  * expanding the token per target script afterwards. Post-processing the output
@@ -54,7 +62,7 @@
  */
 const GM = 'ꣳ';
 const GM_TOKEN = '[VEDICGM]';
-const GM_AS = { tamil: 'கும்', default: 'gum' };
+const GM_AS = { tamil: 'கும்', default: 'gm' };
 
 /** Sanscript defers a voicing mark past a following ra or la. Undo that. */
 const MISPLACED_SUPERSCRIPT = /([க-ஹ])([ா-்]*)([ரல])([ா-்]*)([²³⁴])/g;
