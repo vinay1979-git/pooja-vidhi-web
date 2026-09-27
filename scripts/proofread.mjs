@@ -222,7 +222,13 @@ const EXPECT_ARCHANA = {
   // The obstacle-removing rite has its own archana, distinct from the main
   // pooja's Anga, Patra, Pushpa and Durva lists.
   'ganesha_standard/Vighneshwara Shodasha Nama Archana': 16,
-  'varalakshmi_vratham/Anga Pooja': 15,
+  // Twenty-four, not fifteen, since 0032. The app followed StotraNidhi's
+  // fifteen-limb anga pooja; the owner chose to follow the book, whose list is
+  // twenty-four limbs sharing almost no names with the other. Changing this
+  // number is the whole point of that migration, so it is not a drift to guard
+  // against -- but it IS the kind of number that silently disagrees with the
+  // database after a recension change, which is why it is asserted at all.
+  'varalakshmi_vratham/Anga Pooja': 24,
   'varalakshmi_vratham/Nonbu Sharadu Pooja': 9,
   // Not a namavali: the arghyam verses, each with its pouring refrain, moved
   // into archana_items in 0018 so the screen can number them and be ticked
@@ -249,6 +255,60 @@ for (const s of steps) {
 for (const [k, n] of Object.entries(EXPECT_ARCHANA)) {
   if ((byStep.get(k) ?? 0) !== n) fail(k, `has ${byStep.get(k) ?? 0} archana rows, expected ${n}`);
 }
+
+// A step's PROSE has to agree with the step's DATA.
+//
+// 0032 replaced Varalakshmi's fifteen-limb anga pooja with the book's twenty-four
+// and updated the instruction, but left meaning_en saying "Fourteen names ... and
+// a fifteenth for the whole body", naming limbs that had just been deleted. The
+// screen showed twenty-four offerings under a paragraph describing fifteen other
+// ones, and every existing check passed it: meaning_en was not null, not
+// truncated, and well-formed English. It surfaced only by opening the step in a
+// browser and reading it.
+//
+// A GENERAL version of this check was tried first -- find any spelled-out number
+// in the prose and compare it with the row count -- and it was abandoned because
+// it fired on four pieces of perfectly good writing: "Nine of them are on the
+// samagri list", "fifteen names more", "twelve pourings in all", and the ordinal
+// "a twenty-fourth for the whole body". Four false alarms to catch one fault is
+// how a gate gets ignored.
+//
+// So the count is declared instead, per step, next to the row count it has to
+// agree with. Explicit, and it would have caught the fault: the meaning said
+// "Fourteen" when this table says twenty-four.
+const EXPECT_PROSE_COUNT = {
+  'ganesha_standard/Anga Pooja': 'twenty-nine',
+  'ganesha_standard/Patra Pooja (21 Leaves)': 'twenty-one',
+  'ganesha_standard/Pushpa Pooja (21 Flowers)': 'twenty-one',
+  'ganesha_standard/Durva Pooja (21 Names)': 'twenty-one',
+  'ganesha_standard/Vighneshwara Shodasha Nama Archana': 'sixteen',
+  'varalakshmi_vratham/Anga Pooja': 'twenty-four',
+  'varalakshmi_vratham/Nonbu Sharadu Pooja': 'nine',
+  // null means "this step's prose deliberately does not count its rows". Both
+  // arghyam steps hold verses rather than a namavali, and their prose counts
+  // POURINGS: Ganesha's four verses make "twelve pourings in all", Varalakshmi's
+  // one verse is offered "three times". Declaring the exemption is better than
+  // leaving a standing warning nobody reads.
+  'ganesha_standard/Ksheera Arghyam': null,
+  'varalakshmi_vratham/Ksheera Arghyam': null,
+};
+for (const s of steps) {
+  const key = `${s.pooja_id}/${s.step_title_en}`;
+  if (!(key in EXPECT_PROSE_COUNT)) continue;
+  const word = EXPECT_PROSE_COUNT[key];
+  if (word === null) continue;   // declared exempt, see the table
+  const prose = [s.instruction_en, s.meaning_en].filter(Boolean).join(' ');
+  if (!prose) continue;
+  if (!new RegExp(`\\b${word}\\b`, 'i').test(prose)) {
+    fail(key, `has ${byStep.get(key) ?? 0} archana rows but its prose never says "${word}"`);
+  }
+}
+for (const k of byStep.keys()) {
+  if (k in EXPECT_ARCHANA && !(k in EXPECT_PROSE_COUNT)) {
+    fail(k, 'has archana rows but no declared prose count (add it, or declare null)');
+  }
+}
+
 for (const k of byStep.keys()) if (!(k in EXPECT_ARCHANA)) warn(k, 'has archana rows but is not in the expected list');
 
 // A step that carries an archana list must have seq 1..n with no gaps.

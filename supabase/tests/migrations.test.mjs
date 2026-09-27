@@ -1368,6 +1368,124 @@ await assert('the ten-times rubric was not appended twice',
      where pooja_id = 'ganesha_standard' and step_title_en = 'Snanam & Vastram'`, 1);
 
 
+console.log('\n[9as] 0032 Varalakshmi converted to the book');
+// Assert the BEFORE state in full, so a migration that quietly did nothing
+// could not pass these.
+await assert('before 0032 there are 29 steps', `select count(*) from pooja_steps
+  where pooja_id = 'varalakshmi_vratham'`, 29);
+await assert('before 0032 dhyanam and avahanam are one step', `select count(*) from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Dhyanam & Avahanam'`, 1);
+await assert('before 0032 the anga pooja has fifteen limbs',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Anga Pooja'`, 15);
+await assert('before 0032 the dhyanam is the StotraNidhi one, not the book one',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and step_title_en = 'Dhyanam & Avahanam' and mantra_sanskrit like '%समुद्रराज%'`, 0);
+
+await step('0032_varalakshmi_follows_the_book.sql',
+  () => db.exec(sql(`${MIG}/0032_varalakshmi_follows_the_book.sql`)));
+
+await assert('after 0032 there are 31 steps', `select count(*) from pooja_steps
+  where pooja_id = 'varalakshmi_vratham'`, 31);
+await assert('the numbering is 1..31 with nothing parked',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and (step_number < 1 or step_number > 31)`, 0);
+await assert('and the numbers are distinct',
+  `select count(distinct step_number) from pooja_steps
+     where pooja_id = 'varalakshmi_vratham'`, 31);
+await assert('Dhyanam is step 10', `select step_number from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Dhyanam'`, 10);
+await assert('Dora Sthapanam is step 11', `select step_number from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Dora Sthapanam'`, 11);
+await assert('Avahanam is step 12', `select step_number from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Avahanam'`, 12);
+await assert('Prana Pratishtha moved from 11 to 13', `select step_number from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Prana Pratishtha'`, 13);
+await assert('Udvasanam moved from 29 to 31', `select step_number from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Udvasanam'`, 31);
+await assert('the anga pooja now has the book twenty-four',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Anga Pooja'`, 24);
+await assert('and they are numbered 1..24 with no gaps',
+  `select count(distinct seq) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Anga Pooja'`, 24);
+// One distinctive phrase per converted step. These are the assertions that
+// distinguish a conversion from a no-op.
+await assert('the dhyanam is now the book reading', `select count(*) from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Dhyanam'
+    and mantra_sanskrit like '%समुद्रराज%'`, 1);
+await assert('the mangalyam is now maangalyamaNi', `select count(*) from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Vastram, Abharanam & Mangalyam'
+    and mantra_sanskrit like '%माङ्गल्यमणि%'`, 1);
+await assert('the saradu dharanam is now navatantu', `select count(*) from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Sharadu Dharanam'
+    and mantra_sanskrit like '%नवतन्तु%'`, 1);
+await assert('the vayana danam now has hiranyagarbha', `select count(*) from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Vayana Dhanam'
+    and mantra_sanskrit like '%हिरण्यगर्भ%'`, 1);
+await assert('the udvasanam is now asmaat kumbhaat', `select count(*) from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Udvasanam'
+    and mantra_sanskrit like '%कुंभात्%'`, 1);
+await assert('every varalakshmi step with Devanagari has all three scripts',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and coalesce(trim(mantra_sanskrit), '') <> ''
+     and (mantra_tamil is null or mantra_translit is null)`, 0);
+await assert('no title got clobbered by a mantra',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and (length(coalesce(step_title_en, '')) > 60
+       or length(coalesce(step_title_ta, '')) > 60
+       or step_title_ta like '%।%')`, 0);
+
+console.log('\n[9at] 0032 idempotency');
+// The renumbering is the dangerous part: the inserts are ON CONFLICT DO NOTHING,
+// but a second park-and-unpark would add 2 to every step number again. The whole
+// structural section is guarded on Dora Sthapanam already existing.
+await step('0032 re-run', () => db.exec(sql(`${MIG}/0032_varalakshmi_follows_the_book.sql`)));
+await assert('still 31 steps after a re-run', `select count(*) from pooja_steps
+  where pooja_id = 'varalakshmi_vratham'`, 31);
+await assert('and Udvasanam did NOT drift to 33', `select step_number from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Udvasanam'`, 31);
+await assert('and the anga pooja is still twenty-four, not forty-eight',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Anga Pooja'`, 24);
+
+
+console.log('\n[9au] 0033 the Tamil 0032 forgot');
+await assert('before 0033 the two new steps have no Tamil instruction',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and coalesce(trim(instruction_en), '') <> ''
+     and coalesce(trim(instruction_ta), '') = ''`, 2);
+await step('0033_new_step_tamil_instructions.sql',
+  () => db.exec(sql(`${MIG}/0033_new_step_tamil_instructions.sql`)));
+// The standing rule, asserted across BOTH poojas rather than just the two steps
+// being fixed, so that the next inserted step cannot reintroduce the gap.
+await assert('no step anywhere has an English instruction and no Tamil one',
+  `select count(*) from pooja_steps
+     where coalesce(trim(instruction_en), '') <> ''
+       and coalesce(trim(instruction_ta), '') = ''`, 0);
+await assert('Dora Sthapanam has Tamil', `select count(*) from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Dora Sthapanam'
+    and length(trim(instruction_ta)) > 20`, 1);
+await assert('Avahanam has Tamil', `select count(*) from pooja_steps
+  where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Avahanam'
+    and length(trim(instruction_ta)) > 20`, 1);
+
+
+console.log('\n[9av] 0034 the meaning 0032 left describing the old list');
+await assert('before 0034 the meaning still describes fifteen limbs',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and step_title_en = 'Anga Pooja' and meaning_en ilike '%fifteenth%'`, 1);
+await step('0034_anga_pooja_meaning.sql',
+  () => db.exec(sql(`${MIG}/0034_anga_pooja_meaning.sql`)));
+await assert('after 0034 it describes twenty-four',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and step_title_en = 'Anga Pooja' and meaning_en ilike '%twenty-four%'`, 1);
+await assert('and no longer names a limb that was deleted',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+     and step_title_en = 'Anga Pooja'
+     and (meaning_en ilike '%Chanchala%' or meaning_en ilike '%Padmalaya%')`, 0);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
