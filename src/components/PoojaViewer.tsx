@@ -337,20 +337,44 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     [performerGender]
   );
 
-  // True once migration 0009 has run and the steps carry mode tags. Before
-  // that every step looks like day one, so filtering by mode would empty the
-  // list for Punar and Udvasanam. Fall back to showing everything instead.
-  const modesSeeded = useMemo(
-    () => steps.some((s) => Array.isArray(s.modes) && s.modes.length > 1),
+  // Which days this pooja is actually kept over, taken from its own steps.
+  //
+  // This used to be one flag, `modesSeeded`, set when SOME step carried more
+  // than one mode. That conflated two situations that need opposite handling:
+  //
+  //   - the steps carry no mode tags at all, because a migration has not run.
+  //     Filtering would empty the list, so show everything.
+  //   - the pooja genuinely has ONE mode. The Nitya Panchayatana rite is kept
+  //     every morning: there is no later day to return for and no image to
+  //     release. It was being offered a Punar and an Udvasanam button that did
+  //     nothing, under a developer's note telling the user to run a migration.
+  //
+  // So: tagged at all, and how many distinct modes are on offer.
+  const modesTagged = useMemo(
+    () => steps.some((s) => Array.isArray(s.modes) && s.modes.length > 0),
     [steps]
   );
+  const offeredModes = useMemo(() => {
+    const found = new Set<PoojaMode>();
+    for (const s of steps) for (const m of s.modes ?? []) found.add(m as PoojaMode);
+    return found;
+  }, [steps]);
+  // Only worth asking the question when there is more than one answer.
+  const showModePicker = modesTagged && offeredModes.size > 1;
+
+  // A single-mode pooja is always in that mode, whatever the state says. Derived
+  // rather than pushed through setState in an effect, which this file already
+  // has too much of.
+  const effectiveMode: PoojaMode = showModePicker
+    ? poojaMode
+    : ((offeredModes.values().next().value as PoojaMode) ?? 'main');
 
   const isStepInMode = useCallback(
     (step: PoojaStep) => {
-      if (!modesSeeded) return true;
-      return (step.modes ?? ['main']).includes(poojaMode);
+      if (!modesTagged) return true;
+      return (step.modes ?? ['main']).includes(effectiveMode);
     },
-    [poojaMode, modesSeeded]
+    [effectiveMode, modesTagged]
   );
 
   // Navigation and the step list both need "is this part of today's pooja for
@@ -827,7 +851,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 {/* Which day of the observance. Ganesha Chaturthi is kept for
                     one, three, five, seven, nine or eleven days; only the first
                     and last differ from the middle ones. */}
-                <div className="mb-4">
+                <div className={showModePicker ? 'mb-4' : 'hidden'}>
                   <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5 mb-2">
                     <Calendar className="w-4 h-4 text-amber-400" /> {t.whichDay}
                   </label>
@@ -875,7 +899,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     ))}
                   </div>
                   <p className="text-[11px] text-stone-400 mt-2">
-                    {modesSeeded
+                    {modesTagged
                       ? `${availableSteps.length} of ${steps.length} steps for this selection.`
                       : 'Day selection has no effect yet: run migration 0009 to tag the steps.'}
                   </p>
