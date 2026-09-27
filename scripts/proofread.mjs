@@ -276,6 +276,41 @@ for (const [k, n] of Object.entries(EXPECT_ARCHANA)) {
 // So the count is declared instead, per step, next to the row count it has to
 // agree with. Explicit, and it would have caught the fault: the meaning said
 // "Fourteen" when this table says twenty-four.
+// An ASCII colon has no business in a Devanagari, Tamil or IAST field.
+//
+// namaHa was transcribed as नम: with an ASCII colon (U+003A) instead of the
+// visarga (U+0903), eighty-six times across nineteen page transcripts. Sanscript
+// cannot see an ASCII colon as a letter, so it passed straight through into BOTH
+// generated scripts, and the app showed Tamil lines ending in a colon that
+// belongs to neither script.
+//
+// checkScripts did not catch it because it asks whether a Tamil string is
+// well-formed Tamil, and a colon is punctuation rather than not-Tamil. The same
+// blind spot as the mantra-shaped titles: the check looked at whether the value
+// was well formed, not at whether every character in it belonged there.
+//
+// The visarga is U+0903 in Devanagari, U+A789 in Tamil and U+1E25 in roman.
+// None of them is U+003A.
+for (const s of steps) {
+  for (const f of ['mantra_sanskrit', 'mantra_tamil', 'mantra_translit']) {
+    if ((s[f] || '').includes(':')) {
+      fail(`${s.pooja_id} step ${s.step_number} "${s.step_title_en}"`,
+           `${f} contains an ASCII colon; the visarga is not a colon`);
+    }
+  }
+}
+for (const a of archana) {
+  const at = a.pooja_steps
+    ? `${a.pooja_steps.pooja_id}/${a.pooja_steps.step_title_en} #${a.seq}`
+    : `archana row ${a.seq}`;
+  for (const f of ['invoked_name_deva', 'invoked_name_ta', 'invoked_name_translit',
+                   'offering_deva', 'offering_ta']) {
+    if ((a[f] || '').includes(':')) {
+      fail(at, `${f} contains an ASCII colon; the visarga is not a colon`);
+    }
+  }
+}
+
 const EXPECT_PROSE_COUNT = {
   'ganesha_standard/Anga Pooja': 'twenty-nine',
   'ganesha_standard/Patra Pooja (21 Leaves)': 'twenty-one',

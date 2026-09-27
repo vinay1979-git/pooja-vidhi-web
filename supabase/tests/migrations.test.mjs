@@ -1486,6 +1486,38 @@ await assert('and no longer names a limb that was deleted',
      and (meaning_en ilike '%Chanchala%' or meaning_en ilike '%Padmalaya%')`, 0);
 
 
+console.log('\n[9aw] 0035 the visarga that was an ASCII colon');
+// 0032 carried the fault in, so it exists at this point in the chain.
+await assert('before 0035 the anga pooja rows end in an ASCII colon',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Anga Pooja'
+       and a.invoked_name_ta like '%:%'`, 24);
+await step('0035_visarga_not_a_colon.sql',
+  () => db.exec(sql(`${MIG}/0035_visarga_not_a_colon.sql`)));
+// The assertion is project-wide, not limited to the rows being repaired.
+await assert('no step anywhere carries an ASCII colon in a script column',
+  `select count(*) from pooja_steps
+     where mantra_sanskrit like '%:%' or mantra_tamil like '%:%'
+        or mantra_translit like '%:%'`, 0);
+await assert('no archana row does either',
+  `select count(*) from archana_items
+     where invoked_name_deva like '%:%' or invoked_name_ta like '%:%'
+        or invoked_name_translit like '%:%' or offering_deva like '%:%'
+        or offering_ta like '%:%'`, 0);
+await assert('nor any namavali item',
+  `select count(*) from namavali_items
+     where name_deva like '%:%' or name_ta like '%:%' or name_translit like '%:%'`, 0);
+// And the visarga is actually present, in the right character for each script.
+await assert('all 24 anga rows carry the Tamil visarga U+A789',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Anga Pooja'
+       and a.invoked_name_ta like '%' || chr(42889) || '%'`, 24);
+await assert('and the Devanagari visarga U+0903',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Anga Pooja'
+       and a.invoked_name_deva like '%' || chr(2307) || '%'`, 24);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {

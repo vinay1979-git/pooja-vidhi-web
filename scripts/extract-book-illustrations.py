@@ -34,7 +34,11 @@ CROPS = {
     "varalakshmi-113-kalasha":        ("4-varalakshmi", "p04.jpeg", (1155,  390, 1690, 1055)),
     "varalakshmi-113-adorning-face":  ("4-varalakshmi", "p04.jpeg", ( 985, 1120, 1670, 1595)),
     "varalakshmi-113-mandapa":        ("4-varalakshmi", "p04.jpeg", ( 355, 2005, 1350, 2930)),
-    "varalakshmi-114-welcoming":      ("4-varalakshmi", "p05.jpeg", ( 845, 1450, 1530, 2270)),
+    # Remeasured on 2026-09-27. The old box was taken from the 2939x3151
+    # two-page SPREAD of 114-115; page 114 is now its own 1725x3000 frame, so
+    # the old coordinates pointed at empty paper. A re-shoot invalidates every
+    # hand-measured box on the pages it touches.
+    "varalakshmi-114-welcoming":      ("4-varalakshmi", "p05.jpeg", ( 855, 1470, 1700, 2205)),
 }
 CROPS.update(BOXES)
 
@@ -42,8 +46,9 @@ CROPS.update(BOXES)
 # PIL's rotate() is anticlockwise, so -90 turns a page whose top edge is
 # currently on the LEFT, and +90 one whose top edge is on the RIGHT.
 ROTATIONS = {
-    ("4-varalakshmi", "p08.jpeg"): -90,
-    ("4-varalakshmi", "p20.jpeg"):  90,
+    # The two sideways Varalakshmi pages were re-shot upright on 2026-09-27, so
+    # they no longer need turning. Kept as a comment because the pair needed
+    # OPPOSITE rotations, which is the thing worth remembering: there is no rule.
     # These two came out upside down at -90; their top edge is on the RIGHT.
     ("2-nitya", "p19.jpeg"):  90,
     ("2-nitya", "p20.jpeg"):  90,
