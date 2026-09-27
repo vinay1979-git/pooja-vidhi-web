@@ -29,6 +29,11 @@ SLUGS = {
     # 1374x2036 against ~1900x3500 -- but flat, evenly lit and never at an
     # angle, which is the trade that matters for reading vowel signs.
     "5. Sandhyavandanam (Bhavan 1974).pdf": "5-sandhyavandanam",
+    # Giri's own Sandhyavandanam -- the same publisher as books 0-4, so the same
+    # Tamil Smartha recension the rest of the app already follows. Phone photos
+    # again, ~2000x3500, which is why it is back to being the high-resolution
+    # source and Bhavan the cross-check.
+    "6. Sandhiyavandanam Giri.pdf":        "6-sandhya-giri",
 }
 
 def main():

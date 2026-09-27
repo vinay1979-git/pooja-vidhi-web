@@ -6,9 +6,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, Award, BookOpen, Calendar, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, Compass, Flame, Flower2, Globe, Info, Languages, Lightbulb, Loader2, MapPin, Moon, RotateCcw, SearchCheck, SlidersHorizontal, Sparkles, Sun, User, Users, Utensils, X } from 'lucide-react';
 import { Pooja, PoojaStep, ArchanaItem } from '@/types/pooja';
 import { fetchPanchangamData, PanchangamData } from '@/actions/getSankalpam';
-import { usePreferences, resolveScript, SCRIPT_LABEL, type InstructionLang } from '@/lib/preferences';
+import { usePreferences, resolveScript, SCRIPT_LABEL, type InstructionLang, type MantraScript } from '@/lib/preferences';
 import { renderPerson } from '@/lib/sankalpam';
 import { uiText, type UiText } from '@/lib/ui-text';
+import { LANGUAGES, SCRIPTS, coverageFor } from '@/lib/languages';
+import { SettingRow, SettingsPicker, type PickerOption } from '@/components/SettingsPicker';
 import { TempleBell } from '@/components/TempleBell';
 import type { KartaGender, PoojaMode } from '@/types/pooja';
 
@@ -46,7 +48,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     mantraScript: mantraLang,
     setMantraScript: setMantraLang,
     theme,
-    setTheme,
+    toggleTheme,
   } = usePreferences();
   const [direction, setDirection] = useState<number>(1);
 
@@ -74,6 +76,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   const t = uiText(uiLang);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** null = the settings list itself; otherwise the drill-down that is open. */
+  const [picker, setPicker] = useState<'language' | 'script' | null>(null);
 
   /**
    * Hide the header while the reader is scrolling down through a mantra, bring
@@ -109,8 +113,39 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
    */
   const openSettings = useCallback(() => {
     setChromeHidden(false);
+    setPicker(null);
     setSettingsOpen(true);
   }, []);
+
+  /** Closing always returns to the top level, so it never reopens mid-list. */
+  const closeSettings = useCallback(() => {
+    setSettingsOpen(false);
+    setPicker(null);
+  }, []);
+
+  /**
+   * What the open picker lists.
+   *
+   * Coverage is worked out from THIS pooja's steps, which are already in hand,
+   * so it costs no query -- and it answers the question the reader actually
+   * has, which is whether the thing in front of them will be in their language
+   * rather than whether the app as a whole is.
+   *
+   * Scripts carry no coverage. Every one of them is generated from the stored
+   * Devanagari, so a script that exists is complete by construction and a
+   * badge saying so would be noise on every row.
+   */
+  const pickerOptions: PickerOption[] = useMemo(() => {
+    if (picker === 'script') {
+      return SCRIPTS.map((x) => ({ code: x.code, endonym: x.endonym, roman: x.roman }));
+    }
+    return LANGUAGES.map((l) => ({
+      code: l.code,
+      endonym: l.endonym,
+      roman: l.roman,
+      coverage: coverageFor(l.code, steps),
+    }));
+  }, [picker, steps]);
 
   /**
    * Who is performing: the karta.
@@ -752,15 +787,35 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               and made the header 159px tall. They also do not scale: a third
               instruction language adds a third chip to a row that already
               wraps. Behind a sheet, adding a language costs nothing on screen. */}
-          <button
-            onClick={openSettings}
-            aria-label={t.settings}
-            title={t.settings}
-            className="shrink-0 flex items-center gap-1.5 bg-stone-950 rounded-lg px-2.5 py-1.5 border border-stone-800 text-stone-300 hover:text-amber-300 hover:border-amber-500/40 transition-colors text-xs font-semibold"
-          >
-            <SlidersHorizontal className="w-4 h-4 text-amber-400" />
-            <span className="hidden sm:inline">{t.settings}</span>
-          </button>
+          <div className="shrink-0 flex items-center gap-1.5">
+            {/* Theme is its own button rather than a row in the sheet.
+                It is binary and it always will be, so it is the one setting
+                that never needs a list -- and putting it behind two taps to sit
+                beside two settings that DO need lists was making the simplest
+                control the slowest one. */}
+            <button
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? t.themeLight : t.themeDark}
+              title={theme === 'dark' ? t.themeLight : t.themeDark}
+              className="flex items-center bg-stone-950 rounded-lg px-2 py-1.5 border border-stone-800 text-stone-300 hover:text-amber-300 hover:border-amber-500/40 transition-colors"
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-amber-400" />
+              )}
+            </button>
+
+            <button
+              onClick={openSettings}
+              aria-label={t.settings}
+              title={t.settings}
+              className="flex items-center gap-1.5 bg-stone-950 rounded-lg px-2.5 py-1.5 border border-stone-800 text-stone-300 hover:text-amber-300 hover:border-amber-500/40 transition-colors text-xs font-semibold"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-amber-400" />
+              <span className="hidden sm:inline">{t.settings}</span>
+            </button>
+          </div>
         </div>
 
         {/* Step Progress Bar */}
@@ -794,17 +849,33 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
         >
           <button
             className="absolute inset-0 bg-stone-950/70 backdrop-blur-sm"
-            onClick={() => setSettingsOpen(false)}
+            onClick={() => closeSettings()}
             aria-label={t.close}
             tabIndex={-1}
           />
           <div className="relative w-full sm:max-w-sm bg-stone-900 border-t sm:border border-amber-500/25 sm:rounded-2xl rounded-t-2xl shadow-2xl p-5 max-h-[85vh] overflow-y-auto">
+            {picker ? (
+              <SettingsPicker
+                title={picker === 'language' ? t.instructionLanguage : t.mantraScript}
+                closeLabel={t.close}
+                current={picker === 'language' ? instructionLang : mantraLang}
+                options={pickerOptions}
+                onPick={(code) => {
+                  if (picker === 'language') setInstructionLang(code as InstructionLang);
+                  else setMantraLang(code as MantraScript);
+                  setPicker(null);
+                }}
+                onBack={() => setPicker(null)}
+                onClose={closeSettings}
+              />
+            ) : (
+              <>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-bold uppercase tracking-wider text-amber-300">
                 {t.settings}
               </h2>
               <button
-                onClick={() => setSettingsOpen(false)}
+                onClick={closeSettings}
                 aria-label={t.close}
                 className="p-1.5 rounded-lg text-stone-400 hover:text-amber-300 hover:bg-stone-800 transition-colors"
               >
@@ -812,83 +883,39 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               </button>
             </div>
 
-            {/* Instruction language. Governs every word the app writes itself,
-                including these labels -- picking Tamil here changes this sheet
-                under your finger, which is the clearest possible confirmation
-                that the setting took. */}
-            <fieldset className="mb-5">
-              <legend className="flex items-center gap-1.5 text-xs font-semibold text-stone-400 mb-2">
-                <Globe className="w-3.5 h-3.5 text-amber-400" /> {t.instructionLanguage}
-              </legend>
-              <div className="grid grid-cols-2 gap-2">
-                {([['en', 'English'], ['ta', 'தமிழ்']] as const).map(([code, label]) => (
-                  <button
-                    key={code}
-                    onClick={() => setInstructionLang(code)}
-                    aria-pressed={instructionLang === code}
-                    className={`px-3 py-2.5 rounded-lg text-sm font-semibold border transition-colors ${
-                      instructionLang === code
-                        ? 'bg-amber-500 text-ink-inverse border-amber-400'
-                        : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
+            {/* TWO ROWS, NOT THREE GRIDS.
+                Each was a two-column grid of chips, which is fine at two
+                options and is the whole problem at fourteen: instructions
+                becomes seven rows, mantra script another seven, and the sheet
+                turns into a scroll with no way to search it.
 
-            {/* Deliberately separate from the instruction language: wanting the
-                steps in Tamil and the mantra in Devanagari is the normal case,
-                not an edge one. */}
-            <fieldset className="mb-5">
-              <legend className="flex items-center gap-1.5 text-xs font-semibold text-stone-400 mb-2">
-                <Languages className="w-3.5 h-3.5 text-amber-400" /> {t.mantraScript}
-              </legend>
-              <div className="grid grid-cols-2 gap-2">
-                {([['sanskrit', 'संस्कृतम्'], ['tamil', 'தமிழ்']] as const).map(([code, label]) => (
-                  <button
-                    key={code}
-                    onClick={() => setMantraLang(code)}
-                    aria-pressed={mantraLang === code}
-                    className={`px-3 py-2.5 rounded-lg text-sm font-semibold border transition-colors ${
-                      mantraLang === code
-                        ? 'bg-amber-500 text-ink-inverse border-amber-400'
-                        : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
+                A row that shows the current value and opens a list costs the
+                same height whether there are two languages or twenty, and it
+                is the pattern every phone settings screen already uses.
 
-            <fieldset>
-              <legend className="flex items-center gap-1.5 text-xs font-semibold text-stone-400 mb-2">
-                {theme === 'dark' ? (
-                  <Moon className="w-3.5 h-3.5 text-amber-400" />
-                ) : (
-                  <Sun className="w-3.5 h-3.5 text-amber-400" />
-                )}{' '}
-                {t.theme}
-              </legend>
-              <div className="grid grid-cols-2 gap-2">
-                {([['dark', t.themeDark], ['light', t.themeLight]] as const).map(([code, label]) => (
-                  <button
-                    key={code}
-                    onClick={() => setTheme(code)}
-                    aria-pressed={theme === code}
-                    className={`px-3 py-2.5 rounded-lg text-sm font-semibold border transition-colors ${
-                      theme === code
-                        ? 'bg-amber-500 text-ink-inverse border-amber-400'
-                        : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
+                The theme is not here at all any more -- it has its own button
+                in the header. It is binary forever, so making it cost two taps
+                through a sheet was always wrong. */}
+            <div className="space-y-2">
+              <SettingRow
+                icon={<Globe className="w-4 h-4 text-amber-400" />}
+                label={t.instructionLanguage}
+                value={LANGUAGES.find((l) => l.code === instructionLang)?.endonym ?? instructionLang}
+                onClick={() => setPicker('language')}
+              />
+              <SettingRow
+                icon={<Languages className="w-4 h-4 text-amber-400" />}
+                label={t.mantraScript}
+                value={SCRIPTS.find((x) => x.code === mantraLang)?.endonym ?? mantraLang}
+                onClick={() => setPicker('script')}
+              />
+            </div>
+
+            {/* Deliberately NOT linked. Wanting the steps in Tamil and the
+                mantra in Devanagari is the normal case here, not an edge one,
+                so picking a language never moves the script under you. */}
+              </>
+            )}
           </div>
         </div>
       )}
