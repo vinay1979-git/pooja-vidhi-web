@@ -27,6 +27,7 @@ import type { InstructionLang } from '@/lib/preferences';
 
 export interface UiText {
   /* chrome */
+  /** The way back to the two catalogues. "Catalog" was library furniture. */
   catalog: string;
   settings: string;
   instructionLanguage: string;
@@ -128,7 +129,7 @@ const KARTA_TERM_EN = { male: 'Karta', female: 'Kartri', couple: 'Dampati' } as 
 const KARTA_TERM_TA = { male: 'கர்த்தா', female: 'கர்த்ரீ', couple: 'தம்பதி' } as const;
 
 const en: UiText = {
-  catalog: 'Catalog',
+  catalog: 'Home',
   settings: 'Settings',
   instructionLanguage: 'Instructions',
   mantraScript: 'Mantra script',
@@ -186,7 +187,7 @@ const en: UiText = {
 };
 
 const ta: UiText = {
-  catalog: 'பட்டியல்',
+  catalog: 'முகப்பு',
   settings: 'அமைப்புகள்',
   instructionLanguage: 'விளக்க மொழி',
   mantraScript: 'மந்திர எழுத்து',

@@ -12,6 +12,7 @@ import { uiText, type UiText } from '@/lib/ui-text';
 import { LANGUAGES, SCRIPTS, coverageFor } from '@/lib/languages';
 import { SettingRow, SettingsPicker, type PickerOption } from '@/components/SettingsPicker';
 import { TempleBell } from '@/components/TempleBell';
+import { GopuramIcon } from '@/components/GopuramIcon';
 import type { KartaGender, PoojaMode } from '@/types/pooja';
 
 interface PoojaViewerProps {
@@ -759,13 +760,15 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               cut it to "Standard Ganes...". Below that floor the header's
               flex-wrap drops the toggles to their own line instead. */}
           <div className="flex items-center gap-2.5 min-w-0 flex-1 sm:min-w-[22rem]">
+            {/* A gopuram rather than a back-chevron. The chevron said "go up
+                one", which is true but uninformative; this says where. */}
             <Link
               href="/"
-              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-amber-950 text-amber-300 transition-colors border border-amber-500/30 text-xs font-bold flex items-center gap-1 shrink-0 shadow-sm"
-              title="Return to Pooja Catalog"
-              aria-label="Back to the pooja catalogue"
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-amber-950 text-amber-300 transition-colors border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-sm"
+              title={t.catalog}
+              aria-label={t.catalog}
             >
-              <ChevronLeft className="w-4 h-4 stroke-[3]" />
+              <GopuramIcon className="w-4 h-4" />
               <span>{t.catalog}</span>
             </Link>
 

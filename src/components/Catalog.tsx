@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { Pooja } from '@/types/pooja';
 import { MASTER_POOJAS } from '@/data/catalog';
 import { TempleBell } from '@/components/TempleBell';
+import { GopuramIcon } from '@/components/GopuramIcon';
 import { Sparkles, Flame, Clock, ArrowRight, BookOpen, Compass, Search, Sunrise } from 'lucide-react';
 
 /**
@@ -36,7 +37,7 @@ const SECTIONS: Record<CatalogSection, {
   pooja: {
     href: '/',
     tab: 'Pooja Vidhis',
-    heading: 'Pooja Catalog',
+    heading: 'Pooja Vidhis',
     blurb: 'Rites for a particular day. Select a deity or ritual below to begin step-by-step worship.',
     empty: 'No poojas yet.',
   },
@@ -84,7 +85,7 @@ export default async function Catalog({ section }: { section: CatalogSection }) 
         <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-y-3 gap-x-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-ink-inverse shadow-lg shadow-amber-600/30">
-              <Flame className="w-6 h-6 fill-stone-950" />
+              <GopuramIcon className="w-6 h-6" />
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-black bg-gradient-to-r from-amber-200 via-amber-400 to-amber-300 bg-clip-text text-transparent tracking-wide">
