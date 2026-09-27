@@ -162,10 +162,32 @@ for (const s of steps) {
   if (!s.source_ref) warn(at, 'has no source_ref');
 }
 
+/**
+ * A rite that is listed but not written yet.
+ *
+ * 0043 put four nitya karmas on the shelf ahead of their transcription so the
+ * section would not claim there is one daily rite. Checking them for steps,
+ * samagri, naivedyam and a deity reports ten faults that are all the same fact
+ * -- it has not been written -- and a checker that reports ten faults for one
+ * known absence is the kind this project deletes.
+ *
+ * So the CONTENT checks skip them, and the checks that still mean something do
+ * not: a placeholder must still carry both titles, well-formed Tamil and a
+ * description, because those are what the catalogue card shows.
+ */
+const isPlanned = (p) => p.status === 'planned';
+
 // Step numbers dense and unique per pooja.
 for (const p of poojas) {
   const mine = steps.filter((s) => s.pooja_id === p.id).map((s) => s.step_number).sort((a, b) => a - b);
   mine.forEach((n, i) => { if (n !== i + 1) fail(p.id, `step numbers are not 1..n: expected ${i + 1}, got ${n}`); });
+  // Both directions. A planned rite must have NO steps -- if it has some, the
+  // catalogue is hiding something that is ready, which is the opposite fault
+  // and the one nobody would notice.
+  if (isPlanned(p)) {
+    if (mine.length) fail(p.id, `is marked planned but has ${mine.length} step(s); publish it`);
+    continue;
+  }
   if (!mine.length) fail(p.id, 'has no steps');
   // Every pooja must be walkable in each mode IT CLAIMS -- not in a fixed list.
   //
@@ -446,6 +468,7 @@ for (const s of steps.filter((x) => x.namavali_id)) {
 
 // --- prep items -------------------------------------------------------------
 for (const p of poojas) {
+  if (isPlanned(p)) continue;
   const sm = samagri.filter((x) => x.pooja_id === p.id);
   const nv = naivedyam.filter((x) => x.pooja_id === p.id);
   if (!sm.length) fail(p.id, 'has no samagri');
@@ -470,8 +493,14 @@ for (const x of naivedyam) {
 for (const p of poojas) {
   for (const f of ['title_en', 'title_ta']) if (!p[f]) fail(p.id, `${f} is empty`);
   if (p.title_ta) checkTamil(`${p.id}.title_ta`, p.title_ta);
-  if (!p.deity_id) fail(p.id, 'has no deity');
-  else if (!deities.some((d) => d.id === p.deity_id)) fail(p.id, `deity "${p.deity_id}" does not exist`);
+  // A deity it names must exist, whether or not the rite is written yet.
+  if (p.deity_id && !deities.some((d) => d.id === p.deity_id)) {
+    fail(p.id, `deity "${p.deity_id}" does not exist`);
+  } else if (!p.deity_id && !isPlanned(p)) {
+    fail(p.id, 'has no deity');
+  }
+  if (!p.description_en) warn(p.id, 'has no description_en');
+  if (!p.description_ta) warn(p.id, 'has no description_ta');
   // A nitya rite has no calendar rule because it is performed every day. 0002
   // makes rule_type nullable for precisely this, so the absence is correct
   // rather than missing.
@@ -479,7 +508,6 @@ for (const p of poojas) {
   if (p.rule_type && p.ritual_class === 'nitya') {
     fail(p.id, 'is nitya but carries a calendar rule; a daily rite has no date');
   }
-  if (!p.description_en) warn(p.id, 'has no description_en');
   // karta_recommended arrives with 0041 and is absent before it, which is not a
   // fault. What would be a fault is a value the karta toggle has no button for:
   // the app drops anything it does not recognise, so the recommendation would

@@ -53,6 +53,31 @@ const SECTIONS: Record<CatalogSection, {
 const sectionOf = (p: Pooja): CatalogSection =>
   (p as { ritual_class?: string }).ritual_class === 'nitya' ? 'nitya' : 'pooja';
 
+/**
+ * What kind of rite this is, for the tag on the card.
+ *
+ * Every card said DEITY PUJA, including Brahma Yajnam, which has no deity at
+ * all -- it is the debt to the rishis. The tag was reading `pooja.deity`, a
+ * display field that getPooja never fills, so every card from the database fell
+ * through to the hard-coded fallback and the tag was decoration.
+ *
+ * ritual_class is the real answer and has been on the row since 0002.
+ */
+const CLASS_LABEL: Record<string, string> = {
+  deity_pooja: 'Deity Pooja',
+  vratam: 'Vratam',
+  nitya: 'Nitya Karma',
+  tarpanam: 'Tarpanam',
+  homam: 'Homam',
+  domestic: 'Domestic',
+  temple: 'Temple',
+};
+
+const classLabel = (p: Pooja): string => {
+  const cls = (p as { ritual_class?: string }).ritual_class;
+  return (cls && CLASS_LABEL[cls]) || p.deity || 'Pooja';
+};
+
 export default async function Catalog({ section }: { section: CatalogSection }) {
   let poojasList: Pooja[] = MASTER_POOJAS;
 
@@ -219,7 +244,7 @@ export default async function Catalog({ section }: { section: CatalogSection }) 
                   {/* Top Tags */}
                   <div className="flex items-center justify-between gap-2">
                     <span className="px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold uppercase tracking-wider">
-                      {pooja.deity || 'Deity Puja'}
+                      {classLabel(pooja)}
                     </span>
                     {pooja.duration_mins && (
                       <span className="flex items-center gap-1 text-xs text-stone-400 font-medium">
