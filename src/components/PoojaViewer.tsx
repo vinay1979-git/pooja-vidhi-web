@@ -6,11 +6,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, Award, BookOpen, Calendar, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, Compass, Flame, Flower2, Globe, Info, Languages, Lightbulb, Loader2, MapPin, Moon, RotateCcw, SearchCheck, SlidersHorizontal, Sparkles, Sun, User, Users, Utensils, X } from 'lucide-react';
 import { Pooja, PoojaStep, ArchanaItem } from '@/types/pooja';
 import { fetchPanchangamData, PanchangamData } from '@/actions/getSankalpam';
-import { usePreferences, resolveScript, SCRIPT_LABEL } from '@/lib/preferences';
+import { usePreferences, resolveScript, SCRIPT_LABEL, type InstructionLang } from '@/lib/preferences';
 import { renderPerson } from '@/lib/sankalpam';
-import { uiText } from '@/lib/ui-text';
+import { uiText, type UiText } from '@/lib/ui-text';
 import { TempleBell } from '@/components/TempleBell';
-import type { PoojaMode } from '@/types/pooja';
+import type { KartaGender, PoojaMode } from '@/types/pooja';
 
 interface PoojaViewerProps {
   pooja: Pooja;
@@ -19,6 +19,20 @@ interface PoojaViewerProps {
 
 // Suggestions start once the query is long enough to be worth a lookup.
 const MIN_LOCATION_CHARS = 3;
+
+/**
+ * The three kartas, in the order the buttons show them.
+ *
+ * `label` is resolved against the current language at render, so this holds the
+ * key rather than the word. Declared once because three places need the same
+ * list in the same order: the buttons, the Recommended badge, and the sentence
+ * under them that names the recommended one.
+ */
+const KARTA_CHOICES: { id: KartaGender; label: keyof Pick<UiText, 'male' | 'female' | 'couple'> }[] = [
+  { id: 'male', label: 'male' },
+  { id: 'female', label: 'female' },
+  { id: 'couple', label: 'couple' },
+];
 
 export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   // Navigation & Language States
@@ -36,8 +50,28 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   } = usePreferences();
   const [direction, setDirection] = useState<number>(1);
 
-  /** Every label the app writes itself, in the reader's chosen language. */
-  const t = uiText(instructionLang);
+  /**
+   * THE LANGUAGE SETTING APPLIES INSIDE THE POOJA AND NOWHERE ELSE.
+   *
+   * The preparation screen -- the date, the place, the karta, the gotra, the
+   * samagri list -- is always English. It is the screen where you set things
+   * up, and a mis-tap on the language toggle used to change every word on it at
+   * once, including the words you would need to read in order to change it
+   * back. A setup screen that can become unreadable by accident is a worse
+   * problem than a setup screen in one language.
+   *
+   * Once the pooja starts, the language is the whole point and the step screen
+   * follows it completely.
+   *
+   * The header and the footer follow the screen they are attached to, so a
+   * screen is never half one language and half the other. Only the language
+   * toggle itself reads `instructionLang` directly, because it has to show
+   * which language is chosen rather than which is currently on screen.
+   */
+  const uiLang: InstructionLang = currentStepIndex >= 0 ? instructionLang : 'en';
+
+  /** Every label the app writes itself, in the language of the current screen. */
+  const t = uiText(uiLang);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -78,8 +112,20 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     setSettingsOpen(true);
   }, []);
 
-  // Performer Gender State ('male' | 'female' | 'couple')
-  const [performerGender, setPerformerGender] = useState<'male' | 'female' | 'couple'>('male');
+  /**
+   * Who is performing: the karta.
+   *
+   * Some rites expect a particular karta and the pooja says so in
+   * karta_recommended. Varalakshmi recommends a woman. It is a RECOMMENDATION
+   * and not a gate: the book frames the vratham as kept by women and tells its
+   * whole chapter through them, but it nowhere says a man may not keep it, and
+   * an app has no business inventing a prohibition its source declines to make.
+   *
+   * So the recommendation only picks the opening value. All three buttons stay
+   * live, and choosing another one is not an error state.
+   */
+  const recommendedKarta = pooja.karta_recommended ?? null;
+  const [kartaGender, setKartaGender] = useState<KartaGender>(recommendedKarta ?? 'male');
 
   // Multi-day observances. Day one is the full pooja; later days are an
   // abbreviated Punar Pooja because the deity is already installed; the final
@@ -102,15 +148,24 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   });
 
   // Geolocation & Nominatim Geocoding State
-  const [locationQuery, setLocationQuery] = useState<string>('Chennai, TN');
+  //
+  // The box starts filled rather than empty, because the sankalpam names the
+  // place and a blank field would block the pooja on a question most readers
+  // would answer the same way twice a year. If the browser has already been
+  // given location permission, the effect further down replaces this with where
+  // they actually are, before they look at it.
+  // Spelled exactly as displayName below, not shortened: the typeahead skips a
+  // lookup when the box already says what is resolved, and "Pune, Maharashtra"
+  // is not that string.
+  const [locationQuery, setLocationQuery] = useState<string>('Pune, Maharashtra, India');
   const [resolvedGeo, setResolvedGeo] = useState<{
     lat: number;
     lon: number;
     displayName: string;
   } | null>({
-    lat: 13.0827,
-    lon: 80.2707,
-    displayName: 'Chennai, Tamil Nadu, India',
+    lat: 18.5204,
+    lon: 73.8567,
+    displayName: 'Pune, Maharashtra, India',
   });
 
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
@@ -158,18 +213,68 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
           place: resolvedGeo.displayName,
           gotra: sankalpamData.gotra,
           name: sankalpamData.devoteeName,
-          gender: performerGender === 'female' ? 'female' : 'male',
+          gender: kartaGender === 'female' ? 'female' : 'male',
         }
       );
       setPanchangamData(data);
     } catch (e) {
       console.error('Failed to load Panchangam data:', e);
     }
-  }, [sankalpamDate, resolvedGeo, sankalpamData, performerGender]);
+  }, [sankalpamDate, resolvedGeo, sankalpamData, kartaGender]);
 
   useEffect(() => {
     loadPanchangam();
   }, [loadPanchangam]);
+
+  /**
+   * Take a GPS fix, name it if we can, and put it in the box.
+   *
+   * `silent` is the difference between the reader pressing the button and the
+   * page helping itself on load. A silent run says nothing while it works and
+   * says nothing if it fails -- there is a perfectly good default in the box
+   * already, and a status line about GPS the reader never asked for is noise on
+   * a screen that is meant to be calm.
+   */
+  const applyGpsFix = useCallback(
+    async (lat: number, lon: number, silent: boolean) => {
+      // Every path here writes into the location box, and writing into it is
+      // what the typeahead watches. Without this the box would immediately
+      // search for the place we just resolved and drop a suggestion list over
+      // the answer.
+      const commit = (query: string, displayName: string) => {
+        suppressSearch.current = true;
+        setLocationQuery(query);
+        setResolvedGeo({ lat: Number(lat), lon: Number(lon), displayName });
+        setSuggestOpen(false);
+        setGeoCandidates([]);
+      };
+
+      try {
+        // Through our route, so the OSM usage policy is respected and the
+        // result comes back already shaped as city / state / country.
+        const response = await fetch(`/api/geocode?lat=${lat}&lon=${lon}`);
+        const data = await response.json();
+        const place = (data.places ?? [])[0];
+
+        if (place) {
+          commit(place.label, place.label);
+          setLocationStatus('');
+        } else {
+          // Coordinates are what the Sankalpam needs, so keep them even when
+          // we cannot put a name to the place.
+          const coords = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+          commit(coords, `GPS ${coords}`);
+          if (!silent) setLocationStatus('Coordinates captured, but the place could not be named.');
+        }
+      } catch (err) {
+        console.warn('Reverse geocoding error:', err);
+        const coords = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+        commit(coords, `GPS ${coords}`);
+        if (!silent) setLocationStatus('Coordinates captured; naming the place failed.');
+      }
+    },
+    [],
+  );
 
   // Reverse Geocoding (Detect Location Button)
   const handleDetectLocation = () => {
@@ -183,43 +288,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-
-        try {
-          // Through our route, so the OSM usage policy is respected and the
-          // result comes back already shaped as city / state / country.
-          const response = await fetch(`/api/geocode?lat=${lat}&lon=${lon}`);
-          const data = await response.json();
-          const place = (data.places ?? [])[0];
-
-          if (place) {
-            setLocationQuery(place.label);
-            setResolvedGeo({ lat: Number(lat), lon: Number(lon), displayName: place.label });
-            setLocationStatus('');
-          } else {
-            // Coordinates are what the Sankalpam needs, so keep them even when
-            // we cannot put a name to the place.
-            setLocationQuery(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
-            setResolvedGeo({
-              lat: Number(lat),
-              lon: Number(lon),
-              displayName: `GPS ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
-            });
-            setLocationStatus('Coordinates captured, but the place could not be named.');
-          }
-        } catch (err) {
-          console.warn('Reverse geocoding error:', err);
-          setLocationQuery(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
-          setResolvedGeo({
-            lat: Number(lat),
-            lon: Number(lon),
-            displayName: `GPS ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
-          });
-          setLocationStatus('Coordinates captured; naming the place failed.');
-        } finally {
-          setIsDetectingLocation(false);
-        }
+        await applyGpsFix(position.coords.latitude, position.coords.longitude, false);
+        setIsDetectingLocation(false);
       },
       (error) => {
         console.warn('Geolocation error:', error);
@@ -229,6 +299,48 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
       { timeout: 10000 }
     );
   };
+
+  /**
+   * If this browser has ALREADY been given location permission, use it on load.
+   *
+   * Deliberately gated on permissions.query returning 'granted'. Calling
+   * getCurrentPosition on 'prompt' would throw a permission dialog at someone
+   * who has just opened a page about a pooja and asked for nothing, which is
+   * the behaviour every site is disliked for. Somebody who has granted it once
+   * has already said yes, and this spares them pressing the button every time.
+   *
+   * Everything here degrades to the default place: Firefox and Safari have not
+   * always implemented permissions.query for geolocation, the promise can
+   * reject, and the fix itself can time out. All of that ends with Pune still
+   * in the box, which is a working sankalpam rather than an error.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    if (typeof navigator === 'undefined' || !navigator.geolocation || !navigator.permissions) return;
+
+    navigator.permissions
+      .query({ name: 'geolocation' as PermissionName })
+      .then((status) => {
+        if (cancelled || status.state !== 'granted') return;
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            if (cancelled) return;
+            void applyGpsFix(position.coords.latitude, position.coords.longitude, true);
+          },
+          () => {
+            /* Already granted and still failed. Keep the default and say nothing. */
+          },
+          { timeout: 10000 },
+        );
+      })
+      .catch(() => {
+        /* No permissions API for geolocation here. Keep the default. */
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyGpsFix]);
 
   // Forward Geocoding (Manual Entry Validation)
   const handleVerifyLocation = async () => {
@@ -281,6 +393,23 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
       setSuggestOpen(false);
       return;
     }
+    // Nothing to look up when the box already says exactly what is resolved.
+    //
+    // suppressSearch alone was not enough. It is a one-shot ref, so it holds
+    // only if this effect runs exactly once before the reader types -- and in
+    // development React invokes effects twice on mount, so the second run
+    // searched for the default place and dropped a suggestion list on top of
+    // the answer the page had just given. Two Punes, one of them in Kolhapur.
+    //
+    // Asking whether the text matches the resolved place is a fact about the
+    // state rather than a count of renders, so it does not care how many times
+    // this runs. It covers picking a suggestion and a GPS fix as well, both of
+    // which write the resolved name straight into the box.
+    if (resolvedGeo && q === resolvedGeo.displayName.trim()) {
+      setGeoCandidates([]);
+      setSuggestOpen(false);
+      return;
+    }
 
     const timer = setTimeout(async () => {
       searchAbort.current?.abort();
@@ -309,7 +438,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [locationQuery]);
+  }, [locationQuery, resolvedGeo]);
 
   // Commit a chosen place. The label is what the user sees; lat and lon are what
   // the Sankalpam is actually computed from.
@@ -326,15 +455,15 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     setLocationStatus('');
   };
 
-  // Helper to check if step is allowed for current performerGender
+  // Helper to check if step is allowed for current kartaGender
   const isStepAvailableForGender = useCallback(
     (step: PoojaStep) => {
-      if (!step.gender_target || step.gender_target === 'all' || performerGender === 'couple') {
+      if (!step.gender_target || step.gender_target === 'all' || kartaGender === 'couple') {
         return true;
       }
-      return step.gender_target === performerGender;
+      return step.gender_target === kartaGender;
     },
-    [performerGender]
+    [kartaGender]
   );
 
   // Which days this pooja is actually kept over, taken from its own steps.
@@ -539,7 +668,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
         {
           gotra: sankalpamData.gotra || undefined,
           name: sankalpamData.devoteeName || undefined,
-          gender: performerGender,
+          gender: kartaGender,
         },
       );
       const dynamicText = [p.core[key], person].filter(Boolean).join(' ');
@@ -553,7 +682,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
       return originalText;
     },
-    [panchangamData, sankalpamData, performerGender]
+    [panchangamData, sankalpamData, kartaGender]
   );
 
   // Slide Animation Variants for Framer Motion
@@ -610,9 +739,9 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
             <div className="min-w-0">
               <h1
                 className="text-base sm:text-lg md:text-xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-300 bg-clip-text text-transparent tracking-wide truncate"
-                lang={instructionLang === 'ta' && pooja.title_ta ? 'ta' : 'en'}
+                lang={uiLang === 'ta' && pooja.title_ta ? 'ta' : 'en'}
               >
-                {instructionLang === 'ta' && pooja.title_ta ? pooja.title_ta : pooja.title_en}
+                {uiLang === 'ta' && pooja.title_ta ? pooja.title_ta : pooja.title_en}
               </h1>
             </div>
           </div>
@@ -799,9 +928,9 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 </div>
                 <h2
                   className="text-2xl md:text-3xl font-extrabold text-amber-100"
-                  lang={instructionLang === 'ta' && pooja.title_ta ? 'ta' : 'en'}
+                  lang={uiLang === 'ta' && pooja.title_ta ? 'ta' : 'en'}
                 >
-                  {instructionLang === 'ta' && pooja.title_ta ? pooja.title_ta : pooja.title_en}
+                  {uiLang === 'ta' && pooja.title_ta ? pooja.title_ta : pooja.title_en}
                 </h2>
                 <p className="text-stone-300 text-sm md:text-base leading-relaxed">
                   {t.prepLede}
@@ -845,34 +974,39 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 )}
               </div>
 
-              {/* Performer Gender Toggle */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
-                {/* Which day of the observance. Ganesha Chaturthi is kept for
-                    one, three, five, seven, nine or eleven days; only the first
-                    and last differ from the middle ones. */}
-                <div className={showModePicker ? 'mb-4' : 'hidden'}>
+              {/* Which day of the observance. Ganesha Chaturthi is kept for
+                  one, three, five, seven, nine or eleven days; only the first
+                  and last differ from the middle ones.
+
+                  This block used to sit INSIDE the karta label below, between
+                  its opening tag and its icon, so the whole day picker
+                  inherited `flex items-center` from a label meant to hold two
+                  words -- and the Users icon and the word Karta were pushed out
+                  to the right of the three day buttons and vertically centred
+                  against them. */}
+              <div className={showModePicker ? '' : 'hidden'}>
                   <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5 mb-2">
                     <Calendar className="w-4 h-4 text-amber-400" /> {t.whichDay}
                   </label>
+                  {/* One language, not two. These buttons printed the English
+                      name and the Tamil name stacked, on a screen that is now
+                      English throughout -- so every one of them said the same
+                      thing twice and neither line was the reader's choice. */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {([
                       {
                         id: 'main' as PoojaMode,
                         en: 'Main Pooja',
-                        ta: 'பிரதான பூஜை',
                         hint: 'First day. Full vidhi, the idol is installed.',
                       },
                       {
                         id: 'punar' as PoojaMode,
                         en: 'Punar Pooja',
-                        ta: 'புனர் பூஜை',
                         hint: 'A later day. Shorter: the deity is already installed.',
                       },
                       {
                         id: 'udvasana' as PoojaMode,
                         en: 'Udvasanam only',
-                        ta: 'உத்வாசனம்',
                         hint: 'Final day. Closing and release, before immersion.',
                       },
                     ]).map((m) => (
@@ -889,9 +1023,6 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                         }`}
                       >
                         <span className="block text-xs font-bold">{m.en}</span>
-                        <span className="block text-[11px] font-tamil opacity-90" lang="ta">
-                          {m.ta}
-                        </span>
                         <span className="block text-[10px] mt-0.5 opacity-75 leading-snug">
                           {m.hint}
                         </span>
@@ -903,42 +1034,62 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       ? `${availableSteps.length} of ${steps.length} steps for this selection.`
                       : 'Day selection has no effect yet: run migration 0009 to tag the steps.'}
                   </p>
-                </div>
+              </div>
 
-                  <Users className="w-4 h-4 text-amber-400" /> {t.performedBy}
+              {/* Who is performing the rite. The word is karta, and the app says
+                  karta rather than "performed by": it is the ordinary term for
+                  the one performing, and every practitioner who would open this
+                  app already knows it.
+
+                  The HEADING inflects with the selection -- Karta, Kartri,
+                  Dampati -- because karta is the masculine form and this is the
+                  one place in the app that knows who is sitting there. The step
+                  prose keeps the bare role noun, because those sentences are
+                  about whoever is performing and not about a particular karta.
+                  See KARTA_TERM_EN in lib/ui-text.ts for the forms.
+
+                  A pooja may RECOMMEND a karta. Varalakshmi does -- the book's
+                  chapter is told entirely through women and glosses the goddess's
+                  own disguise as "Suvasini (married woman)". It is a
+                  recommendation and not a rule, because the book nowhere writes
+                  that a man may not keep the vratham, so the recommended button
+                  is pre-selected and the other two stay live. */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-amber-400" /> {t.kartaHeading(kartaGender)}
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => setPerformerGender('male')}
-                    className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border ${
-                      performerGender === 'male'
-                        ? 'bg-amber-500 text-ink-inverse border-amber-400 shadow-md'
-                        : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
-                    }`}
-                  >
-                    {t.male}
-                  </button>
-                  <button
-                    onClick={() => setPerformerGender('female')}
-                    className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border ${
-                      performerGender === 'female'
-                        ? 'bg-amber-500 text-ink-inverse border-amber-400 shadow-md'
-                        : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
-                    }`}
-                  >
-                    {t.female}
-                  </button>
-                  <button
-                    onClick={() => setPerformerGender('couple')}
-                    className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all border ${
-                      performerGender === 'couple'
-                        ? 'bg-amber-500 text-ink-inverse border-amber-400 shadow-md'
-                        : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
-                    }`}
-                  >
-                    {t.couple}
-                  </button>
+                  {KARTA_CHOICES.map((k) => (
+                    <button
+                      key={k.id}
+                      onClick={() => setKartaGender(k.id)}
+                      className={`relative py-2.5 px-4 rounded-xl text-xs font-bold transition-all border ${
+                        kartaGender === k.id
+                          ? 'bg-amber-500 text-ink-inverse border-amber-400 shadow-md'
+                          : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
+                      }`}
+                    >
+                      {t[k.label]}
+                      {recommendedKarta === k.id && (
+                        <span
+                          className={`block text-[10px] font-normal leading-tight mt-0.5 ${
+                            kartaGender === k.id ? 'opacity-80' : 'text-amber-400/80'
+                          }`}
+                        >
+                          {t.recommended}
+                        </span>
+                      )}
+                    </button>
+                  ))}
                 </div>
+                {recommendedKarta && (
+                  <p className="text-[11px] text-stone-400 leading-snug">
+                    {t.kartaRecommendation(
+                      t[KARTA_CHOICES.find((k) => k.id === recommendedKarta)!.label],
+                      t.kartaTerm(recommendedKarta),
+                    )}
+                  </p>
+                )}
               </div>
 
               {/* Input Form Grid */}
@@ -1198,32 +1349,23 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                             <Circle className="w-5 h-5 text-stone-600" />
                           )}
                         </div>
+                        {/* One name, not both. This row used to print the
+                            item in the reader's language and then again in the
+                            other one underneath, which made a twenty-one line
+                            shopping list forty-two lines long to say nothing
+                            new. */}
                         <div>
                           {(() => {
-                            const wantsTamil = instructionLang === 'ta' && Boolean(item.item_ta);
-                            const primary = wantsTamil ? item.item_ta : item.item_en;
-                            const secondary = wantsTamil ? item.item_en : item.item_ta;
+                            const wantsTamil = uiLang === 'ta' && Boolean(item.item_ta);
                             return (
-                              <>
-                                <p
-                                  className={`text-sm font-semibold ${wantsTamil ? 'font-tamil' : ''} ${
-                                    isChecked ? 'line-through opacity-80' : ''
-                                  }`}
-                                  lang={wantsTamil ? 'ta' : 'en'}
-                                >
-                                  {primary}
-                                </p>
-                                {secondary && secondary !== primary && (
-                                  <p
-                                    className={`text-xs text-amber-400/80 font-medium ${
-                                      wantsTamil ? '' : 'font-tamil'
-                                    }`}
-                                    lang={wantsTamil ? 'en' : 'ta'}
-                                  >
-                                    {secondary}
-                                  </p>
-                                )}
-                              </>
+                              <p
+                                className={`text-sm font-semibold ${wantsTamil ? 'font-tamil' : ''} ${
+                                  isChecked ? 'line-through opacity-80' : ''
+                                }`}
+                                lang={wantsTamil ? 'ta' : 'en'}
+                              >
+                                {wantsTamil ? item.item_ta : item.item_en}
+                              </p>
                             );
                           })()}
                         </div>
@@ -1264,7 +1406,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       <div className="flex items-center gap-2">
                         <Flower2 className="w-4 h-4 text-amber-400 shrink-0" />
                         {(() => {
-                          const wantsTamil = instructionLang === 'ta' && Boolean(item.name_ta);
+                          const wantsTamil = uiLang === 'ta' && Boolean(item.name_ta);
                           return (
                             <h4
                               className={`font-bold text-amber-200 text-base ${wantsTamil ? 'font-tamil' : ''}`}
@@ -1275,26 +1417,11 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                           );
                         })()}
                       </div>
-                      {(() => {
-                        // The other language, whichever way round.
-                        const wantsTamil = instructionLang === 'ta' && Boolean(item.name_ta);
-                        const secondary = wantsTamil ? item.name_en : item.name_ta;
-                        if (!secondary || secondary === (wantsTamil ? item.name_ta : item.name_en))
-                          return null;
-                        return (
-                          <p
-                            className={`text-xs text-amber-400/90 font-medium pl-6 ${wantsTamil ? '' : 'font-tamil'}`}
-                            lang={wantsTamil ? 'en' : 'ta'}
-                          >
-                            {secondary}
-                          </p>
-                        );
-                      })()}
                     </div>
 
                     {(item.description_en || item.description_ta) && (
                       <p className="text-xs text-stone-400 leading-relaxed border-t border-stone-800/80 pt-2">
-                        {instructionLang === 'ta' && item.description_ta
+                        {uiLang === 'ta' && item.description_ta
                           ? item.description_ta
                           : item.description_en}
                       </p>
@@ -1357,7 +1484,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                             disabled={!isStepAvailableForGender(s)}
                           >
                             {t.stepNumber(idx + 1)}:{' '}
-                            {instructionLang === 'ta' && s.step_title_ta
+                            {uiLang === 'ta' && s.step_title_ta
                               ? s.step_title_ta
                               : s.step_title_en}{' '}
                             {!isStepAvailableForGender(s) ? `(${t.skipped})` : ''}
@@ -1377,7 +1504,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       // costs a line of the fold on a phone. The English name is
                       // still one tap away in the step-jump list.
                       const ta = currentStep.step_title_ta;
-                      const wantsTamil = instructionLang === 'ta' && Boolean(ta);
+                      const wantsTamil = uiLang === 'ta' && Boolean(ta);
                       return (
                         <>
                           <h2
@@ -1398,7 +1525,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                     <div>
                       {(() => {
-                        const wantsTamil = instructionLang === 'ta';
+                        const wantsTamil = uiLang === 'ta';
                         const tamil = currentStep.instruction_ta;
                         const usingFallback = wantsTamil && !tamil;
                         return (
@@ -1423,7 +1550,20 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   </div>
                 </div>
 
-                {/* PHILOSOPHY & SIGNIFICANCE EXPANDABLE ACCORDION CARD (FOR NOVICES) */}
+                {/* PHILOSOPHY & SIGNIFICANCE EXPANDABLE ACCORDION CARD (FOR NOVICES)
+
+                    ENGLISH ONLY, ON PURPOSE. philosophy_ta exists as a column
+                    and is null on all 107 steps, and that is the decision rather
+                    than a backlog item: this prose is the long discursive
+                    "why are we doing this", written for someone meeting the rite
+                    rather than reciting it, and it stays in one language.
+
+                    So this reads philosophy_en unconditionally and does NOT
+                    print the "not translated yet" notice the instruction field
+                    uses -- that notice means "this is missing", and this is not
+                    missing. The heading above it still follows the reader's
+                    language, because the heading is a label and the app writes
+                    its own labels in both. */}
                 {currentStep.philosophy_en && (
                   <div className="rounded-2xl bg-gradient-to-r from-amber-950/30 via-stone-900 to-stone-950 border border-amber-500/30 overflow-hidden shadow-xl">
                     <button
@@ -1660,7 +1800,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       ) && (
                         <div className="rounded-xl bg-stone-950/60 border border-amber-500/20 px-4 py-3">
                           <p className="text-[11px] uppercase tracking-wider font-bold text-amber-500/70 mb-1">
-                            {instructionLang === 'ta'
+                            {uiLang === 'ta'
                               ? t.sameMantraEach
                               : 'Recite at every offering'}
                           </p>
@@ -1731,7 +1871,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                                 {repeatedName ? (
                                   <>
                                     <p className="text-sm md:text-base font-bold text-amber-100">
-                                      {instructionLang === 'ta' && item.offering_ta
+                                      {uiLang === 'ta' && item.offering_ta
                                         ? item.offering_ta
                                         : item.offering_en}
                                     </p>
@@ -1760,7 +1900,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                                         line, so the name alone is not enough. */}
                                     {item.offering_en && (
                                       <p className="text-xs text-amber-300/90 font-semibold mt-1">
-                                        {instructionLang === 'ta' && item.offering_ta
+                                        {uiLang === 'ta' && item.offering_ta
                                           ? item.offering_ta
                                           : item.offering_en}
                                         {item.botanical && (
@@ -1775,7 +1915,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                                 )}
                                 {item.is_substitutable && item.substitute_with && (
                                   <p className="text-xs text-stone-400 mt-0.5">
-                                    {instructionLang === 'ta'
+                                    {uiLang === 'ta'
                                       ? t.ifUnavailable(item.substitute_with)
                                       : `If unavailable: ${item.substitute_with}`}
                                   </p>
@@ -1829,7 +1969,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
             </div>
 
             <div className="p-4 rounded-xl bg-stone-950/80 border border-amber-500/30 max-w-md mx-auto text-amber-300 font-serif italic text-sm">
-              {instructionLang === 'ta'
+              {uiLang === 'ta'
                 ? '“ஓம் சாந்தி சாந்தி சாந்தி꞉”'
                 : '“Om Shanti Shanti Shantih”'}
             </div>
