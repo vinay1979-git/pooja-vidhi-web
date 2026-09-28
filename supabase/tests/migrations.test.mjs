@@ -1823,6 +1823,32 @@ await assert('and the Devanagari kept the sign',
      where coalesce(mantra_sanskrit, '') ~ '[꣠-ꣿ]'`, 4);
 
 
+console.log('\n[9bj] 0047 a pooja\'s modes become data');
+await assert('before 0047 there is no such table',
+  `select count(*) from information_schema.tables
+     where table_schema = 'public' and table_name = 'pooja_modes'`, 0);
+await step('0047_pooja_modes_table.sql', () => db.exec(sql(`${MIG}/0047_pooja_modes_table.sql`)));
+await assert('the three multi-day poojas keep three modes each',
+  `select count(*) from pooja_modes
+     where pooja_id in ('ganesha_standard','varalakshmi_vratham')`, 6);
+await assert('the daily rite declares its single mode',
+  `select count(*) from pooja_modes where pooja_id = 'nitya_panchayatana'`, 1);
+await assert('and sandhyavandanam declares its three sittings',
+  `select count(*) from pooja_modes where pooja_id = 'sandhyavandanam'
+     and mode in ('pratah','madhyahnika','sayam')`, 3);
+// The assertion the table exists for: a step claiming a mode nobody declared
+// is a step the picker can never reach, and nothing else would notice.
+await assert('every mode a step claims is declared',
+  `select count(*) from (
+     select distinct s.pooja_id, unnest(s.modes) as mode from pooja_steps s
+   ) claimed
+   where not exists (
+     select 1 from pooja_modes m where m.pooja_id = claimed.pooja_id and m.mode = claimed.mode
+   )`, 0);
+await assert('every label carries Tamil',
+  `select count(*) from pooja_modes where label_ta !~ '[஀-௿]' or hint_ta !~ '[஀-௿]'`, 0);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
