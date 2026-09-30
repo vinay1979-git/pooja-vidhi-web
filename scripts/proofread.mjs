@@ -254,14 +254,50 @@ const SHARED_OK = new Set([
   'Achamanam', 'Anga Vandanam', 'Vighneshwara Dhyanam', 'Pranayamam',
   'Kalasha Pooja', 'Ghanta Pooja',
   'Asana Pooja', 'Shankha Pooja', 'Atma Pooja', 'Peetha Pooja', 'Guru Dhyanam',
+  // Sandhyavandanam opens BOTH its halves by tapping the temples for Ganesha,
+  // so the same verse and the same rubric appear twice in one rite. Two
+  // moments, one text, and the app carries it twice on purpose -- see 0049.
+  'Vighneshwara Dhyanam (japa)',
+  // Arghyam and the Gayatri japa are both the Gayatri, so they share a meaning.
+  'Arghya Pradanam', 'Gayatri Japa',
 ]);
+/**
+ * Two steps a reader can never meet in the same walkthrough.
+ *
+ * Sandhyavandanam holds four sets of three rows that are ALTERNATIVES: the two
+ * Sankalpas, the Prashanam and the Gayatri Upasthanam each exist once per
+ * sitting, tagged pratah, madhyahnika or sayam, and exactly one of the three is
+ * ever shown. Their rubrics are identical because the ACTION is identical --
+ * only the mantra differs -- and warning about it fired fourteen times for
+ * something that is correct by construction.
+ *
+ * Mode-disjointness is the test rather than a list of names, because it is the
+ * actual reason: if no sitting shows both rows, a reader cannot compare them
+ * and identical prose cannot read as a copy-paste.
+ */
+const disjointModes = (a, b) => {
+  const am = a.modes ?? [];
+  const bm = b.modes ?? [];
+  if (!am.length || !bm.length) return false;
+  return !am.some((m) => bm.includes(m));
+};
+
+/**
+ * Below this, identical text is not evidence of anything. "Pray with folded
+ * hands." is four words describing a gesture that genuinely recurs; flagging it
+ * teaches the reader to skim these warnings, which is how the real one gets
+ * missed.
+ */
+const DUP_MIN_LENGTH = 60;
+
 for (const field of ['instruction_en', 'meaning_en', 'philosophy_en']) {
   const seen = new Map();
   for (const s of steps) {
     const v = s[field];
-    if (!v) continue;
+    if (!v || v.length < DUP_MIN_LENGTH) continue;
     const prev = seen.get(v);
-    if (prev && !(SHARED_OK.has(s.step_title_en) && SHARED_OK.has(prev.step_title_en))) {
+    if (prev && !disjointModes(prev, s) &&
+        !(SHARED_OK.has(s.step_title_en) && SHARED_OK.has(prev.step_title_en))) {
       warn(`${field}`, `identical text on "${prev.pooja_id}/${prev.step_title_en}" and "${s.pooja_id}/${s.step_title_en}"`);
     }
     seen.set(v, s);
@@ -298,6 +334,14 @@ const EXPECT_ARCHANA = {
   // The obstacle-removing rite has its own archana, distinct from the main
   // pooja's Anga, Patra, Pushpa and Durva lists.
   'ganesha_standard/Vighneshwara Shodasha Nama Archana': 16,
+  // Sandhyavandanam's three lists. The tarpanam is nine grahas and the twelve
+  // Keshava names, which the book explains as Narayana in the form of time --
+  // one per month. The two vandanams are circuits of direction rather than
+  // lists of deities: five quarters turned through clockwise, then eleven
+  // covering the four quarters, the three verticals and four deities by name.
+  'sandhyavandanam/Navagraha Deva Tarpanam': 21,
+  'sandhyavandanam/Samashti Abhivadanam': 5,
+  'sandhyavandanam/Dig Devata Vandanam': 11,
   // Twenty-four, not fifteen, since 0032. The app followed StotraNidhi's
   // fifteen-limb anga pooja; the owner chose to follow the book, whose list is
   // twenty-four limbs sharing almost no names with the other. Changing this
@@ -436,6 +480,23 @@ const EXPECT_PROSE_COUNT = {
   // The tarpanam's prose counts 8 + 8 + 1 rather than 17, and says so in the
   // philosophy: "Seventeen offerings, not sixteen".
   'nitya_panchayatana/Deva Tarpanam': 'seventeen',
+
+  // Sandhyavandanam's three lists.
+  //
+  // The tarpanam's philosophy does say "Twenty-one offerings", and the meaning
+  // deliberately does not: it counts nine grahas and twelve Keshava names,
+  // because that is how the book explains the list and 9 + 12 is the fact worth
+  // carrying. The check reads all three prose fields, so declaring the total is
+  // honest here rather than forcing the meaning to say a number it should not.
+  'sandhyavandanam/Navagraha Deva Tarpanam': 'twenty-one',
+
+  // These two are circuits of DIRECTION, and their prose names the quarters
+  // rather than counting them -- east, south, west, north, and then above,
+  // below and the space between. A count word would be the wrong thing to say
+  // about a turn through the compass, so both are declared exempt rather than
+  // having a number written into them to satisfy a checker.
+  'sandhyavandanam/Samashti Abhivadanam': null,
+  'sandhyavandanam/Dig Devata Vandanam': null,
 };
 for (const s of steps) {
   const key = `${s.pooja_id}/${s.step_title_en}`;
