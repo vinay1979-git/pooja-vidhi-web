@@ -42,8 +42,9 @@ function toLegacyGender(rule: GenderRule | null): 'all' | 'male' | 'female' {
 }
 
 // Columns that arrive with a later migration than the code that asks for them:
-// recipe_note_ta with 0007, karta_recommended with 0041, status with 0043 and
-// why_en/why_ta with 0044. Selecting a column
+// recipe_note_ta with 0007, karta_recommended with 0041, status with 0043,
+// why_en/why_ta with 0044 and the whole pooja_modes table with 0047. Selecting
+// a column
 // that does not exist yet fails the WHOLE query, so the app would break in the
 // window between deploying the code and running the migration.
 //
@@ -55,7 +56,10 @@ function toLegacyGender(rule: GenderRule | null): 'all' | 'male' | 'female' {
 const POOJA_SELECT = (withOptional: boolean) => `
   id, title_en, title_ta, description_en, description_ta, duration_mins,
   ritual_class, deity_id, eligibility${
-    withOptional ? ', status, karta_recommended, why_en, why_ta' : ''
+    withOptional
+      ? ', status, karta_recommended, why_en, why_ta,' +
+        ' pooja_modes ( mode, seq, label_en, label_ta, hint_en, hint_ta )'
+      : ''
   },
   samagri_items ( seq, item_en, item_ta, quantity, category, is_required ),
   naivedyam_items ( tier, seq, name_en, name_ta, recipe_note${
@@ -104,6 +108,7 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
     karta_recommended?: string | null;
     why_en?: string | null;
     why_ta?: string | null;
+    pooja_modes?: Record<string, unknown>[];
     samagri_items?: Record<string, unknown>[];
     naivedyam_items?: Record<string, unknown>[];
   };
@@ -153,6 +158,20 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
       ? (row.karta_recommended as KartaGender)
       : undefined,
     status: row.status === 'planned' ? 'planned' : 'published',
+    // Sorted here rather than trusted from PostgREST: the picker's order is the
+    // rite's order -- morning before noon before evening -- and seq is stored
+    // precisely because no sort the client could invent would get it right.
+    modes: (row.pooja_modes ?? [])
+      .slice()
+      .sort((a, b) => (a.seq as number) - (b.seq as number))
+      .map((m) => ({
+        mode: String(m.mode ?? ''),
+        seq: Number(m.seq ?? 0),
+        label_en: String(m.label_en ?? ''),
+        label_ta: String(m.label_ta ?? ''),
+        hint_en: String(m.hint_en ?? ''),
+        hint_ta: String(m.hint_ta ?? ''),
+      })),
     why_en: row.why_en ?? undefined,
     why_ta: row.why_ta ?? undefined,
     samagri_list: samagri,

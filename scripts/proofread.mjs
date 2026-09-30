@@ -138,6 +138,9 @@ const naivedyam = await get('naivedyam_items?select=*&order=pooja_id,tier,seq');
 const archana = await get('archana_items?select=*,pooja_steps(pooja_id,step_title_en)&order=seq');
 const namavali = await get('namavali_items?select=*&order=namavali_id,seq');
 const deities = await get('deities?select=*');
+// Arrives with 0047. Absent before it, which is not a fault -- the checks below
+// degrade to nothing rather than failing a database that has not been migrated.
+const poojaModes = await get('pooja_modes?select=*&order=pooja_id,seq').catch(() => []);
 
 console.log(`poojas ${poojas.length}, steps ${steps.length}, samagri ${samagri.length}, naivedyam ${naivedyam.length}, archana ${archana.length}, namavali ${namavali.length}, deities ${deities.length}\n`);
 
@@ -494,6 +497,51 @@ for (const x of naivedyam) {
   if (!x.name_en) fail(at, 'has no English name');
   if (!x.name_ta) fail(at, 'has no Tamil name');
   else checkTamil(`${at}.name_ta`, x.name_ta);
+}
+
+// --- modes ------------------------------------------------------------------
+//
+// The invariant 0047 exists to protect, checked here too because a migration
+// after it could break either half without anything noticing:
+//
+//   a mode a STEP claims and nothing DECLARES is a step the picker can never
+//   reach -- no error, no empty screen, just a step quietly unavailable;
+//
+//   a mode DECLARED with no steps is a button that empties the screen when
+//   pressed.
+//
+// Neither shows up in any other check, because both halves are individually
+// well formed.
+if (poojaModes.length) {
+  const declared = new Set(poojaModes.map((m) => `${m.pooja_id}/${m.mode}`));
+  const claimed = new Set();
+  for (const s of steps) for (const m of s.modes ?? []) claimed.add(`${s.pooja_id}/${m}`);
+
+  for (const key of claimed) {
+    if (!declared.has(key)) fail(key, 'step mode is not declared in pooja_modes, so the picker cannot reach it');
+  }
+  const haveSteps = new Set(steps.map((s) => s.pooja_id));
+  for (const m of poojaModes) {
+    const key = `${m.pooja_id}/${m.mode}`;
+    if (haveSteps.has(m.pooja_id) && !claimed.has(key)) {
+      fail(key, 'mode is declared but no step uses it, so the button would empty the screen');
+    }
+    for (const f of ['label_en', 'label_ta', 'hint_en', 'hint_ta']) {
+      if (!m[f] || !String(m[f]).trim()) fail(key, `${f} is empty`);
+    }
+    if (m.label_ta) checkTamil(`${key}.label_ta`, m.label_ta);
+    if (m.hint_ta) checkTamil(`${key}.hint_ta`, m.hint_ta);
+  }
+  // seq orders the picker and must be dense per pooja, or two buttons collide
+  // or a gap hints at a mode someone deleted.
+  const bySeq = {};
+  for (const m of poojaModes) (bySeq[m.pooja_id] ??= []).push(m.seq);
+  for (const [pid, seqs] of Object.entries(bySeq)) {
+    seqs.sort((a, b) => a - b);
+    seqs.forEach((n, i) => {
+      if (n !== i + 1) fail(pid, `pooja_modes seq is not 1..n: got ${seqs.join(',')}`);
+    });
+  }
 }
 
 // --- poojas and deities -----------------------------------------------------

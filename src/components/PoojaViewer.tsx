@@ -183,10 +183,21 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   const recommendedKarta = pooja.karta_recommended ?? null;
   const [kartaGender, setKartaGender] = useState<KartaGender>(recommendedKarta ?? 'male');
 
-  // Multi-day observances. Day one is the full pooja; later days are an
-  // abbreviated Punar Pooja because the deity is already installed; the final
-  // day adds Udvasanam to release the presence before immersion.
-  const [poojaMode, setPoojaMode] = useState<PoojaMode>('main');
+  /**
+   * Which performance of the rite is selected.
+   *
+   * For a multi-day observance these are days: day one is the full pooja, a
+   * later day is the abbreviated Punar Pooja, the final day adds Udvasanam.
+   * For sandhyavandanam they are the three sittings.
+   *
+   * Seeded from the pooja's FIRST DECLARED mode rather than the literal 'main'.
+   * 'main' is not a universal value any more -- sandhyavandanam's modes are
+   * pratah, madhyahnika and sayam -- so the old default matched none of its
+   * steps and would have opened the rite on an empty list.
+   */
+  const [poojaMode, setPoojaMode] = useState<PoojaMode>(
+    () => pooja.modes?.[0]?.mode ?? 'main',
+  );
 
   // Philosophy Accordion Toggle State
   const [showPhilosophy, setShowPhilosophy] = useState<boolean>(true);
@@ -548,21 +559,63 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     for (const s of steps) for (const m of s.modes ?? []) found.add(m as PoojaMode);
     return found;
   }, [steps]);
+  /**
+   * The buttons, in the rite's own order, with the rite's own words.
+   *
+   * INTERSECTED, not simply read from the pooja. pooja_modes says what a rite
+   * declares; steps say what it actually contains. 0047 asserts the two agree
+   * and the app must not fall over if a future migration lets them drift -- a
+   * declared mode with no steps would be a button that empties the screen, and
+   * a claimed mode nobody declared would be an unreachable step. Taking the
+   * intersection means the first is never shown and the second still works,
+   * unlabelled, rather than vanishing.
+   */
+  const offeredModeOptions = useMemo(() => {
+    const declared = pooja.modes ?? [];
+    const known = declared.filter((m) => offeredModes.has(m.mode));
+    const undeclared = [...offeredModes].filter(
+      (m) => !declared.some((d) => d.mode === m),
+    );
+    return [
+      ...known,
+      // Claimed by a step but never declared. Should be impossible -- 0047
+      // fails on it -- so this shows the bare mode string rather than hiding a
+      // step, and looks wrong enough to be noticed.
+      ...undeclared.map((mode, i) => ({
+        mode,
+        seq: 900 + i,
+        label_en: mode,
+        label_ta: mode,
+        hint_en: 'This mode is not declared in pooja_modes.',
+        hint_ta: 'This mode is not declared in pooja_modes.',
+      })),
+    ];
+  }, [pooja.modes, offeredModes]);
+
   // Only worth asking the question when there is more than one answer.
   const showModePicker = modesTagged && offeredModes.size > 1;
 
   // A single-mode pooja is always in that mode, whatever the state says. Derived
   // rather than pushed through setState in an effect, which this file already
   // has too much of.
+  //
+  // The fallback is the FIRST DECLARED mode rather than the literal 'main',
+  // which no longer exists everywhere: sandhyavandanam's modes are pratah,
+  // madhyahnika and sayam, and defaulting it to 'main' would match no step.
   const effectiveMode: PoojaMode = showModePicker
     ? poojaMode
-    : ((offeredModes.values().next().value as PoojaMode) ?? 'main');
+    : ((offeredModes.values().next().value as PoojaMode) ??
+       offeredModeOptions[0]?.mode ??
+       'main');
 
   /** Same reason as above for the parameter. */
   const isStepInMode = useCallback(
     (step: PoojaStep, mode: PoojaMode = effectiveMode) => {
       if (!modesTagged) return true;
-      return (step.modes ?? ['main']).includes(mode);
+      // A step with no modes of its own belongs to every mode, not to 'main'.
+      // The old default assumed a literal that sandhyavandanam does not use.
+      const own = step.modes ?? [];
+      return own.length === 0 || own.includes(mode);
     },
     [effectiveMode, modesTagged]
   );
@@ -1270,46 +1323,30 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       English throughout -- so every one of them said the same
                       thing twice and neither line was the reader's choice. */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {([
-                      {
-                        id: 'main' as PoojaMode,
-                        en: 'Main Pooja',
-                        hint: 'First day. Full vidhi, the idol is installed.',
-                      },
-                      {
-                        id: 'punar' as PoojaMode,
-                        en: 'Punar Pooja',
-                        hint: 'A later day. Shorter: the deity is already installed.',
-                      },
-                      {
-                        id: 'udvasana' as PoojaMode,
-                        en: 'Udvasanam only',
-                        hint: 'Final day. Closing and release, before immersion.',
-                      },
-                    ]).map((m) => (
+                    {offeredModeOptions.map((m) => (
                       <button
-                        key={m.id}
+                        key={m.mode}
                         onClick={() => {
-                          setPoojaMode(m.id);
+                          setPoojaMode(m.mode);
                           setCurrentStepIndex(-1);
                         }}
                         className={`py-2.5 px-3 rounded-xl text-left transition-all border ${
-                          poojaMode === m.id
+                          poojaMode === m.mode
                             ? 'bg-amber-500 text-ink-inverse border-amber-400 shadow-md'
                             : 'bg-stone-950 text-stone-300 border-stone-800 hover:border-amber-500/40'
                         }`}
                       >
-                        <span className="block text-xs font-bold">{m.en}</span>
+                        <span className="block text-xs font-bold">
+                          {uiLang === 'ta' && m.label_ta ? m.label_ta : m.label_en}
+                        </span>
                         <span className="block text-[10px] mt-0.5 opacity-75 leading-snug">
-                          {m.hint}
+                          {uiLang === 'ta' && m.hint_ta ? m.hint_ta : m.hint_en}
                         </span>
                       </button>
                     ))}
                   </div>
                   <p className="text-[11px] text-stone-400 mt-2">
-                    {modesTagged
-                      ? `${availableSteps.length} of ${steps.length} steps for this selection.`
-                      : 'Day selection has no effect yet: run migration 0009 to tag the steps.'}
+                    {`${availableSteps.length} of ${steps.length} steps for this selection.`}
                   </p>
               </div>
 

@@ -36,13 +36,33 @@ export interface SamagriItem {
 }
 
 /**
- * A multi-day observance is driven by mode, not by a different pooja.
- *   main      day one, the full pooja
- *   punar     a later day: abbreviated, the deity is already installed so
- *             Avahanam and Prana Pratishtha are not repeated
- *   udvasana  the final day, which adds the release before immersion
+ * Which performance of a rite a step belongs to.
+ *
+ * A plain string, and deliberately not a union. It used to be
+ * 'main' | 'punar' | 'udvasana', which named the days of a multi-day
+ * observance -- day one, a later day, the final day with the release. That was
+ * every pooja the app had.
+ *
+ * Sandhyavandanam's modes are not days, they are the three SITTINGS: pratah,
+ * madhyahnika, sayam. The same machinery answers both questions -- which
+ * performance does this step belong to -- but the values are open, so the union
+ * would have to grow for every rite and the type would say less each time.
+ *
+ * The valid values for a given pooja are its rows in pooja_modes, which also
+ * carry the labels. 0047 asserts that every mode a step CLAIMS is declared
+ * there, so the openness here is checked in the database rather than the type.
  */
-export type PoojaMode = 'main' | 'punar' | 'udvasana';
+export type PoojaMode = string;
+
+/** One selectable mode, with the words the picker shows. From pooja_modes. */
+export interface PoojaModeOption {
+  mode: PoojaMode;
+  seq: number;
+  label_en: string;
+  label_ta: string;
+  hint_en: string;
+  hint_ta: string;
+}
 
 /**
  * Who performs the rite. Karta is the ordinary word for the one performing it --
@@ -106,6 +126,12 @@ export interface Pooja {
    * opening value of the karta toggle.
    */
   karta_recommended?: KartaGender;
+  /**
+   * The modes this rite offers, in picker order. Empty for a pooja with no
+   * modes at all; one entry for a rite like the daily panchayatana, where the
+   * picker hides itself.
+   */
+  modes?: PoojaModeOption[];
   /**
    * 'planned' means listed but not yet written: the catalogue shows a card
    * rather than a link, because the rite has no steps and opening it would
