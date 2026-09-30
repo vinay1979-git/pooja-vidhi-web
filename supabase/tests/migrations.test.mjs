@@ -1885,6 +1885,28 @@ await assert('and it is still planned until 0049',
   `select count(*) from poojas where id = 'sandhyavandanam' and status = 'planned'`, 1);
 
 
+console.log('\n[9bl] 0049 sandhyavandanam, the japa half');
+await assert('before 0049 part one has no Tamil instructions',
+  `select count(*) from pooja_steps
+     where pooja_id = 'sandhyavandanam' and coalesce(trim(instruction_ta), '') = ''`, 18);
+await step('0049_sandhyavandanam_part_two.sql',
+  () => db.exec(sql(`${MIG}/0049_sandhyavandanam_part_two.sql`)));
+await assert('forty-five steps in all', `select count(*) from pooja_steps
+  where pooja_id = 'sandhyavandanam'`, 45);
+// The assertion 0048 should have carried. Every other pooja has Tamil on every
+// step; this one shipped eighteen without it and proofread caught it.
+await assert('and every one of them now has a Tamil instruction',
+  `select count(*) from pooja_steps
+     where pooja_id = 'sandhyavandanam' and coalesce(trim(instruction_ta), '') = ''`, 0);
+for (const [m, n] of [['pratah', 35], ['madhyahnika', 35], ['sayam', 35]]) {
+  await assert(`${m} walks the whole rite`,
+    `select count(*) from pooja_steps
+       where pooja_id = 'sandhyavandanam' and '${m}' = any(modes)`, n);
+}
+await assert('the rite is published',
+  `select count(*) from poojas where id = 'sandhyavandanam' and status = 'published'`, 1);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
