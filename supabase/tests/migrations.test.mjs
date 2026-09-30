@@ -1849,6 +1849,42 @@ await assert('every label carries Tamil',
   `select count(*) from pooja_modes where label_ta !~ '[஀-௿]' or hint_ta !~ '[஀-௿]'`, 0);
 
 
+console.log('\n[9bk] 0048 sandhyavandanam, part one');
+await assert('before 0048 the rite has no steps',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'`, 0);
+await step('0048_sandhyavandanam_part_one.sql',
+  () => db.exec(sql(`${MIG}/0048_sandhyavandanam_part_one.sql`)));
+await assert('eighteen steps', `select count(*) from pooja_steps
+  where pooja_id = 'sandhyavandanam'`, 18);
+// Fourteen each: the eighteen include three Sankalpas and three Prashanams, of
+// which each sitting gets one.
+for (const m of ['pratah', 'madhyahnika', 'sayam']) {
+  await assert(`${m} is walkable end to end`,
+    `select count(*) from pooja_steps
+       where pooja_id = 'sandhyavandanam' and '${m}' = any(modes)`, 14);
+}
+// The misprint that appears TWICE in the book, on pages 21 and 24.
+await assert('no step carries the apo hi shtha misprint',
+  `select count(*) from pooja_steps
+     where pooja_id = 'sandhyavandanam' and mantra_sanskrit like '%यो वशिशवतमो%'`, 0);
+await assert('and two steps carry the corrected line',
+  `select count(*) from pooja_steps
+     where pooja_id = 'sandhyavandanam' and mantra_sanskrit like '%यो वः शिवतमो रसः%'`, 2);
+await assert('the tarpanam is twenty-one offerings',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'sandhyavandanam' and s.step_title_en = 'Navagraha Deva Tarpanam'`, 21);
+// The check that caught the gm nasal, with the Devanagari Extended range the
+// original one missed.
+// Dandas stripped first: they sit in the Devanagari block but _tamil.mjs
+// protects them as shared punctuation, and every Tamil mantra carries them.
+await assert('no Devanagari leaked into the Tamil',
+  `select count(*) from pooja_steps
+     where pooja_id = 'sandhyavandanam'
+       and translate(coalesce(mantra_tamil, ''), '।॥', '') ~ '[ऀ-ॿ꣠-ꣿ]'`, 0);
+await assert('and it is still planned until 0049',
+  `select count(*) from poojas where id = 'sandhyavandanam' and status = 'planned'`, 1);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
