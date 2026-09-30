@@ -138,6 +138,8 @@ export interface Pooja {
    * give a preparation screen and a Start button for something that does not
    * exist. Absent or 'published' behaves exactly as before.
    */
+  /** deity_pooja | vratam | nitya | tarpanam | homam | domestic | temple. */
+  ritual_class?: string;
   status?: 'published' | 'planned';
   /**
    * Why the rite is kept at all: purpose, the idea behind its shape, what it is

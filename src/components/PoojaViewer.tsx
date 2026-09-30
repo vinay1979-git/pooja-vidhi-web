@@ -180,7 +180,46 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
    * So the recommendation only picks the opening value. All three buttons stay
    * live, and choosing another one is not an error state.
    */
+  /**
+   * WHAT THIS RITE ACTUALLY ASKS OF THE READER, derived from its own steps
+   * rather than declared in a column.
+   *
+   * Sandhyavandanam needs none of the sankalpam furniture. Its resolution is
+   * mamopaatta samasta duritakshaya dvaaraa and one closing verb -- no gotra,
+   * no name, no year, month, tithi or star -- so a date picker, a devotee name,
+   * a gotra field and a panchangam lookup are four questions whose answers the
+   * rite never uses. Two independent editions agree the sankalpa is that short.
+   *
+   * The signal already exists: a step marked is_dynamic_sankalpam is the ONLY
+   * thing that consumes the date, the place and the person. If no step has one,
+   * nothing downstream wants them.
+   *
+   * Same for the karta. The toggle exists to filter steps a given karta does
+   * not perform; if no step is filtered and no karta is recommended, it is
+   * three buttons that change nothing.
+   */
+  const needsSankalpamDetails = useMemo(
+    () => steps.some((s) => s.is_dynamic_sankalpam),
+    [steps],
+  );
   const recommendedKarta = pooja.karta_recommended ?? null;
+  /**
+   * A daily rite's modes are SITTINGS, not days.
+   *
+   * Taken from ritual_class, which already encodes exactly this distinction --
+   * nitya rites come round with the sun, everything else falls on a date from
+   * the almanac. It is not a guess about the words in pooja_modes; it is the
+   * same fact the catalogue uses to decide which shelf the rite sits on.
+   */
+  const modesAreSittings =
+    pooja.ritual_class === 'nitya';
+
+  const kartaMatters = useMemo(
+    () =>
+      Boolean(pooja.karta_recommended) ||
+      steps.some((s) => (s.gender_target ?? 'all') !== 'all'),
+    [pooja.karta_recommended, steps],
+  );
   const [kartaGender, setKartaGender] = useState<KartaGender>(recommendedKarta ?? 'male');
 
   /**
@@ -1185,9 +1224,11 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 </p>
                 <ol className="grid gap-2 sm:grid-cols-3 pt-1">
                   {[
-                    ['1', t.prepWho],
-                    ['2', t.prepWhere],
-                    ['3', t.prepWhat],
+                    ['1', modesAreSittings
+                      ? (kartaMatters ? t.prepWhoSitting : t.prepSittingOnly)
+                      : t.prepWho],
+                    ...(needsSankalpamDetails ? [['2', t.prepWhere]] : []),
+                    [needsSankalpamDetails ? '3' : '2', t.prepWhat],
                   ].map(([n, label]) => (
                     <li key={n} className="flex items-start gap-2.5 text-sm text-stone-300">
                       <span className="shrink-0 w-6 h-6 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center justify-center">
@@ -1291,13 +1332,17 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-amber-200">
-                      {t.sankalpamSettings}
+                      {needsSankalpamDetails ? t.sankalpamSettings : t.whichSitting}
                     </h3>
-                    <p className="text-xs text-stone-400">Verified coordinates ensure accurate spacetime ritual alignment</p>
+                    <p className="text-xs text-stone-400">
+                      {needsSankalpamDetails
+                        ? 'Verified coordinates ensure accurate spacetime ritual alignment'
+                        : 'This rite names no date and no place, so there is nothing to look up.'}
+                    </p>
                   </div>
                 </div>
 
-                {panchangamData && (
+                {needsSankalpamDetails && panchangamData && (
                   <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5" /> Panchangam Loaded
                   </span>
@@ -1315,8 +1360,11 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   to the right of the three day buttons and vertically centred
                   against them. */}
               <div className={showModePicker ? '' : 'hidden'}>
-                  <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5 mb-2">
-                    <Calendar className="w-4 h-4 text-amber-400" /> {t.whichDay}
+                  <label className={`text-xs font-semibold text-amber-300 items-center gap-1.5 mb-2 ${
+                    needsSankalpamDetails ? 'flex' : 'hidden'
+                  }`}>
+                    <Calendar className="w-4 h-4 text-amber-400" />{' '}
+                    {modesAreSittings ? t.whichSitting : t.whichDay}{' '}
                   </label>
                   {/* One language, not two. These buttons printed the English
                       name and the Tamil name stacked, on a screen that is now
@@ -1368,7 +1416,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   recommendation and not a rule, because the book nowhere writes
                   that a man may not keep the vratham, so the recommended button
                   is pre-selected and the other two stay live. */}
-              <div className="space-y-2">
+              <div className={kartaMatters ? 'space-y-2' : 'hidden'}>
                 <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
                   <Users className="w-4 h-4 text-amber-400" /> {t.kartaHeading(kartaGender)}
                 </label>
@@ -1406,8 +1454,13 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 )}
               </div>
 
-              {/* Input Form Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              {/* The date, the place and the person.
+                  Shown only when a step actually splices them into a mantra --
+                  see needsSankalpamDetails. A rite whose resolution names no
+                  occasion should not open with four questions about one. */}
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 ${
+                needsSankalpamDetails ? '' : 'hidden'
+              }`}>
                 {/* Date Picker */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
@@ -2328,9 +2381,12 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
           <button
             onClick={handleNextStep}
-            disabled={!resolvedGeo && currentStepIndex === -1}
+            // A place is required only by a rite that recites one. Waiting for
+            // geocoding before letting anyone begin the sandhyavandanam would
+            // block it on an answer its sankalpa never asks for.
+            disabled={needsSankalpamDetails && !resolvedGeo && currentStepIndex === -1}
             className={`px-4 sm:px-6 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 whitespace-nowrap ${
-              !resolvedGeo && currentStepIndex === -1
+              needsSankalpamDetails && !resolvedGeo && currentStepIndex === -1
                 ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50 border border-stone-700'
                 : 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-ink-inverse shadow-amber-600/30'
             }`}

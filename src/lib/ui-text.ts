@@ -55,6 +55,12 @@ export interface UiText {
   prepWhat: string;
   sankalpamSettings: string;
   whichDay: string;
+  /** The same question for a rite whose modes are sittings, not days. */
+  whichSitting: string;
+  /** The first line of the preparation checklist, for such a rite. */
+  prepWhoSitting: string;
+  /** ...and when the karta toggle is hidden too, so there is only one choice. */
+  prepSittingOnly: string;
   /**
    * The heading over the karta buttons, in the form that matches the selection.
    *
@@ -170,6 +176,9 @@ const en: UiText = {
   prepWhat: 'Samagri and naivedyam',
   sankalpamSettings: 'Sankalpam & Location',
   whichDay: 'Which day?',
+  whichSitting: 'Which sitting?',
+  prepWhoSitting: 'The karta, and which sitting',
+  prepSittingOnly: 'Which sitting you are keeping',
   kartaHeading: (who) => `${KARTA_TERM_EN[who]} — who is performing`,
   kartaTerm: (who) => KARTA_TERM_EN[who],
   male: 'Male',
@@ -238,6 +247,9 @@ const ta: UiText = {
   prepWhat: 'சாமக்ரி மற்றும் நைவேத்யம்',
   sankalpamSettings: 'சங்கல்பம் & இடம்',
   whichDay: 'எந்த நாள்?',
+  whichSitting: 'எந்த வேளை?',
+  prepWhoSitting: 'கர்த்தா, எந்த வேளை',
+  prepSittingOnly: 'எந்த வேளை அனுஷ்டிக்கிறீர்கள்',
   kartaHeading: (who) => `${KARTA_TERM_TA[who]} — யார் செய்கிறார்`,
   kartaTerm: (who) => KARTA_TERM_TA[who],
   male: 'ஆண்',

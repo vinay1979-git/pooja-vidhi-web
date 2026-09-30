@@ -104,6 +104,7 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
     description_en: string | null;
     description_ta: string | null;
     duration_mins: number | null;
+    ritual_class?: string | null;
     status?: string | null;
     karta_recommended?: string | null;
     why_en?: string | null;
@@ -157,6 +158,11 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
     karta_recommended: KARTA_GENDERS.includes(row.karta_recommended as KartaGender)
       ? (row.karta_recommended as KartaGender)
       : undefined,
+    // Selected since 0002 and never mapped through, so pooja.ritual_class was
+    // undefined everywhere downstream. The catalogue never noticed because it
+    // uses select('*'); the viewer did, the moment something needed to know
+    // whether a rite's modes are days or sittings.
+    ritual_class: row.ritual_class ?? undefined,
     status: row.status === 'planned' ? 'planned' : 'published',
     // Sorted here rather than trusted from PostgREST: the picker's order is the
     // rite's order -- morning before noon before evening -- and seq is stored
