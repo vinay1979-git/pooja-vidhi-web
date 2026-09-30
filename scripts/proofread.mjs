@@ -104,6 +104,21 @@ function checkTranslit(where, text) {
   if (!LATIN.test(t)) fail(where, 'transliteration has no Latin letters');
 }
 
+/**
+ * Steps whose text carries ellipses ON PURPOSE.
+ *
+ * The gate exists because an ellipsis has three times meant a mantra that was
+ * cut short. But the Abhivadanam is PRINTED with blanks -- the book sets the
+ * sutra and the shakha in type and leaves dotted rules for the pravaras, the
+ * gotra and the name, because the reciter knows their own -- and the Samarpanam
+ * abbreviates it the same way. Declared by name rather than by pattern, so a
+ * genuinely truncated mantra somewhere else still fails.
+ */
+const ELLIPSIS_IS_DELIBERATE = new Set([
+  'sandhyavandanam/Abhivadanam',
+  'sandhyavandanam/Samarpanam',
+]);
+
 function checkProse(where, text, lang) {
   if (/\.\.\.|…/.test(text)) {
     // The Sankalpam legitimately brackets its dynamic slot with ellipses.
@@ -164,7 +179,9 @@ for (const s of steps) {
   }
   if (s.mantra_sanskrit) {
     checkDeva(`${at}.mantra_sanskrit`, s.mantra_sanskrit);
-    checkProse(`${at}.mantra_sanskrit`, s.mantra_sanskrit, null);
+    if (!ELLIPSIS_IS_DELIBERATE.has(`${s.pooja_id}/${s.step_title_en}`)) {
+      checkProse(`${at}.mantra_sanskrit`, s.mantra_sanskrit, null);
+    }
     checkTamil(`${at}.mantra_tamil`, s.mantra_tamil);
     checkTranslit(`${at}.mantra_translit`, s.mantra_translit);
   }
@@ -206,12 +223,17 @@ for (const p of poojas) {
   // return for and no image to release. Demanding those modes of it would have
   // forced empty steps into the data to satisfy a checker.
   //
-  // 'main' is still required of everything: a pooja nobody can walk once is not
-  // a pooja. Beyond that, a mode has to be walkable only if some step claims it.
-  const claimed = new Set(['main']);
+  // A pooja nobody can walk once is not a pooja, so SOME mode must be walkable.
+  // It used to be 'main' specifically, seeded unconditionally -- fine while every
+  // rite in the app used that word. Sandhyavandanam's modes are pratah,
+  // madhyahnika and sayam, so demanding 'main' of it reported a mode with no
+  // steps when the truth was a mode that does not exist. Derive the set from
+  // what the steps claim, and require only that it is not empty.
+  const claimed = new Set();
   for (const s of steps) {
     if (s.pooja_id === p.id) for (const m of s.modes ?? []) claimed.add(m);
   }
+  if (!claimed.size) fail(p.id, 'no step claims any mode, so the pooja cannot be walked');
   for (const mode of claimed) {
     const n = steps.filter((s) => s.pooja_id === p.id && s.modes?.includes(mode)).length;
     if (n === 0) fail(p.id, `mode "${mode}" has no steps`);
@@ -482,8 +504,25 @@ for (const p of poojas) {
   const sm = samagri.filter((x) => x.pooja_id === p.id);
   const nv = naivedyam.filter((x) => x.pooja_id === p.id);
   if (!sm.length) fail(p.id, 'has no samagri');
-  if (!nv.length) fail(p.id, 'has no naivedyam');
-  if (!nv.some((x) => x.tier === 'primary')) fail(p.id, 'has no primary naivedyam');
+  // NAIVEDYAM IS REQUIRED ONLY BY RITES THAT MAKE ONE.
+  //
+  // It used to be demanded of every pooja, which was true of all three the app
+  // had: each offers food and each has a Naivedyam step. Sandhyavandanam offers
+  // water and nothing else -- there is no naivedyam anywhere in its
+  // forty-five steps -- so the blanket rule reported three faults for a rite
+  // that is complete.
+  //
+  // Tied to the rite's own content instead: if it has a step that offers
+  // naivedyam, it must have something to offer.
+  const offersFood = steps.some(
+    (x) => x.pooja_id === p.id && /naivedyam/i.test(x.step_title_en ?? ''),
+  );
+  if (offersFood) {
+    if (!nv.length) fail(p.id, 'has a Naivedyam step but nothing to offer');
+    else if (!nv.some((x) => x.tier === 'primary')) fail(p.id, 'has no primary naivedyam');
+  } else if (nv.length) {
+    fail(p.id, `has ${nv.length} naivedyam item(s) but no step that offers them`);
+  }
 }
 for (const x of samagri) {
   const at = `${x.pooja_id} samagri ${x.seq}`;

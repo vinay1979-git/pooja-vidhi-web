@@ -1907,6 +1907,27 @@ await assert('the rite is published',
   `select count(*) from poojas where id = 'sandhyavandanam' and status = 'published'`, 1);
 
 
+console.log('\n[9bm] 0050 sandhyavandanam prep');
+await assert('before 0050 the rite has no samagri',
+  `select count(*) from samagri_items where pooja_id = 'sandhyavandanam'`, 0);
+await step('0050_sandhyavandanam_prep.sql', () => db.exec(sql(`${MIG}/0050_sandhyavandanam_prep.sql`)));
+await assert('the ten items the book lists', `select count(*) from samagri_items
+  where pooja_id = 'sandhyavandanam'`, 10);
+// Two optional, both learning aids. The checklist must not tell a beginner
+// they cannot start without a recording.
+await assert('two of them optional',
+  `select count(*) from samagri_items
+     where pooja_id = 'sandhyavandanam' and is_required = false`, 2);
+await assert('every published pooja now explains itself',
+  `select count(*) from poojas
+     where status = 'published'
+       and (coalesce(trim(why_en), '') = '' or coalesce(trim(why_ta), '') = '')`, 0);
+// Sandhyavandanam offers water and nothing else. proofread used to demand
+// naivedyam of every pooja; it now asks only of a rite with a step that offers.
+await assert('and it still offers no naivedyam, which is correct',
+  `select count(*) from naivedyam_items where pooja_id = 'sandhyavandanam'`, 0);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
