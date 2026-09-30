@@ -642,6 +642,52 @@ if (poojaModes.length) {
       if (n !== i + 1) fail(pid, `pooja_modes seq is not 1..n: got ${seqs.join(',')}`);
     });
   }
+
+  // --- from_hour, which decides the picker's opening choice (0051) ----------
+  //
+  // The clock chooses the sitting, so a fault here is one the reader cannot see
+  // and did not cause: they open the rite and are simply on the wrong one. None
+  // of it shows up above, because every row involved is individually valid.
+  const byHour = {};
+  for (const m of poojaModes) {
+    if (m.from_hour === null || m.from_hour === undefined) continue;
+    (byHour[m.pooja_id] ??= []).push(m);
+  }
+  for (const [pid, list] of Object.entries(byHour)) {
+    const pooja = poojas.find((p) => p.id === pid);
+    // Hours on an observance that falls on a DATE would have the clock choosing
+    // days: a Punar Pooja served at 11:00 because the morning ran out.
+    if (pooja && pooja.ritual_class !== 'nitya') {
+      fail(pid, `from_hour is set on a ${pooja.ritual_class} rite, whose modes are days, not hours`);
+    }
+    const hours = list.map((m) => m.from_hour);
+    for (const h of hours) {
+      if (!Number.isInteger(h) || h < 0 || h > 23) fail(pid, `from_hour ${h} is not an hour`);
+    }
+    if (new Set(hours).size !== hours.length) {
+      fail(pid, `two modes begin at the same hour: ${hours.join(',')}`);
+    }
+    // The one that actually bites. Windows run from their hour to the next, so
+    // if the earliest is not midnight nothing answers for the small hours and
+    // the picker silently falls back -- on a rite whose first sitting is the
+    // one kept at dawn.
+    if (Math.min(...hours) !== 0) {
+      fail(pid, `the earliest mode begins at ${Math.min(...hours)}:00, so no sitting answers for midnight`);
+    }
+  }
+
+  // A daily rite with several sittings and no hours is not broken -- the picker
+  // just opens on the first one, as it did before 0051 -- but it is almost
+  // certainly an omission, since a rite that recurs with the day is exactly the
+  // kind that knows what hour it belongs to. A note, not a failure: the reader
+  // is never shown anything wrong, only something unhelpful.
+  for (const p of poojas) {
+    if (p.ritual_class !== 'nitya' || isPlanned(p)) continue;
+    const mine = poojaModes.filter((m) => m.pooja_id === p.id);
+    if (mine.length > 1 && !byHour[p.id]) {
+      warn(p.id, `has ${mine.length} sittings but no from_hour, so the picker cannot open on the current one`);
+    }
+  }
 }
 
 // --- poojas and deities -----------------------------------------------------
