@@ -62,6 +62,16 @@ export interface PoojaModeOption {
   label_ta: string;
   hint_en: string;
   hint_ta: string;
+  /**
+   * The local hour from which this mode is the current one, until the next
+   * begins. Null -- the usual case -- means the clock says nothing about it.
+   *
+   * Only a rite that recurs with the day sets these. A multi-day observance
+   * has days, not hours: there is no time of the afternoon at which a Punar
+   * Pooja becomes the right answer, so its modes stay null and the picker
+   * opens wherever it opened before.
+   */
+  from_hour?: number | null;
 }
 
 /**

@@ -15,6 +15,7 @@ import { TempleBell } from '@/components/TempleBell';
 import { GopuramIcon } from '@/components/GopuramIcon';
 import { StepSheet } from '@/components/StepSheet';
 import { agoText, clearProgress, loadProgress, saveProgress, type SavedProgress } from '@/lib/progress';
+import { currentMode } from '@/lib/clock';
 import type { KartaGender, PoojaMode } from '@/types/pooja';
 
 interface PoojaViewerProps {
@@ -735,6 +736,41 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   const samagriCompletedCount = useMemo(() => {
     return parsedSamagriList.filter((item) => checkedSamagri[item.id]).length;
   }, [parsedSamagriList, checkedSamagri]);
+
+  /**
+   * Open on the sitting the reader is actually in.
+   *
+   * Sandhyavandanam is performed three times a day and this picker opened on
+   * the morning whatever the hour, so anyone sitting down at dusk was shown
+   * the dawn rite and corrected it by hand every time. The hours come from
+   * pooja_modes.from_hour, so this stays ignorant of the words pratah and
+   * sayam; a pooja whose modes are days sets none and currentMode returns
+   * null, leaving the picker exactly where it was.
+   *
+   * IN AN EFFECT, NOT THE useState INITIALIZER, for the same reason the resume
+   * below is. This component is server-rendered, and a lazy initializer runs
+   * on the server too -- against the server's clock, in the server's timezone,
+   * which is neither the reader's hour nor even the reader's day. The two
+   * renders would disagree and the reader would be handed whatever hour it is
+   * in Virginia.
+   *
+   * ONCE, ON MOUNT. Not a clock that keeps ticking: a reader who deliberately
+   * chooses the morning sitting at 16:05 must not have it taken back from them
+   * a minute later. The guess is made when the screen opens and is theirs
+   * afterwards -- as is the resume below, which overrides this when tapped,
+   * because a sitting you were interrupted in is better evidence than the hour.
+   */
+  useEffect(() => {
+    const m = currentMode(pooja.modes);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (m) setPoojaMode(m);
+    // pooja.modes is deliberately not a dependency. It is an array rebuilt by
+    // getPooja, so any re-render that hands down a fresh pooja object would
+    // re-run this and quietly put the reader back on the sitting the clock
+    // prefers -- undoing a choice they made on purpose. Keyed on the rite, like
+    // the resume below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pooja.id]);
 
   /**
    * Look for somewhere to pick up, once, on mount.

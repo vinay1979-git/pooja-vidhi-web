@@ -1928,6 +1928,55 @@ await assert('and it still offers no naivedyam, which is correct',
   `select count(*) from naivedyam_items where pooja_id = 'sandhyavandanam'`, 0);
 
 
+console.log('[9bn] 0051 the clock picks the sitting');
+// The column is new, so before the migration there is nothing to select. Asked
+// of information_schema rather than of the table, because `select from_hour`
+// would throw rather than return a row and the failure would read as a broken
+// test instead of a before-state.
+await assert('before 0051 pooja_modes has no from_hour',
+  `select count(*) from information_schema.columns
+     where table_schema = 'public' and table_name = 'pooja_modes'
+       and column_name = 'from_hour'`, 0);
+await step('0051_mode_hours.sql', () => db.exec(sql(`${MIG}/0051_mode_hours.sql`)));
+await assert('the three sittings carry an hour each',
+  `select count(*) from pooja_modes
+     where pooja_id = 'sandhyavandanam' and from_hour is not null`, 3);
+
+// THE ASSERTION THAT MATTERS, and it is not a count. Three rows with three
+// hours can still leave a reader with no answer at 02:00, or hand two answers
+// to 11:00. What the picker actually needs is that every hour of the day maps
+// to exactly one sitting, so that is what gets asked -- of all twenty-four,
+// not of the three boundaries, since an off-by-one at a boundary is precisely
+// the fault a boundary check would step over.
+const HOURS_EXPECTED = { pratah: [0, 10], madhyahnika: [11, 15], sayam: [16, 23] };
+for (const [mode, [from, to]] of Object.entries(HOURS_EXPECTED)) {
+  for (let h = from; h <= to; h += 1) {
+    await assert(`hour ${String(h).padStart(2, '0')}:00 is ${mode}, alone`,
+      `select count(*) from pooja_modes m
+         where m.pooja_id = 'sandhyavandanam' and m.mode = '${mode}'
+           and m.from_hour = (
+             select max(from_hour) from pooja_modes
+              where pooja_id = 'sandhyavandanam' and from_hour <= ${h})`, 1);
+  }
+}
+
+// An observance that falls on a date must not acquire an hour. Ganesha at
+// 11:00 is not a Punar Pooja, and the day the clock starts choosing days is
+// the day someone is shown the wrong rite without touching anything.
+await assert('and no rite with days carries one',
+  `select count(*) from pooja_modes m join poojas p on p.id = m.pooja_id
+    where m.from_hour is not null and p.ritual_class is distinct from 'nitya'`, 0);
+
+// Every clock-chosen mode still has steps. 0047 checks this of modes at large;
+// it bites harder here, because the app picks this one rather than the reader,
+// so an empty one is a rite that opens blank for everybody in that window.
+await assert('every clock-tagged sitting still has steps',
+  `select count(*) from pooja_modes m
+    where m.from_hour is not null
+      and not exists (select 1 from pooja_steps s
+                       where s.pooja_id = m.pooja_id and m.mode = any(s.modes))`, 0);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {

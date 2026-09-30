@@ -43,42 +43,55 @@ function toLegacyGender(rule: GenderRule | null): 'all' | 'male' | 'female' {
 
 // Columns that arrive with a later migration than the code that asks for them:
 // recipe_note_ta with 0007, karta_recommended with 0041, status with 0043,
-// why_en/why_ta with 0044 and the whole pooja_modes table with 0047. Selecting
-// a column
-// that does not exist yet fails the WHOLE query, so the app would break in the
-// window between deploying the code and running the migration.
+// why_en/why_ta with 0044, the whole pooja_modes table with 0047 and from_hour
+// with 0051. Selecting a column that does not exist yet fails the WHOLE query,
+// so the app would break in the window between deploying the code and running
+// the migration.
 //
-// So the optional columns are asked for together and dropped together on 42703
-// (undefined_column). Two attempts, not one per column: which of them is
-// missing does not change what we do about it, and pairing each new column with
-// its own retry would have made this a truth table. All of them are additive
-// display data, so degrading is correct; a genuinely broken query still throws.
-const POOJA_SELECT = (withOptional: boolean) => `
+// A LADDER, NOT A TRUTH TABLE. Each rung drops strictly more than the one above
+// and we walk down until a query succeeds. The alternative -- a retry per
+// column, testing which combination exists -- is the combinatorial mess this
+// comment used to warn against, and the warning stands.
+//
+// WHY from_hour GETS ITS OWN RUNG when the others share one. Everything in the
+// bottom rung is additive display data: lose karta_recommended and a
+// recommendation badge goes missing. from_hour sits INSIDE the pooja_modes
+// join, so dropping it the old way took the entire modes list with it -- and a
+// sandhyavandanam with no declared modes does not degrade quietly. The picker
+// falls through to the mode strings its steps claim and offers the reader three
+// buttons reading `pratah`, `madhyahnika` and `sayam`. Losing an hour costs a
+// picker that opens on the wrong sitting, which is where we were anyway; losing
+// the labels is worse than not shipping this at all.
+const enum Tier { All = 0, NoHours = 1, NoOptional = 2 }
+
+const POOJA_SELECT = (tier: Tier) => `
   id, title_en, title_ta, description_en, description_ta, duration_mins,
   ritual_class, deity_id, eligibility${
-    withOptional
+    tier <= Tier.NoHours
       ? ', status, karta_recommended, why_en, why_ta,' +
-        ' pooja_modes ( mode, seq, label_en, label_ta, hint_en, hint_ta )'
+        ' pooja_modes ( mode, seq, label_en, label_ta, hint_en, hint_ta' +
+        (tier === Tier.All ? ', from_hour' : '') + ' )'
       : ''
   },
   samagri_items ( seq, item_en, item_ta, quantity, category, is_required ),
   naivedyam_items ( tier, seq, name_en, name_ta, recipe_note${
-    withOptional ? ', recipe_note_ta' : ''
+    tier <= Tier.NoHours ? ', recipe_note_ta' : ''
   }, prohibition_basis, reason_en )`;
 
 export async function getPooja(poojaId: string): Promise<Pooja | null> {
-  let { data, error } = await supabase
-    .from('poojas')
-    .select(POOJA_SELECT(true))
-    .eq('id', poojaId)
-    .single();
+  let data = null as unknown;
+  let error: { code?: string; message?: string; hint?: string } | null = null;
 
-  if (error?.code === '42703') {
+  // Down the ladder until one works. 42703 is undefined_column; anything else
+  // is a real failure and stops here rather than being retried into a vaguer
+  // version of itself.
+  for (const tier of [Tier.All, Tier.NoHours, Tier.NoOptional]) {
     ({ data, error } = await supabase
       .from('poojas')
-      .select(POOJA_SELECT(false))
+      .select(POOJA_SELECT(tier))
       .eq('id', poojaId)
       .single());
+    if (error?.code !== '42703') break;
   }
 
   // A failed query and a missing row are different problems and must not look
@@ -177,6 +190,11 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
         label_ta: String(m.label_ta ?? ''),
         hint_en: String(m.hint_en ?? ''),
         hint_ta: String(m.hint_ta ?? ''),
+        // NOT Number(m.from_hour ?? null), which is 0 -- and 0 is a meaningful
+        // hour here, so every unset mode of every pooja would silently claim
+        // midnight and the clock would start choosing days for observances
+        // that have none. Null has to survive as null.
+        from_hour: typeof m.from_hour === 'number' ? m.from_hour : null,
       })),
     why_en: row.why_en ?? undefined,
     why_ta: row.why_ta ?? undefined,
