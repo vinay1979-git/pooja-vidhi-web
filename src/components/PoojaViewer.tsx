@@ -1688,10 +1688,10 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-stone-100 flex items-center gap-2">
-                      Pooja Samagri Checklist
+                      {t.samagriChecklist}
                     </h3>
                     <p className="text-xs text-stone-400">
-                      Collected {samagriCompletedCount} of {parsedSamagriList.length} items
+                      {t.samagriCollected(samagriCompletedCount, parsedSamagriList.length)}
                     </p>
                   </div>
                 </div>
@@ -1701,13 +1701,13 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     onClick={checkAllSamagri}
                     className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-amber-950 text-amber-300 border border-stone-700 transition-colors flex items-center gap-1 font-medium"
                   >
-                    <Check className="w-3.5 h-3.5" /> Check All
+                    <Check className="w-3.5 h-3.5" /> {t.checkAll}
                   </button>
                   <button
                     onClick={resetSamagri}
                     className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700 transition-colors flex items-center gap-1 font-medium"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" /> Reset
+                    <RotateCcw className="w-3.5 h-3.5" /> {t.resetList}
                   </button>
                 </div>
               </div>
@@ -1715,7 +1715,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               {/* Progress bar */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-semibold text-stone-400">
-                  <span>Preparation Progress</span>
+                  <span>{t.preparationProgress}</span>
                   <span>{Math.round((samagriCompletedCount / (parsedSamagriList.length || 1)) * 100)}%</span>
                 </div>
                 <div className="w-full bg-stone-950 rounded-full h-2 overflow-hidden border border-stone-800">
@@ -1795,7 +1795,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   <h3 className="text-xl font-bold text-stone-100">
                     {t.naivedyamSuggestions}
                   </h3>
-                  <p className="text-xs text-stone-400">Sacred food offerings recommended for this pooja</p>
+                  <p className="text-xs text-stone-400">{t.naivedyamSub}</p>
                 </div>
               </div>
 
@@ -2344,7 +2344,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
             <div className="space-y-2">
               <h2 className="text-3xl md:text-4xl font-extrabold text-amber-200">
-                {t.poojaComplete}
+                {t.riteComplete}
               </h2>
               <p className="text-stone-300 text-base max-w-xl mx-auto">
                 May the divine blessings of {pooja.title_en} fill your life with peace, prosperity, health, and wisdom.
@@ -2434,9 +2434,9 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   Udvasanam is the final row but is udvasana-only -- the button
                   never said Complete. */}
               {currentStepIndex === -1
-                ? t.startPooja
+                ? t.beginRite
                 : activePosition >= availableSteps.length
-                ? 'Complete Pooja'
+                ? t.completeRite
                 : t.nextStep}
             </span>
             <ChevronRight className="w-5 h-5 stroke-[2.5]" />

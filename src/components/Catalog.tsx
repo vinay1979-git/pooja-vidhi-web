@@ -31,6 +31,16 @@ const SECTIONS: Record<CatalogSection, {
   tab: string;
   heading: string;
   blurb: string;
+  /**
+   * The banner headline. Section-specific rather than generic, because this is
+   * the one place where naming the category is the point -- and the shared
+   * headline said "Perform Authentic Hindu Poojas" over the Nitya Karmas tab,
+   * which lists no poojas at all.
+   */
+  hero: string;
+  /** Searching "poojas, deities" makes no sense on a tab that lists neither. */
+  search: string;
+  heroSub: string;
   /** Empty catalogue text. It will be empty until the transcription lands. */
   empty: string;
 }> = {
@@ -39,6 +49,9 @@ const SECTIONS: Record<CatalogSection, {
     tab: 'Pooja Vidhis',
     heading: 'Pooja Vidhis',
     blurb: 'Rites for a particular day. Select a deity or ritual below to begin step-by-step worship.',
+    hero: 'Perform Authentic Hindu Poojas with Confidence & Devotion',
+    search: 'Search poojas, deities...',
+    heroSub: 'Step-by-step guided Vidhis, authentic Devanagari & Tamil script mantras, audio temple bell chime, personalized Sankalpam generator, and full philosophical explanations for every ritual.',
     empty: 'No poojas yet.',
   },
   nitya: {
@@ -46,6 +59,9 @@ const SECTIONS: Record<CatalogSection, {
     tab: 'Nitya Karmas',
     heading: 'Nitya Karmas',
     blurb: 'The daily observances. Performed at their own hour rather than on a date from the almanac.',
+    hero: 'Keep the Daily Observances with Confidence & Devotion',
+    search: 'Search daily rites...',
+    heroSub: 'Step-by-step guided rites for each juncture of the day, authentic Devanagari & Tamil script mantras, and full philosophical explanations for every step.',
     empty: 'No nitya karmas yet.',
   },
 };
@@ -175,10 +191,10 @@ export default async function Catalog({ section }: { section: CatalogSection }) 
               <Flame className="w-4 h-4 fill-amber-400" /> Sacred Rituals & Mantras Storehouse
             </div>
             <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-amber-100 leading-tight">
-              Perform Authentic Hindu Poojas with Confidence & Devotion
+              {copy.hero}
             </h2>
             <p className="text-stone-300 text-sm sm:text-base md:text-lg leading-relaxed">
-              Step-by-step guided Vidhis, authentic Devanagari & Tamil script mantras, audio temple bell chime, personalized Sankalpam generator, and full philosophical explanations for every ritual.
+              {copy.heroSub}
             </p>
 
             <div className="pt-1 flex flex-wrap items-center gap-2 sm:gap-4 text-xs font-semibold text-amber-300">
@@ -209,7 +225,7 @@ export default async function Catalog({ section }: { section: CatalogSection }) 
               <Search className="w-4 h-4 text-amber-400" />
               <input
                 type="text"
-                placeholder="Search poojas, deities..."
+                placeholder={copy.search}
                 className="bg-transparent text-xs text-stone-100 focus:outline-none w-full sm:w-48"
               />
             </div>

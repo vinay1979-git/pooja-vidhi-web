@@ -44,7 +44,19 @@ export interface UiText {
   skipped: string;
   previous: string;
   nextStep: string;
-  startPooja: string;
+  /**
+   * The chrome must not call the rite a pooja.
+   *
+   * Sandhyavandanam is a nitya karma, not a pooja, and the buttons said "Start
+   * Pooja" and "Complete Pooja" over it regardless. The page header already
+   * names the rite -- SANDHYAVANDANAM, in capitals, at the top -- so the
+   * surrounding furniture does not need to restate the category and is simply
+   * wrong when it guesses. Generic here rather than conditional on
+   * ritual_class: a button that reads "Begin" is right for every rite that will
+   * ever be added, where a branch is right until the next kind of rite arrives.
+   */
+  beginRite: string;
+  completeRite: string;
   finish: string;
 
   /* preparation screen */
@@ -105,7 +117,22 @@ export interface UiText {
   offeredCount: (done: number, total: number) => string;
   sameMantraEach: string;
   ifUnavailable: (what: string) => string;
-  poojaComplete: string;
+  /** Sampoornam, with no "Pooja" in front of it. See beginRite. */
+  riteComplete: string;
+
+  /**
+   * The preparation checklist. These were hardcoded English in the JSX rather
+   * than living here, which is why the heading could say "Pooja Samagri
+   * Checklist" over a rite that is not a pooja without anything noticing: a
+   * string that never passes through this table is a string nobody reviews
+   * when the vocabulary changes.
+   */
+  samagriChecklist: string;
+  samagriCollected: (done: number, total: number) => string;
+  checkAll: string;
+  resetList: string;
+  preparationProgress: string;
+  naivedyamSub: string;
 
   /** Heading over the pooja-level "why is this kept at all" card. */
   whyWeDoIt: string;
@@ -166,7 +193,8 @@ const en: UiText = {
   skipped: 'Skipped',
   previous: 'Previous',
   nextStep: 'Next Step',
-  startPooja: 'Start Pooja',
+  beginRite: 'Begin',
+  completeRite: 'Complete',
   finish: 'Finish',
 
   ritualPreparation: 'Ritual Preparation',
@@ -207,7 +235,13 @@ const en: UiText = {
   offeredCount: (done, total) => `${done} of ${total} offered`,
   sameMantraEach: 'The same mantra for each',
   ifUnavailable: (what) => `If unavailable: ${what}`,
-  poojaComplete: 'Pooja Sampoornam!',
+  riteComplete: 'Sampoornam!',
+  samagriChecklist: 'Samagri Checklist',
+  samagriCollected: (done, total) => `Collected ${done} of ${total} items`,
+  checkAll: 'Check All',
+  resetList: 'Reset',
+  preparationProgress: 'Preparation Progress',
+  naivedyamSub: 'Sacred food offerings for this rite',
 
   whyWeDoIt: 'Why we do it',
   stepsTitle: 'Steps',
@@ -236,7 +270,8 @@ const ta: UiText = {
   skipped: 'தவிர்க்கப்பட்டது',
   previous: 'முந்தைய',
   nextStep: 'அடுத்த படி',
-  startPooja: 'பூஜையைத் தொடங்கு',
+  beginRite: 'தொடங்கு',
+  completeRite: 'நிறைவு',
   finish: 'நிறைவு',
 
   ritualPreparation: 'தயாரிப்பு',
@@ -278,7 +313,13 @@ const ta: UiText = {
   offeredCount: (done, total) => `${total}-இல் ${done} சமர்ப்பித்தாயிற்று`,
   sameMantraEach: 'ஒவ்வொன்றுக்கும் இந்த மந்திரம்',
   ifUnavailable: (what) => `கிடைக்கவில்லையெனில்: ${what}`,
-  poojaComplete: 'பூஜை பூர்த்தி!',
+  riteComplete: 'பூர்த்தி!',
+  samagriChecklist: 'சாமக்ரி பட்டியல்',
+  samagriCollected: (done, total) => `${total} இல் ${done} சேகரிக்கப்பட்டது`,
+  checkAll: 'அனைத்தையும் தேர்வு',
+  resetList: 'மீட்டமை',
+  preparationProgress: 'தயாரிப்பு நிலை',
+  naivedyamSub: 'இந்தச் சடங்கிற்கான நைவேத்தியங்கள்',
 
   // Shown when the DATA has no Tamil, not when the chrome has none. The chrome
   // above is always complete; some step content is not yet translated.
