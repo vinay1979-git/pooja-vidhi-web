@@ -258,9 +258,32 @@ const SHARED_OK = new Set([
   // so the same verse and the same rubric appear twice in one rite. Two
   // moments, one text, and the app carries it twice on purpose -- see 0049.
   'Vighneshwara Dhyanam (japa)',
-  // Arghyam and the Gayatri japa are both the Gayatri, so they share a meaning.
-  'Arghya Pradanam', 'Gayatri Japa',
+  // 'Arghya Pradanam' and 'Gayatri Japa' used to be here, for sharing the
+  // Gayatri's meaning. 0052 split both into three sittings, so those exact
+  // titles no longer exist and the entries protected nothing -- see the stale
+  // check below, which is here because that happened silently.
 ]);
+
+/**
+ * A step that repeats an earlier one, told by its title: "Achamanam (after
+ * tarpanam)" reduces to "Achamanam".
+ *
+ * The rite repeats steps on purpose -- Vighneshwara Dhyanam and Pranayamam in
+ * the japa half, and since 0052 the Achamanam/Anga Vandanam pair at both places
+ * the book asks for them. A repeat carries its original's mantra, meaning and
+ * philosophy BY CONSTRUCTION, because it is cloned with INSERT...SELECT. So
+ * identical prose between a step and its repeat is the design.
+ *
+ * Matched by SHAPE rather than by listing the four titles, because listing them
+ * means the next repeat added starts firing warnings again until somebody
+ * remembers this file -- and eight warnings that are all correct-by-design is
+ * precisely the state that teaches people to skim them.
+ */
+const repeatBase = (title) => String(title ?? '').replace(/\s*\([^()]*\)\s*$/, '').trim();
+const sameRepeatFamily = (a, b) =>
+  a.pooja_id === b.pooja_id &&
+  repeatBase(a.step_title_en) === repeatBase(b.step_title_en) &&
+  repeatBase(a.step_title_en) !== '';
 /**
  * Two steps a reader can never meet in the same walkthrough.
  *
@@ -296,11 +319,22 @@ for (const field of ['instruction_en', 'meaning_en', 'philosophy_en']) {
     const v = s[field];
     if (!v || v.length < DUP_MIN_LENGTH) continue;
     const prev = seen.get(v);
-    if (prev && !disjointModes(prev, s) &&
+    if (prev && !disjointModes(prev, s) && !sameRepeatFamily(prev, s) &&
         !(SHARED_OK.has(s.step_title_en) && SHARED_OK.has(prev.step_title_en))) {
       warn(`${field}`, `identical text on "${prev.pooja_id}/${prev.step_title_en}" and "${s.pooja_id}/${s.step_title_en}"`);
     }
     seen.set(v, s);
+  }
+}
+
+// An allowlist entry that matches no step is dead, and dead quietly: it stops
+// exempting anything the day the step is renamed, and nothing says so. 0052
+// renamed 'Arghya Pradanam' to three per-sitting titles and left two entries
+// here pointing at nothing -- found by hand, which is the part worth fixing.
+{
+  const titles = new Set(steps.map((s) => s.step_title_en));
+  for (const t of SHARED_OK) {
+    if (!titles.has(t)) warn('SHARED_OK', `"${t}" matches no step; the entry is stale`);
   }
 }
 
