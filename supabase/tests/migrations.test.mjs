@@ -2044,6 +2044,54 @@ await assert('every step still has Tamil',
      and (coalesce(trim(step_title_ta), '') = '' or coalesce(trim(instruction_ta), '') = '')`, 0);
 
 
+console.log('[9bp] 0053 the samagri list in English');
+await assert('before 0053 sandhyavandanam lists 10 items',
+  `select count(*) from samagri_items where pooja_id = 'sandhyavandanam'`, 10);
+// The fault, as a before-state. Roughly half the catalogue had no English at
+// all in the English column -- the Tamil or Sanskrit word in roman letters.
+await assert('and 63 items carry no English gloss',
+  `select count(*) from samagri_items where item_en not like '%(%'`, 63);
+
+await step('0053_samagri_in_english.sql',
+  () => db.exec(sql(`${MIG}/0053_samagri_in_english.sql`)));
+
+await assert('sandhyavandanam is down to 8 items',
+  `select count(*) from samagri_items where pooja_id = 'sandhyavandanam'`, 8);
+// Nothing REQUIRED went. Both removals were optional learning aids; trimming a
+// required item would take something off the list the rite cannot do without,
+// and a count of 8 alone would not tell them apart.
+await assert('and all 8 of them are required',
+  `select count(*) from samagri_items where pooja_id = 'sandhyavandanam' and is_required`, 8);
+await assert('the recording and the printed text are gone',
+  `select count(*) from samagri_items where pooja_id = 'sandhyavandanam'
+     and (item_en ilike '%recording%' or item_en ilike '%printed%')`, 0);
+
+// What the migration is for. Counted rather than spot-checked: 63 rows had no
+// gloss, 50 of them gain one and 2 are deleted, so 11 remain. NOT 63 minus the
+// 56 rows the generator touches -- six of those already had brackets holding
+// another transliteration ("Uddharani (Aachamani)") and so were never in the 63.
+// That arithmetic was wrong the first time and this assertion is what said so.
+await assert('only 11 items now lack an English gloss',
+  `select count(*) from samagri_items where item_en not like '%(%'`, 11);
+// ...and those 11 are already plain English -- milk, ghee, bananas, coconut.
+// A gloss on 'Coconut' would be noise, so the gate below is about words a
+// reader cannot shop with, not about brackets for their own sake.
+await assert('and every one of those is already an English word',
+  `select count(*) from samagri_items where item_en not like '%(%'
+     and item_en !~* '(milk|ghee|banana|fruit|coconut|conch|plate|linga|image)'`, 0);
+
+// The quantity column is a quantity again, not a glossary.
+await assert('no quantity explains what the item is',
+  `select count(*) from samagri_items
+    where quantity is not null and quantity ~ '^[0-9].* — (the|for the) '`, 0);
+// And the name you say in the shop survived. Losing 'Chandanam' to gain
+// 'sandalwood paste' would trade one unusable list for another.
+await assert('the traditional names are still there',
+  `select count(*) from samagri_items
+    where item_en like 'Chandanam%' or item_en like 'Akshadai%'
+       or item_en like 'Vetrilai%' or item_en like 'Bilvam%'`, 12);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {

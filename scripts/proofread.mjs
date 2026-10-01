@@ -619,9 +619,48 @@ for (const p of poojas) {
     fail(p.id, `has ${nv.length} naivedyam item(s) but no step that offers them`);
   }
 }
+/**
+ * Words that make an item_en shoppable by someone who reads only English.
+ *
+ * The check above this one asked whether item_en was EMPTY, which is not the
+ * same question and let half the catalogue through: "Chandanam", "Akshadai",
+ * "Vetrilai", "Bilvam" are all non-empty and all unreadable to the reader the
+ * column exists for. 0053 glossed them; this is what stops the next one.
+ *
+ * A WARNING AND NOT A FAILURE, because the detector is a word list and a word
+ * list is never finished. A new item that is plainly English but uses a noun
+ * nobody thought to add here would block a migration for no reason, and this
+ * project has thrown a gate away for less. It fires zero times today, so one
+ * line of output means something.
+ */
+// String.raw, not a plain quoted string. '\b' in a JS string literal is the
+// BACKSPACE character, not a word boundary, so `new RegExp('\b(' + ...)` builds
+// a pattern that can never match and every item warns. That is the second time
+// this session a backslash was eaten before the regex engine saw it -- the
+// other was \m inside a template literal in the migration test -- and both
+// failed in the direction that looks like data being wrong.
+const SHOPPABLE = new RegExp(String.raw`\b(` + [
+  'milk', 'ghee', 'oil', 'banana', 'fruit', 'fruits', 'coconut', 'rice', 'honey',
+  'jaggery', 'curd', 'sugar', 'water', 'flower', 'flowers', 'leaf', 'leaves',
+  'grass', 'garland', 'basil', 'bael', 'lotus', 'betel', 'areca', 'turmeric',
+  'vermilion', 'sandalwood', 'camphor', 'incense', 'wick', 'wicks', 'lamp',
+  'lamps', 'bell', 'plate', 'plates', 'cup', 'cups', 'tray', 'vessel', 'spoon',
+  'pot', 'stand', 'cloth', 'thread', 'seat', 'silver', 'brass', 'steel',
+  'copper', 'crystal', 'stone', 'image', 'idol', 'conch', 'linga', 'face',
+  'mixture', 'paste', 'powder', 'nut', 'pea', 'screwpine', 'marjoram',
+  'gooseberry', 'oleander', 'calotropis', 'shami', 'mango', 'durva', 'sesame',
+  'strand', 'strands', 'knot', 'knots', 'set', 'bunch',
+  // Borrowed into English and in the dictionaries, so glossing it as "cloth"
+  // would be less precise rather than more.
+  'dhoti',
+].join('|') + String.raw`)\b`, 'i');
+
 for (const x of samagri) {
   const at = `${x.pooja_id} samagri ${x.seq}`;
   if (!x.item_en) fail(at, 'has no English name');
+  else if (!SHOPPABLE.test(x.item_en)) {
+    warn(at, `"${x.item_en}" has no English in it -- a reader who does not already know the rite cannot shop with this`);
+  }
   if (!x.item_ta) fail(at, 'has no Tamil name');
   else checkTamil(`${at}.item_ta`, x.item_ta);
   if (x.is_substitutable && !x.substitute_with) fail(at, 'is substitutable but names no substitute');
