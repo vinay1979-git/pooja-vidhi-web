@@ -338,6 +338,45 @@ for (const field of ['instruction_en', 'meaning_en', 'philosophy_en']) {
   }
 }
 
+// --- the app must not talk about the book it was made from -------------------
+//
+// The reader is performing a rite, not reading a review of an edition. They did
+// not buy the book, do not have it open and cannot check it, so a sentence that
+// attributes an instruction to it adds a party who is not in the room -- and in
+// instruction_en it is worse than noise, because an instruction that reports
+// what somebody else asks for is not an instruction.
+//
+// Provenance is not lost by this: source_ref carries the edition and the page on
+// every row and is never shown to anyone. That is where it belongs.
+//
+// A REGEX LITERAL, not new RegExp(string). In a literal the backslash reaches
+// the engine; in a quoted string '\b' is the BACKSPACE character, which is how
+// the samagri gate above came to match nothing on its first outing.
+const CITES_SOURCE = /\b(the book|this book|the edition|this edition|Bhavan|the author|the manual)\b/i;
+{
+  const WATCH = [
+    [steps, ['instruction_en', 'meaning_en', 'philosophy_en', 'variant_note_en'],
+      (r) => `${r.pooja_id}/${r.step_title_en}`],
+    [poojas, ['why_en', 'description_en', 'eligibility'], (r) => r.id],
+    [naivedyam, ['recipe_note', 'reason_en'], (r) => `${r.pooja_id}/${r.name_en}`],
+    [samagri, ['item_en'], (r) => `${r.pooja_id} samagri ${r.seq}`],
+  ];
+  for (const [rows, cols, label] of WATCH) {
+    for (const r of rows) {
+      for (const c of cols) {
+        const v = r[c];
+        if (typeof v !== 'string' || !CITES_SOURCE.test(v)) continue;
+        const m = v.match(CITES_SOURCE);
+        // A failure rather than a warning, unlike the samagri word list: this
+        // one is not a heuristic. These phrases have no innocent reading in
+        // reader-facing prose, and 0054 took the count to zero, so any hit is a
+        // new sentence somebody wrote in the old voice.
+        fail(`${label(r)}.${c}`, `says "${m[0]}" -- tell the reader what to do, do not cite the source`);
+      }
+    }
+  }
+}
+
 // --- archana ----------------------------------------------------------------
 const byStep = new Map();
 for (const a of archana) {

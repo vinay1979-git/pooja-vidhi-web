@@ -2092,6 +2092,57 @@ await assert('the traditional names are still there',
        or item_en like 'Vetrilai%' or item_en like 'Bilvam%'`, 12);
 
 
+console.log('[9bq] 0054 the app stops citing the book it was made from');
+const CITES = `(^|[^a-z])(the book|this book|the edition|this edition|Bhavan|the author|the manual)`;
+// Counted across every field a reader can actually see. instruction_en is the
+// one that matters most: an instruction reporting what somebody else asks for
+// is not an instruction.
+await assert('before 0054, 46 reader-visible fields cite the source',
+  `select
+     (select count(*) from pooja_steps where instruction_en ~* '${CITES}')
+   + (select count(*) from pooja_steps where meaning_en ~* '${CITES}')
+   + (select count(*) from pooja_steps where philosophy_en ~* '${CITES}')
+   + (select count(*) from pooja_steps where variant_note_en ~* '${CITES}')
+   + (select count(*) from poojas where why_en ~* '${CITES}')
+   + (select count(*) from naivedyam_items where recipe_note ~* '${CITES}')`, 46);
+await assert('and 6 of them are instructions',
+  `select count(*) from pooja_steps where instruction_en ~* '${CITES}'`, 6);
+
+await step('0054_say_it_dont_cite_it.sql',
+  () => db.exec(sql(`${MIG}/0054_say_it_dont_cite_it.sql`)));
+
+await assert('afterwards none of them do',
+  `select
+     (select count(*) from pooja_steps where instruction_en ~* '${CITES}')
+   + (select count(*) from pooja_steps where meaning_en ~* '${CITES}')
+   + (select count(*) from pooja_steps where philosophy_en ~* '${CITES}')
+   + (select count(*) from pooja_steps where variant_note_en ~* '${CITES}')
+   + (select count(*) from poojas where why_en ~* '${CITES}')
+   + (select count(*) from naivedyam_items where recipe_note ~* '${CITES}')`, 0);
+
+// THE CONTENT SURVIVED. Rewording is not deleting, so the facts each sentence
+// carried must still be there -- said rather than cited. A count of zero
+// citations would be satisfied just as well by blanking the fields.
+await assert('learning from a teacher is still said, in three places',
+  `select count(*) from pooja_steps
+    where instruction_en ilike '%learnt from a teacher%'
+       or philosophy_en ilike '%learnt from a teacher%'`, 3);
+await assert('the conch step still says it may be skipped',
+  `select count(*) from pooja_steps
+    where instruction_en like '%SKIP THIS STEP IF THERE IS NO CONCH%'`, 2);
+await assert('the ten postures are still spelled out',
+  `select count(*) from pooja_steps
+    where instruction_en ilike '%ten postures of Surya Namaskara%'`, 1);
+await assert('and Ganesha was still given the position rather than taking it',
+  `select count(*) from poojas
+    where why_en ilike '%given to him by the other deities rather than taken%'`, 1);
+
+// Nothing lost its spacing where a sentence was dropped.
+await assert('no double spaces left behind',
+  `select count(*) from pooja_steps where philosophy_en like '%  %'
+      or instruction_en like '%  %'`, 0);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
