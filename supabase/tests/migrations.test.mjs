@@ -1977,6 +1977,73 @@ await assert('every clock-tagged sitting still has steps',
                        where s.pooja_id = m.pooja_id and m.mode = any(s.modes))`, 0);
 
 
+console.log('[9bo] 0052 sandhyavandanam says one sitting at a time, and repeats itself');
+await assert('before 0052 the rite has 45 steps',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'`, 45);
+// The two faults, stated as the before-state so the migration has something to
+// have fixed. A count of 45 would pass just as well on a rite with neither.
+await assert('and two steps recite more than one sitting',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'
+     and (case when instruction_en ilike '%morning%' then 1 else 0 end
+        + case when instruction_en ~* '(^|[^a-z])(noon|midday)' then 1 else 0 end
+        + case when instruction_en ilike '%evening%' then 1 else 0 end) > 1`, 2);
+await assert('and two send the reader off to find another step',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'
+     and instruction_en ~* 'do achamanam|do anga vandanam'`, 2);
+
+await step('0052_sandhyavandanam_self_contained.sql',
+  () => db.exec(sql(`${MIG}/0052_sandhyavandanam_self_contained.sql`)));
+
+await assert('the rite is now 53 steps', `select count(*) from pooja_steps
+  where pooja_id = 'sandhyavandanam'`, 53);
+for (const [mode, label] of [['pratah','morning'],['madhyahnika','noon'],['sayam','evening']]) {
+  await assert(`${label} keeps 39 of them`,
+    `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'
+       and '${mode}' = any(modes)`, 39);
+}
+
+// What the migration is FOR, and neither is a count.
+await assert('no step recites more than one sitting any more',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'
+     and (case when instruction_en ilike '%morning%' then 1 else 0 end
+        + case when instruction_en ~* '(^|[^a-z])(noon|midday)' then 1 else 0 end
+        + case when instruction_en ilike '%evening%' then 1 else 0 end) > 1`, 0);
+await assert('and none sends the reader elsewhere',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'
+     and instruction_en ~* 'do achamanam|do anga vandanam'`, 0);
+
+// The pair now EXISTS where the book asks for it, which is the other half of
+// the same fix: removing the sentence without adding the steps would have left
+// the reader with less than they started with.
+await assert('achamanam appears three times over',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'
+     and step_title_en like 'Achamanam%'`, 3);
+await assert('and anga vandanam three times',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'
+     and step_title_en like 'Anga Vandanam%'`, 3);
+// Carrying the real mantra, not an empty shell. A repeated step with no text
+// is worse than the sentence it replaced.
+await assert('every repeat carries the same mantra as its original',
+  `select count(*) from pooja_steps r join pooja_steps o
+      on o.pooja_id = r.pooja_id and o.step_title_en = split_part(r.step_title_en, ' (', 1)
+   where r.pooja_id = 'sandhyavandanam' and r.step_title_en like '% (%)'
+     and r.step_title_en !~ 'japa'
+     and r.mantra_sanskrit is not distinct from o.mantra_sanskrit
+     and length(coalesce(r.mantra_sanskrit, '')) > 0`, 4);
+
+// Dense 1..53, or the step sheet has a hole in it.
+await assert('step numbers are dense 1..53',
+  `select count(*) from generate_series(1, 53) g
+    where not exists (select 1 from pooja_steps
+                       where pooja_id = 'sandhyavandanam' and step_number = g)`, 0);
+await assert('and nothing was left parked above 1000',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'
+     and step_number > 1000`, 0);
+await assert('every step still has Tamil',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'
+     and (coalesce(trim(step_title_ta), '') = '' or coalesce(trim(instruction_ta), '') = '')`, 0);
+
+
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
 for (const p of ['ganesha_standard', 'varalakshmi_vratham']) {
