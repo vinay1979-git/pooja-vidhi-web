@@ -2315,6 +2315,33 @@ await assert('archana rows survive the rebuild: still 56',
   `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
     where s.pooja_id in ('navaratri_pooja', 'saraswati_pooja')`, 56);
 
+// --- 0058: two words of the Vayana Dhanam, read again off the page -----------
+console.log('[9bu] 0058 Vayana Dhanam typos');
+const VAYANA = `pooja_id = 'varalakshmi_vratham' and step_title_en = 'Vayana Dhanam'`;
+await assert('before 0058 the mantra carries both slips',
+  `select count(*) from pooja_steps where ${VAYANA}
+      and mantra_sanskrit like '%सादुगुण्यं%' and mantra_translit like '%saumāṅgalyāvāiṃ%'`, 1);
+const vayanaBefore = await one(`select length(mantra_sanskrit) as len,
+    length(mantra_sanskrit) - length(replace(mantra_sanskrit, chr(10), '')) as nl
+    from pooja_steps where ${VAYANA}`);
+await step('0058_vayana_dhanam_typos.sql',
+  () => db.exec(sql(`${MIG}/0058_vayana_dhanam_typos.sql`)));
+await step('0058 re-run',
+  () => db.exec(sql(`${MIG}/0058_vayana_dhanam_typos.sql`)));
+await assert('all three scripts now read sadgunyam and saumangalyavaptim',
+  `select count(*) from pooja_steps where ${VAYANA}
+      and mantra_sanskrit like '%पूजाफल साद्गुण्यं%' and mantra_sanskrit like '%दीर्घ सौमाङ्गल्यावाप्तिं%'
+      and mantra_tamil like '%ஸாத்குண்யம்%' and mantra_tamil like '%ஸௌமாங்கல்யாவாப்திம்%'
+      and mantra_translit like '%sādguṇyaṃ%' and mantra_translit like '%saumāṅgalyāvāptiṃ%'`, 1);
+// Two words changed and nothing else. In code points: द्गु replaces दुगु at
+// the same length (virama for vowel sign), and प्त adds प, virama and त -- so
+// exactly three longer, with every line break kept.
+await assert('only those two words changed',
+  `select count(*) from pooja_steps where ${VAYANA}
+      and length(mantra_sanskrit) = ${vayanaBefore.len} + 3
+      and length(mantra_sanskrit) - length(replace(mantra_sanskrit, chr(10), '')) = ${vayanaBefore.nl}`, 1);
+
+
 
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
