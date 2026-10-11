@@ -2188,6 +2188,102 @@ await assert('no mantra carries roman text or a stray ellipsis',
 await assert('Varalakshmi was not touched',
   `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'`, 31);
 
+// --- 0056: Varalakshmi's prose describes the mantras it sits under ----------
+console.log('[9bs] 0056 Varalakshmi meanings follow the mantras 0032 put in');
+// The fault, as a before-state: 0032 moved the mantras and not the prose.
+await assert('before 0056, the Udvasanam meaning is the Purusha Sukta',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+      and step_title_en = 'Udvasanam' and meaning_en like 'By sacrifice the gods sacrificed%'`, 1);
+await assert('the Pradakshina meaning translates a verse its mantra does not have',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+      and step_title_en = 'Pradakshina' and meaning_en like '%I am wrong, my acts are wrong%'
+      and mantra_translit not like '%pāpo''haṃ%'`, 1);
+await assert('and the Tamil anga pooja still counts fourteen',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+      and step_title_en = 'Anga Pooja' and instruction_ta like 'பதினான்கு%'`, 1);
+
+// Snapshot, so the assertions below can say exactly how much moved.
+await step('snapshot varalakshmi before 0056', () => db.exec(`
+  create temp table v56_steps as
+    select * from pooja_steps where pooja_id = 'varalakshmi_vratham';
+  create temp table v56_archana as
+    select a.* from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+     where s.pooja_id = 'varalakshmi_vratham';`));
+
+await step('0056_varalakshmi_meanings.sql',
+  () => db.exec(sql(`${MIG}/0056_varalakshmi_meanings.sql`)));
+await step('0056 re-run',
+  () => db.exec(sql(`${MIG}/0056_varalakshmi_meanings.sql`)));
+
+// The specific fixes.
+await assert('the Udvasanam meaning is the leave-taking it sits under',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+      and step_title_en = 'Udvasanam'
+      and meaning_en like 'From this vessel I return Sri Varalakshmi to her own place%'
+      and meaning_en not like '%sacrifice%' and meaning_en not ilike '%peace, peace%'`, 1);
+await assert('the Pradakshina meaning is sarvamangala laabhaaya, not papo-ham',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+      and step_title_en = 'Pradakshina'
+      and meaning_en like 'For the gaining of everything auspicious%'
+      and meaning_en like '%whose face is like the lotus%'
+      and philosophy_en not ilike '%papo%'`, 1);
+await assert('the Padyam step now renders the madhuparkam',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+      and step_title_en = 'Padyam, Arghyam & Achamaniyam'
+      and meaning_en like '%madhuparkam%' and instruction_en like '%madhuparkam%'
+      and instruction_ta like '%மதுபர்க்கம்%'`, 1);
+await assert('the Pushpanjali meaning is the jaati-champaka verse, not the dhyanam',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+      and step_title_en = 'Pushpanjali & Mantra Pushpam'
+      and meaning_en like 'With jati, champaka, punnaga%'
+      and philosophy_en not like '%same verse as the dhyanam%'`, 1);
+await assert('the Prarthana meaning is aayuraarogyam and the royal courtesies',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+      and step_title_en = 'Namaskaram & Varalakshmi Prarthana'
+      and meaning_en like 'Long life, health and prosperity%'
+      and meaning_en like '%parasol%' and philosophy_en not ilike '%lokajanani%'`, 1);
+await assert('the Tamil anga pooja counts twenty-four',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+      and step_title_en = 'Anga Pooja' and instruction_ta like 'இருபத்து நான்கு நாமங்கள்%'
+      and instruction_ta not like '%பதினான்கு%' and instruction_ta not like '%பதினைந்%'`, 1);
+await assert('the Vastram instruction offers the mangalyam before the ornaments, as the mantra does',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+      and step_title_en = 'Vastram, Abharanam & Mangalyam'
+      and instruction_en like 'Offer the two cloths, then the mangalyam, then the ornaments.%'`, 1);
+await assert('the Ksheera Arghyam verse row has its own meaning back',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+    where s.pooja_id = 'varalakshmi_vratham' and s.step_title_en = 'Ksheera Arghyam'
+      and a.meaning_en like 'Mixed with cow''s milk%'`, 1);
+// No philosophy quotes a phrase that is not in its own mantra any more. The
+// four that went stale, by the words they used to quote.
+await assert('no philosophy quotes a verse its step no longer has',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'
+      and (philosophy_en ilike '%susthira bhava%' or philosophy_en ilike '%ganga jalam maya%'
+        or philosophy_en ilike '%shatapatra%' or philosophy_en ilike '%pratigrihnatu%'
+        or philosophy_en ilike '%badhnami%')`, 0);
+
+// And nothing else moved. 31 fields across 16 steps, 1 archana row, and no
+// mantra, title, number or mode.
+await assert('exactly 31 prose fields changed',
+  `select sum((s.meaning_en     is distinct from v.meaning_en)::int
+            + (s.philosophy_en  is distinct from v.philosophy_en)::int
+            + (s.instruction_en is distinct from v.instruction_en)::int
+            + (s.instruction_ta is distinct from v.instruction_ta)::int)
+     from pooja_steps s join v56_steps v on v.id = s.id`, 31);
+await assert('on 16 steps',
+  `select count(*) from pooja_steps s join v56_steps v on v.id = s.id
+    where s.updated_at is distinct from v.updated_at`, 16);
+await assert('and no mantra, title, number, mode or other column changed',
+  `select count(*) from pooja_steps s join v56_steps v on v.id = s.id
+    where (to_jsonb(s) - array['meaning_en','philosophy_en','instruction_en','instruction_ta','updated_at'])
+       is distinct from
+          (to_jsonb(v) - array['meaning_en','philosophy_en','instruction_en','instruction_ta','updated_at'])`, 0);
+await assert('still 31 steps',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'`, 31);
+await assert('still 34 archana rows, one of them changed',
+  `select count(*) || '/' || count(*) filter (where to_jsonb(a) is distinct from to_jsonb(v))
+     from archana_items a join v56_archana v on v.id = a.id`, '34/1');
+
 
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
