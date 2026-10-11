@@ -63,26 +63,25 @@ const check = (label, ok, detail = '') => {
 };
 
 // --- tables exist and are readable -------------------------------------------
+// Presence, not exact counts. The counts this used to assert were the 18-step
+// snapshot from before 0005, so every content migration since turned this
+// script red without anything being wrong. Whether there are the RIGHT number of
+// names, leaves and steps is a content question, and proofread.mjs answers it
+// against the sources. This script answers the schema question: can the app
+// read what it needs.
 console.log('\n[1] tables readable with the anon key');
-const expected = {
-  poojas: 1,
-  pooja_steps: 18,
-  samagri_items: 7,
-  naivedyam_items: 2,
-  archana_items: 20,
-  deities: 1,
-  upachara_templates: null,
-  namavalis: null,
-  media_assets: null,
-  pooja_date_overrides: null,
-};
-for (const [t, want] of Object.entries(expected)) {
+const MUST_HAVE_ROWS = [
+  'poojas', 'pooja_steps', 'pooja_modes', 'samagri_items', 'naivedyam_items',
+  'archana_items', 'deities', 'namavalis',
+];
+const MAY_BE_EMPTY = ['upachara_templates', 'media_assets', 'pooja_date_overrides'];
+for (const t of [...MUST_HAVE_ROWS, ...MAY_BE_EMPTY]) {
   const r = await rest(`${t}?select=*&limit=1`);
   const n = count(r);
   check(
     t.padEnd(22),
-    r.ok && (want === null || String(n) === String(want)),
-    `http ${r.status}, rows ${n}${want !== null ? ` (expect ${want})` : ''}`,
+    r.ok && (!MUST_HAVE_ROWS.includes(t) || Number(n) > 0),
+    `http ${r.status}, rows ${n}${MUST_HAVE_ROWS.includes(t) ? ' (expect some)' : ''}`,
   );
 }
 
@@ -97,69 +96,95 @@ check(
 
 // --- the exact embedded selects queries.ts uses ------------------------------
 // This is the part that cannot be tested offline: PostgREST has to detect the
-// foreign keys added in 0002 to resolve these nested selects.
+// foreign keys to resolve these nested selects. Kept in step with the top rung
+// (Tier.All) of POOJA_SELECT and STEPS_SELECT in src/lib/queries.ts -- if that
+// rung fails here, the deployed app is running on a fallback rung.
 console.log('\n[3] PostgREST resource embedding, as used by src/lib/queries.ts');
 
-const poojaSel =
-  'poojas?id=eq.ganesha_standard&select=' +
-  encodeURIComponent(
-    'id,title_en,title_ta,description_en,description_ta,duration_mins,ritual_class,deity_id,eligibility,' +
-      'samagri_items(seq,item_en,item_ta,quantity,category,is_required),' +
-      'naivedyam_items(tier,seq,name_en,name_ta,recipe_note,prohibition_basis,reason_en)',
-  );
-const p = await rest(poojaSel);
-check('getPooja embed resolves', p.ok, `http ${p.status}`);
-if (p.ok) {
+const POOJA_SELECT =
+  'id,title_en,title_ta,description_en,description_ta,duration_mins,ritual_class,deity_id,eligibility,' +
+  'status,karta_recommended,why_en,why_ta,' +
+  'pooja_modes(mode,seq,label_en,label_ta,hint_en,hint_ta,from_hour),' +
+  'samagri_items(seq,item_en,item_ta,quantity,category,is_required),' +
+  'naivedyam_items(tier,seq,name_en,name_ta,recipe_note,recipe_note_ta,prohibition_basis,reason_en)';
+const STEPS_SELECT =
+  'id,pooja_id,step_number,phase,step_title_en,step_title_ta,instruction_en,instruction_ta,' +
+  'mantra_sanskrit,mantra_tamil,mantra_translit,meaning_en,philosophy_en,philosophy_ta,' +
+  'gender_rule,variant_mantra_sanskrit,variant_note_en,is_dynamic_sankalpam,modes,' +
+  'archana_items(seq,invoked_name_deva,invoked_name_ta,invoked_name_translit,offering_deva,' +
+  'offering_en,offering_ta,botanical,is_substitutable,substitute_with,meaning_en),' +
+  'namavalis(id,namavali_items(seq,name_deva,name_ta,name_translit,meaning_en))';
+
+const list = await rest('poojas?select=id,status&order=id');
+check('poojas listable', list.ok, `http ${list.status}`);
+const poojaRows = list.ok ? JSON.parse(list.text) : [];
+const allSteps = [];
+
+for (const { id, status } of poojaRows) {
+  const published = status !== 'planned';
+  console.log(`  -- ${id} (${published ? 'published' : 'planned'})`);
+
+  const p = await rest(`poojas?id=eq.${id}&select=${encodeURIComponent(POOJA_SELECT)}`);
+  check('getPooja embed resolves', p.ok, `http ${p.status}`);
+  if (!p.ok) { console.log(`         ${p.text.slice(0, 200)}`); continue; }
   const row = JSON.parse(p.text)[0];
-  check('  samagri_items embedded', Array.isArray(row?.samagri_items), `${row?.samagri_items?.length ?? 0} rows`);
-  check('  naivedyam_items embedded', Array.isArray(row?.naivedyam_items), `${row?.naivedyam_items?.length ?? 0} rows`);
-} else {
-  console.log(`         ${p.text.slice(0, 200)}`);
+
+  const s = await rest(
+    `pooja_steps?pooja_id=eq.${id}&order=step_number.asc&select=${encodeURIComponent(STEPS_SELECT)}`,
+  );
+  check('getSteps embed resolves', s.ok, `http ${s.status}`);
+  if (!s.ok) { console.log(`         ${s.text.slice(0, 200)}`); continue; }
+  const rows = JSON.parse(s.text);
+  allSteps.push(...rows);
+
+  if (!published) {
+    // A planned rite is a catalogue card and nothing more. Steps under it would
+    // be content the app refuses to show (see app/pooja/[id]/page.tsx).
+    check('no steps yet', rows.length === 0, `${rows.length}`);
+    continue;
+  }
+
+  check('has steps', rows.length > 0, `${rows.length}`);
+  check(
+    `step numbers dense 1..${rows.length}`,
+    rows.every((r, i) => r.step_number === i + 1),
+    rows.every((r, i) => r.step_number === i + 1) ? '' : rows.map((r) => r.step_number).join(','),
+  );
+  check('samagri embedded', (row?.samagri_items?.length ?? 0) > 0, `${row?.samagri_items?.length ?? 0} rows`);
+
+  // A step claiming a mode the pooja does not declare is a step no picker
+  // button can ever reach. 0047 asserts this at write time; this catches drift.
+  const declared = new Set((row?.pooja_modes ?? []).map((m) => m.mode));
+  if (declared.size) {
+    const stray = rows.flatMap((r) => (r.modes ?? []).filter((m) => !declared.has(m)));
+    check('every claimed mode is declared', stray.length === 0, stray.length ? [...new Set(stray)].join(',') : '');
+  }
 }
 
-const stepSel =
-  'pooja_steps?pooja_id=eq.ganesha_standard&order=step_number.asc&select=' +
-  encodeURIComponent(
-    'id,pooja_id,step_number,phase,step_title_en,step_title_ta,instruction_en,instruction_ta,' +
-      'mantra_sanskrit,mantra_tamil,mantra_translit,meaning_en,philosophy_en,philosophy_ta,' +
-      'gender_rule,variant_mantra_sanskrit,variant_note_en,is_dynamic_sankalpam,' +
-      'archana_items(seq,invoked_name_deva,invoked_name_ta,invoked_name_translit,offering_en,botanical,meaning_en)',
-  );
-const s = await rest(stepSel);
-check('getSteps embed resolves', s.ok, `http ${s.status}`);
-if (!s.ok) {
-  console.log(`         ${s.text.slice(0, 200)}`);
-} else {
-  const rows = JSON.parse(s.text);
-  check('  18 steps returned', rows.length === 18, `${rows.length}`);
-  check(
-    '  step numbers dense 1..18',
-    rows.every((r, i) => r.step_number === i + 1),
-    rows.map((r) => r.step_number).join(','),
-  );
-  const withArchana = rows.filter((r) => r.archana_items?.length);
-  check('  archana embedded on one step', withArchana.length === 1,
-    `${withArchana.length} step(s), ${withArchana[0]?.archana_items?.length ?? 0} items`);
-  const pran = rows.find((r) => r.step_title_en === 'Pranayamam');
-  check('  Pranayamam is filter_male_only', pran?.gender_rule === 'filter_male_only',
+if (allSteps.length) {
+  const withList = allSteps.filter((r) => r.archana_items?.length || r.namavalis?.namavali_items?.length);
+  check('archana or namavali embedded somewhere', withList.length > 0, `${withList.length} step(s)`);
+
+  // The original guard: 0003 mapping gender_target 'male' onto
+  // filter_male_only rather than a variant. Ganesha is the rite it was found on.
+  const pran = allSteps.find((r) => r.pooja_id === 'ganesha_standard' && r.step_title_en === 'Pranayamam');
+  check('ganesha Pranayamam is filter_male_only', pran?.gender_rule === 'filter_male_only',
     String(pran?.gender_rule));
 
-  // --- 0005 applied? --------------------------------------------------------
-  console.log('\n[4] 0005 generated scripts');
-  const missingTa = rows.filter((r) => r.mantra_sanskrit && !r.mantra_tamil).length;
-  if (missingTa === rows.filter((r) => r.mantra_sanskrit).length) {
-    console.log('  --    0005 not applied yet. Run supabase/migrations/0005_generate_scripts.sql');
-  } else {
-    check('mantra_tamil filled where Devanagari exists', missingTa === 0, `${missingTa} missing`);
-    const tpl = rows.find((r) => r.is_dynamic_sankalpam);
-    check('sankalpam placeholder intact',
-      String(tpl?.mantra_tamil ?? '').includes('[DYNAMIC_PANCHANGAM_DATA]'));
+  // --- generated scripts --------------------------------------------------
+  console.log('\n[4] generated scripts');
+  const missingTa = allSteps.filter((r) => r.mantra_sanskrit && !r.mantra_tamil).length;
+  check('mantra_tamil filled where Devanagari exists', missingTa === 0, `${missingTa} missing`);
+  for (const r of allSteps.filter((r) => r.is_dynamic_sankalpam)) {
+    check(`${r.pooja_id} #${r.step_number} sankalpam placeholder intact`,
+      ['mantra_sanskrit', 'mantra_tamil'].every((f) =>
+        String(r[f] ?? '').includes('[DYNAMIC_PANCHANGAM_DATA]')));
   }
 
   console.log('\n[5] remaining content gaps');
-  const gap = (f) => rows.filter((r) => !r[f]).length;
+  const gap = (f) => allSteps.filter((r) => !r[f]).length;
   for (const f of ['step_title_ta', 'instruction_ta', 'meaning_en', 'philosophy_en'])
-    console.log(`  ${f.padEnd(16)} missing on ${gap(f)}/${rows.length}`);
+    console.log(`  ${f.padEnd(16)} missing on ${gap(f)}/${allSteps.length}`);
 }
 
 console.log(`\n${failed ? 'RESULT: failures above' : 'RESULT: live schema matches what the app expects'}\n`);

@@ -16,7 +16,10 @@ export default async function PoojaDetailPage({ params }: PageProps) {
   // steps rendered as 6. A real failure should now surface.
   const [pooja, steps] = await Promise.all([getPooja(poojaId), getSteps(poojaId)]);
 
-  if (!pooja) notFound();
+  // A planned rite has a catalogue card but no steps. The catalogue does not
+  // link it, and the URL must not open it either: the viewer would render a
+  // preparation screen and a Begin button for a rite with nothing to begin.
+  if (!pooja || pooja.status === 'planned') notFound();
 
   return (
     <div className="relative min-h-screen bg-stone-950">
