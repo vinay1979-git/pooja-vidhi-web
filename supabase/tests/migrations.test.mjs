@@ -2341,6 +2341,30 @@ await assert('only those two words changed',
       and length(mantra_sanskrit) = ${vayanaBefore.len} + 3
       and length(mantra_sanskrit) - length(replace(mantra_sanskrit, chr(10), '')) = ${vayanaBefore.nl}`, 1);
 
+// --- 0059: Varalakshmi's Prana Pratishtha talks about Varalakshmi ------------
+console.log('[9bv] 0059 Varalakshmi Prana Pratishtha note');
+const PRANA = `pooja_id = 'varalakshmi_vratham' and step_title_en = 'Prana Pratishtha'`;
+await assert('before 0059 the note names Ganesha Chaturthi and an edition, the instruction asyai',
+  `select count(*) from pooja_steps where ${PRANA}
+      and philosophy_en like '%Ganesha Chaturthi%' and philosophy_en like '%Lalitha vidhanam%'
+      and instruction_en like '%asyai%'`, 1);
+await step('0059_varalakshmi_prana_note.sql',
+  () => db.exec(sql(`${MIG}/0059_varalakshmi_prana_note.sql`)));
+await step('0059 re-run',
+  () => db.exec(sql(`${MIG}/0059_varalakshmi_prana_note.sql`)));
+await assert('afterwards none of the three fields mentions them',
+  `select count(*) from pooja_steps where ${PRANA}
+      and (philosophy_en ~* 'Ganesha|Chaturthi|Lalitha|vidhanam'
+           or instruction_en ~* 'asyai' or instruction_ta like '%அஸ்யை%')`, 0);
+await assert('and the instruction names the feminine forms the mantra has',
+  `select count(*) from pooja_steps where ${PRANA}
+      and instruction_en like '%avahita, sthapita, varada%'
+      and instruction_ta like '%ஆவாஹிதா, ஸ்தாபிதா, வரதா%'`, 1);
+await assert('the Ganesha Prana Pratishtha is untouched',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
+      and step_title_en = 'Prana Pratishtha' and philosophy_en like 'Everything before this prepares a seat%'`, 1);
+
+
 
 
 // --- 10. What is still missing -----------------------------------------------
