@@ -2142,6 +2142,52 @@ await assert('no double spaces left behind',
   `select count(*) from pooja_steps where philosophy_en like '%  %'
       or instruction_en like '%  %'`, 0);
 
+// --- 0055: two rites from the book, not one ----------------------------------
+console.log('[9br] 0055 Navaratri and Saraswati Pooja');
+await step('0055_navaratri_and_saraswati.sql',
+  () => db.exec(sql(`${MIG}/0055_navaratri_and_saraswati.sql`)));
+await step('0055 re-run',
+  () => db.exec(sql(`${MIG}/0055_navaratri_and_saraswati.sql`)));
+
+await assert('Navaratri has 30 steps, numbered 1..30',
+  `select count(*) from pooja_steps where pooja_id = 'navaratri_pooja'
+      and step_number between 1 and 30`, 30);
+await assert('Saraswati has 26 steps, numbered 1..26',
+  `select count(*) from pooja_steps where pooja_id = 'saraswati_pooja'
+      and step_number between 1 and 26`, 26);
+// The six shared purvangam steps are SELECTed out of the Ganesha pooja. If a
+// title there is ever renamed the SELECT copies nothing and the rite silently
+// loses its Achamanam -- which the step count above would also catch, but this
+// names the cause.
+await assert('all six shared steps were found and copied into each rite',
+  `select count(*) from pooja_steps
+    where pooja_id in ('navaratri_pooja', 'saraswati_pooja')
+      and source_ref like '%copied from ganesha_standard%'`, 12);
+await assert('each rite has exactly one dynamic sankalpam',
+  `select count(*) from pooja_steps
+    where pooja_id in ('navaratri_pooja', 'saraswati_pooja')
+      and is_dynamic_sankalpam and mantra_sanskrit like '%[DYNAMIC_PANCHANGAM_DATA]%'`, 2);
+await assert('108 names in each new namavali',
+  `select count(*) from namavali_items
+    where namavali_id in ('durga_ashtottara_108', 'saraswati_ashtottara_108')`, 216);
+await assert('Durga name 91 is the reading, not the broken glyph',
+  `select count(*) from namavali_items
+    where namavali_id = 'durga_ashtottara_108' and seq = 91 and name_deva = 'ॐ प्राज्ञ्यै नमः'`, 1);
+await assert('archana rows: 18 + 9 + 9 for Navaratri, 20 for Saraswati',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+    where s.pooja_id in ('navaratri_pooja', 'saraswati_pooja')`, 56);
+await assert('every step mode is declared in pooja_modes',
+  `select count(*) from pooja_steps s, unnest(s.modes) m
+    where s.pooja_id in ('navaratri_pooja', 'saraswati_pooja')
+      and not exists (select 1 from pooja_modes pm where pm.pooja_id = s.pooja_id and pm.mode = m)`, 0);
+await assert('no mantra carries roman text or a stray ellipsis',
+  `select count(*) from pooja_steps
+    where pooja_id in ('navaratri_pooja', 'saraswati_pooja')
+      and (replace(mantra_sanskrit, '[DYNAMIC_PANCHANGAM_DATA]', '') ~ '[A-Za-z]'
+           or mantra_sanskrit like '%...%')`, 0);
+await assert('Varalakshmi was not touched',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham'`, 31);
+
 
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');

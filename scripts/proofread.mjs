@@ -438,6 +438,13 @@ const EXPECT_ARCHANA = {
   'nitya_panchayatana/Archana — Shiva': 8,
   'nitya_panchayatana/Archana — Devi': 8,
   'nitya_panchayatana/Deva Tarpanam': 17,
+  // 0055. Navaratri's anga pooja is eighteen limbs; the Navadurga are the nine
+  // forms and the Navakanya the nine maidens, Kumari to Subhadra. Saraswati's
+  // anga pooja is twenty limbs, all addressed to her alone.
+  'navaratri_pooja/Anga Pooja': 18,
+  'navaratri_pooja/Navadurga Pooja': 9,
+  'navaratri_pooja/Navakanya Pooja': 9,
+  'saraswati_pooja/Anga Pooja': 20,
 };
 // A TITLE is a few words. A mantra has dandas and runs to hundreds of
 // characters. 0025 put the Tamil mantra into step_title_ta on twelve steps and
@@ -570,6 +577,12 @@ const EXPECT_PROSE_COUNT = {
   // having a number written into them to satisfy a checker.
   'sandhyavandanam/Samashti Abhivadanam': null,
   'sandhyavandanam/Dig Devata Vandanam': null,
+
+  // 0055.
+  'navaratri_pooja/Anga Pooja': 'eighteen',
+  'navaratri_pooja/Navadurga Pooja': 'nine',
+  'navaratri_pooja/Navakanya Pooja': 'nine',
+  'saraswati_pooja/Anga Pooja': 'twenty',
 };
 for (const s of steps) {
   const key = `${s.pooja_id}/${s.step_title_en}`;
@@ -620,7 +633,9 @@ for (const [id, n] of nvCount) {
   // genuinely repeats diptayai and devyai, and both the Devanagari and the IAST
   // page published by StotraNidhi repeat them at the same positions. Checked,
   // so this notes rather than warns; a NEW repeat is still worth seeing.
-  const KNOWN_REPEATS = { lakshmi_ashtottara_108: 2 };
+  // Both 0055 lists repeat names as printed, and both were checked against the
+  // book's own count markers, so the repeats are the recension, not a slip.
+  const KNOWN_REPEATS = { lakshmi_ashtottara_108: 2, durga_ashtottara_108: 2, saraswati_ashtottara_108: 3 };
   if (dupes.size && dupes.size !== KNOWN_REPEATS[id]) {
     warn(id, `${dupes.size} repeated names, expected ${KNOWN_REPEATS[id] ?? 0}: ${[...dupes].slice(0, 3).join(', ')}`);
   } else if (dupes.size) {

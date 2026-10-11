@@ -34,6 +34,9 @@ SLUGS = {
     # again, ~2000x3500, which is why it is back to being the high-resolution
     # source and Bhavan the cross-check.
     "6. Sandhiyavandanam Giri.pdf":        "6-sandhya-giri",
+    # Navaratri and Saraswati Pooja in one PDF. The book treats them as two
+    # rites and so does the app; the split is made when transcribing.
+    "7. Navratri and Saraswati Pooja.pdf": "7-navaratri",
 }
 
 def main():
