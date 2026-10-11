@@ -50,7 +50,11 @@ const BOOK = 'Sampradaya Vratha Pooja Vidhi (Giri)';
 const NAV = 'navaratri_pooja';
 const SAR = 'saraswati_pooja';
 const GANESHA = 'ganesha_standard';
-const MIGRATION = 'supabase/migrations/0055_navaratri_and_saraswati.sql';
+// 0055 was the first emission and has been applied; it stays as it was. A
+// re-emission goes to a new file -- the SQL replaces both rites wholesale, so
+// running it over 0055 is the whole upgrade. 0057: the Vijayadashami option is
+// named Punah Pooja, as the book heads it, and gains the camphor its rubric asks for.
+const MIGRATION = 'supabase/migrations/0057_navaratri_punah_pooja.sql';
 
 // --- read the transcripts ---------------------------------------------------
 const byPage = {};
@@ -358,6 +362,20 @@ const NAV_STEPS = [
     meaning_en: 'Om bhur bhuvah suvah. We meditate on the glorious light of the divine Savitr; may it inspire our minds. Divine Savitr, impel: I sprinkle you, truth, with order. You are the immortal bed. To the five breaths and to Brahman, hail. Food of four kinds, sweet and full of the six tastes: receive this offering, Goddess, and make my devotion unshakeable. Water between mouthfuls; water to rinse after the meal. A betel roll scented with cardamom, clove, musk and camphor, to sweeten the mouth: I offer it, Queen of the gods.',
     philosophy_en: 'Bhaktim me hyachalam kuru, "make my devotion unshakeable". The one thing asked in return for the meal is not a favour but steadiness, which over nine days of the same pooja is the thing most likely to run out.',
     src: 'pp.298-299',
+  },
+  {
+    // Vijayadashami only. The p.304 rubric for the dashami punah pooja says
+    // "wave camphor", but the Navaratri section prints no neerajanam verse of
+    // its own. The verse is the same book's, from its Saraswati section
+    // (pp.321-322), which addresses the same three goddesses.
+    title_en: 'Karpura Neerajanam', title_ta: 'கற்பூர நீராஜனம்',
+    phase: 'uttara', modes: ['udvasana'],
+    deva: join(D('321', 15), D('322', 2)),
+    instruction_en: 'Before the Goddess is sent home, light camphor and wave it three times clockwise before the kalasham or image, ringing the bell. Then offer a spoon of water.',
+    instruction_ta: 'தேவிக்கு விடை கொடுப்பதற்கு முன், கற்பூரம் ஏற்றி கலசத்தின் அல்லது விக்ரஹத்தின் முன் மூன்று முறை வலமாகச் சுற்றிக் காட்டவும், மணி அடித்தபடி. பின் ஒரு ஸ்பூன் ஜலம் சமர்ப்பிக்கவும்.',
+    meaning_en: 'Lit with a thousand wicks and pieces of camphor, this waving of light is offered by me: receive it and be a giver of boons. Salutations to Sri Durga, Lakshmi and Saraswati: I show the camphor flame. After it, I offer water to sip.',
+    philosophy_en: 'On the last morning the camphor is the final light the Goddess is shown in this house. It burns out completely and leaves nothing behind, which is the right thing to wave just before asking her to go and to come again.',
+    src: 'p.304 rubric for dashami (wave camphor); verse from pp.321-322, addressed to the same three goddesses',
   },
   {
     title_en: 'Pushpanjali', title_ta: 'புஷ்பாஞ்ஜலி',
@@ -714,7 +732,7 @@ const RITES = [
     modes: [
       ['main', 'First Day', 'முதல் நாள்', 'Prathama. Full vidhi: the kalasham is invoked and installed.', 'பிரதமை. முழு விதி: கலசம் ஆவாஹனம் செய்து ப்ரதிஷ்டை செய்யப்படுகிறது.'],
       ['punar', 'Days 2 to 9', 'இரண்டு முதல் ஒன்பதாம் நாள் வரை', 'The daily pooja. The Goddess is already installed.', 'தினசரி பூஜை. தேவி ஏற்கனவே ப்ரதிஷ்டை செய்யப்பட்டுள்ளாள்.'],
-      ['udvasana', 'Vijayadashami', 'விஜயதசமி', 'The tenth day. Names, offerings and the release.', 'பத்தாம் நாள். நாமாவளி, உபசாரம், யதாஸ்தானம்.'],
+      ['udvasana', 'Vijayadashami – Punah Pooja', 'விஜயதசமி – புனர் பூஜை', 'The tenth day. Names, offerings, camphor and the release.', 'பத்தாம் நாள். நாமாவளி, உபசாரம், கற்பூரம், யதாஸ்தானம்.'],
     ],
     why_en: 'The Goddess is worshipped for nine nights because the story behind them takes nine nights: in the Devi Mahatmyam, the gods could not defeat Mahishasura, and the Goddess who arose from their combined power fought him until she won on the tenth day, Vijayadashami, the day of victory. The household keeps those nights by worshipping her as three: Durga, who protects; Lakshmi, who provides; and Saraswati, who gives understanding, often three nights each. It is a festival of welcome as much as of worship. A golu of dolls is set up, sumangalis and young girls are invited, fed and sent home with turmeric, kumkumam and a gift, because the Goddess is honoured in them too. On the tenth day she is asked to return next year, and new things are begun.',
     why_ta: 'தேவி ஒன்பது இரவுகள் வழிபடப்படுவதற்குக் காரணம், அதன் பின்னுள்ள கதை ஒன்பது இரவுகள் நீடிப்பதே: தேவீ மாஹாத்மியத்தில், தேவர்களால் வெல்ல முடியாத மஹிஷாஸுரனை, அவர்களின் சக்திகள் ஒன்றுசேர்ந்து தோன்றிய தேவி எதிர்த்துப் போரிட்டு, பத்தாம் நாளான விஜயதசமியன்று வென்றாள். வீட்டில் அந்த இரவுகளை தேவியை மூவராக வழிபட்டு அனுஷ்டிக்கிறோம் — காக்கும் துர்கை, அருளும் லக்ஷ்மி, அறிவு தரும் ஸரஸ்வதி — பெரும்பாலும் ஒவ்வொருவருக்கும் மூன்று இரவுகள். இது வழிபாட்டுத் திருவிழா மட்டுமல்ல, வரவேற்புத் திருவிழாவும் கூட. கொலு வைக்கப்படுகிறது; சுமங்கலிகளும் சிறுமிகளும் அழைக்கப்பட்டு, உணவளிக்கப்பட்டு, மஞ்சள், குங்குமம், பரிசுடன் அனுப்பப்படுகிறார்கள் — அவர்களிடமும் தேவி வழிபடப்படுகிறாள். பத்தாம் நாள் அடுத்த ஆண்டு மீண்டும் வரும்படி அவளை வேண்டி, புதிய காரியங்கள் தொடங்கப்படுகின்றன.',
@@ -729,7 +747,7 @@ const RITES = [
     rule: { type: 'tithi_in_month', month: 'ashvina', reckoning: 'chandra', paksha: 'shukla', tithi: 'navami', notes: 'Mahanavami, Ashvina shukla navami, the ninth day of Navaratri. The books are released and taken up on Vijayadashami, the next morning.' },
     modes: [
       ['main', 'Navami Pooja', 'நவமி பூஜை', 'Mahanavami. Full vidhi over the books and instruments.', 'மஹாநவமி. புத்தகங்கள், கருவிகளின் மேல் முழு விதி.'],
-      ['udvasana', 'Vijayadashami', 'விஜயதசமி', 'The next morning. Names, offerings, and the books taken up again.', 'மறுநாள் காலை. நாமாவளி, உபசாரம், புத்தகங்களை மீண்டும் எடுத்தல்.'],
+      ['udvasana', 'Vijayadashami – Punah Pooja', 'விஜயதசமி – புனர் பூஜை', 'The next morning. Names, offerings, and the books taken up again.', 'மறுநாள் காலை. நாமாவளி, உபசாரம், புத்தகங்களை மீண்டும் எடுத்தல்.'],
     ],
     why_en: 'Knowledge is what makes a person more than their circumstances, and the tradition gives that knowledge a face: Saraswati, the goddess of speech, learning and the arts. The story told for this day is of King Suketu, driven from his kingdom, whose queen was told by the sage Angiras to worship Saraswati on Navami; their son Suryaprabha grew up mastering every art and won the kingdom back. So on the ninth day of Navaratri the books, instruments and tools of the house are laid down and worshipped as the Goddess, and for one day nobody studies or works with them. The next morning, Vijayadashami, they are taken up again, children write their first letters, and whatever is begun is begun with her blessing.',
     why_ta: 'ஒருவரை அவர் சூழ்நிலைக்கு மேல் உயர்த்துவது அறிவு; அந்த அறிவுக்கு மரபு ஒரு வடிவம் தருகிறது — வாக்கு, கல்வி, கலைகளின் தேவியான ஸரஸ்வதி. இந்நாளுக்குச் சொல்லப்படும் கதை, ராஜ்யத்தை இழந்த ஸுகேது மன்னனுடையது: அங்கிரஸ முனிவர் சொன்னபடி அவன் நவமியன்று ஸரஸ்வதியை வழிபட, அவர்களின் மகன் ஸூர்யப்ரபன் எல்லாக் கலைகளிலும் தேர்ந்து ராஜ்யத்தை மீட்டான். எனவே நவராத்திரியின் ஒன்பதாம் நாள் வீட்டின் புத்தகங்கள், கருவிகள், தொழில் சாதனங்கள் அனைத்தும் தேவியாக வைத்து வழிபடப்படுகின்றன; அன்று யாரும் அவற்றைக் கொண்டு படிப்பதோ வேலை செய்வதோ இல்லை. மறுநாள் விஜயதசமியன்று அவை மீண்டும் எடுக்கப்படுகின்றன, குழந்தைகள் முதல் எழுத்துகளை எழுதுகிறார்கள், தொடங்குவது எதுவும் அவள் ஆசியுடன் தொடங்குகிறது.',

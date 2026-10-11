@@ -2284,6 +2284,37 @@ await assert('still 34 archana rows, one of them changed',
   `select count(*) || '/' || count(*) filter (where to_jsonb(a) is distinct from to_jsonb(v))
      from archana_items a join v56_archana v on v.id = a.id`, '34/1');
 
+// --- 0057: Vijayadashami is the punah pooja, and it waves camphor ------------
+console.log('[9bt] 0057 Navaratri punah pooja');
+await step('0057_navaratri_punah_pooja.sql',
+  () => db.exec(sql(`${MIG}/0057_navaratri_punah_pooja.sql`)));
+await step('0057 re-run',
+  () => db.exec(sql(`${MIG}/0057_navaratri_punah_pooja.sql`)));
+
+await assert('Navaratri now has 31 steps, numbered 1..31',
+  `select count(*) from pooja_steps where pooja_id = 'navaratri_pooja'
+      and step_number between 1 and 31`, 31);
+await assert('the Vijayadashami walk is 11 steps, camphor among them',
+  `select count(*) from pooja_steps where pooja_id = 'navaratri_pooja'
+      and 'udvasana' = any(modes)`, 11);
+await assert('camphor comes after the naivedyam and before the release',
+  `select count(*) from pooja_steps k
+     join pooja_steps n on n.pooja_id = k.pooja_id and n.step_title_en = 'Naivedyam & Tambulam'
+     join pooja_steps y on y.pooja_id = k.pooja_id and y.step_title_en = 'Punah Pooja & Yathasthanam'
+    where k.pooja_id = 'navaratri_pooja' and k.step_title_en = 'Karpura Neerajanam'
+      and k.modes = '{udvasana}' and n.step_number < k.step_number and k.step_number < y.step_number`, 1);
+await assert('First Day and Days 2 to 9 are unchanged at 29 and 26',
+  `select count(*) filter (where 'main' = any(modes)) * 100
+        + count(*) filter (where 'punar' = any(modes))
+     from pooja_steps where pooja_id = 'navaratri_pooja'`, 2926);
+await assert('both rites label the closing day Vijayadashami – Punah Pooja',
+  `select count(*) from pooja_modes where mode = 'udvasana'
+      and pooja_id in ('navaratri_pooja', 'saraswati_pooja')
+      and label_en = 'Vijayadashami – Punah Pooja'`, 2);
+await assert('archana rows survive the rebuild: still 56',
+  `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+    where s.pooja_id in ('navaratri_pooja', 'saraswati_pooja')`, 56);
+
 
 // --- 10. What is still missing -----------------------------------------------
 console.log('\n[10] remaining content gaps');
