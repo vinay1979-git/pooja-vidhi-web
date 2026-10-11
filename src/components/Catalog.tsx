@@ -2,10 +2,9 @@ import React from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Pooja } from '@/types/pooja';
-import { MASTER_POOJAS } from '@/data/catalog';
 import { TempleBell } from '@/components/TempleBell';
 import { GopuramIcon } from '@/components/GopuramIcon';
-import { Sparkles, Flame, Clock, ArrowRight, BookOpen, Compass, Search, Sunrise } from 'lucide-react';
+import { Sparkles, Flame, Clock, ArrowRight, BookOpen, Compass, Search, Sunrise, CalendarDays } from 'lucide-react';
 
 /**
  * The catalogue splits DAILY from OCCASIONAL, and that is the only split.
@@ -95,23 +94,22 @@ const classLabel = (p: Pooja): string => {
 };
 
 export default async function Catalog({ section }: { section: CatalogSection }) {
-  let poojasList: Pooja[] = MASTER_POOJAS;
-
-  try {
-    const { data, error } = await supabase.from('poojas').select('*');
-    if (!error && data && data.length > 0) {
-      // Merge database items with local master catalog items
-      const dbIds = new Set(data.map((p) => p.id));
-      const extraLocal = MASTER_POOJAS.filter((p) => !dbIds.has(p.id));
-      poojasList = [...(data as Pooja[]), ...extraLocal];
-    }
-  } catch (e) {
-    console.warn('Supabase fetch for poojas list failed:', e);
+  // The database is the catalogue, and nothing else is. This used to merge in a
+  // hardcoded list, data/catalog.ts, "as an offline fallback" -- and because the
+  // merge added every local id the database lacked, it served four rites that
+  // were never written (Shiva Abhishekam, Lakshmi, Hanuman Chalisa, Durga) as
+  // live cards with a Begin button, each of which opened a 404. The same
+  // reasoning as app/pooja/[id]/page.tsx: a real failure should surface, not be
+  // dressed up as a working app.
+  const { data, error } = await supabase.from('poojas').select('*');
+  if (error) {
+    throw new Error(
+      `Loading the catalogue failed: ${error.message}` +
+        (error.hint ? ` (${error.hint})` : ''),
+    );
   }
+  const poojasList = (data ?? []) as Pooja[];
 
-  // MASTER_POOJAS is the offline fallback and carries no ritual_class, so its
-  // rows land under Pooja Vidhis. That is correct for the two it holds, and it
-  // means a database outage empties the Nitya tab rather than misfiling a rite.
   const visible = poojasList.filter((p) => sectionOf(p) === section);
   const counts = {
     pooja: poojasList.filter((p) => sectionOf(p) === 'pooja').length,
@@ -210,6 +208,29 @@ export default async function Catalog({ section }: { section: CatalogSection }) 
             </div>
           </div>
         </section>
+
+        {/* Today's Sankalpam: the day's panchangam, without opening a rite. */}
+        <Link
+          href="/sankalpam"
+          className="group flex items-center justify-between gap-4 rounded-2xl border border-amber-500/40 bg-amber-950/20 hover:bg-amber-950/40 hover:border-amber-400 p-4 sm:p-5 transition-colors"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 shrink-0">
+              <CalendarDays className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-base sm:text-lg font-bold text-amber-100 group-hover:text-amber-300">
+                Today&apos;s Sankalpam
+              </p>
+              <p className="text-xs text-stone-400">
+                Samvatsara to karana for today, for any date and place.
+              </p>
+            </div>
+          </div>
+          <div className="p-2 rounded-lg bg-stone-800 group-hover:bg-amber-500 group-hover:text-ink-inverse transition-colors shrink-0">
+            <ArrowRight className="w-4 h-4" />
+          </div>
+        </Link>
 
         {/* Catalog Search & Grid Section */}
         <section className="space-y-6">

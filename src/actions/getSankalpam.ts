@@ -4,7 +4,6 @@ import { computePanchangam } from '@/lib/panchangam';
 import {
   renderSankalpamCore,
   renderSankalpam,
-  OCCASION_GANESHA_CHATURTHI,
   type SankalpamContext,
 } from '@/lib/sankalpam';
 
@@ -69,6 +68,7 @@ export async function fetchPanchangamData(
     gotra?: string;
     name?: string;
     gender?: 'male' | 'female';
+    /** Named at the close. Omitted, the sentence ends "śubha tithau". */
     occasionDeva?: string;
   } = {},
 ): Promise<PanchangamData | null> {
@@ -87,7 +87,7 @@ export async function fetchPanchangamData(
     name: options.name,
     gender: options.gender,
     place: options.place,
-    occasionDeva: options.occasionDeva ?? OCCASION_GANESHA_CHATURTHI,
+    occasionDeva: options.occasionDeva,
   };
 
   return {

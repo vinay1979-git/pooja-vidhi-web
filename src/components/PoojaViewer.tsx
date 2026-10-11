@@ -7,7 +7,7 @@ import { AlertCircle, Award, BookOpen, Calendar, Check, CheckCircle2, ChevronDow
 import { Pooja, PoojaStep, ArchanaItem } from '@/types/pooja';
 import { fetchPanchangamData, PanchangamData } from '@/actions/getSankalpam';
 import { usePreferences, resolveScript, SCRIPT_LABEL, type InstructionLang, type MantraScript } from '@/lib/preferences';
-import { renderPerson } from '@/lib/sankalpam';
+import { renderPerson, OCCASION_BY_POOJA } from '@/lib/sankalpam';
 import { uiText, type UiText } from '@/lib/ui-text';
 import { LANGUAGES, SCRIPTS, coverageFor } from '@/lib/languages';
 import { SettingRow, SettingsPicker, type PickerOption } from '@/components/SettingsPicker';
@@ -321,13 +321,14 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
           gotra: sankalpamData.gotra,
           name: sankalpamData.devoteeName,
           gender: kartaGender === 'female' ? 'female' : 'male',
+          occasionDeva: OCCASION_BY_POOJA[pooja.id],
         }
       );
       setPanchangamData(data);
     } catch (e) {
       console.error('Failed to load Panchangam data:', e);
     }
-  }, [sankalpamDate, resolvedGeo, sankalpamData, kartaGender]);
+  }, [sankalpamDate, resolvedGeo, sankalpamData, kartaGender, pooja.id]);
 
   useEffect(() => {
     loadPanchangam();

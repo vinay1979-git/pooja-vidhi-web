@@ -150,6 +150,10 @@ export function renderSankalpamCore(
           : Sanscript.t(ctx.occasionDeva, 'devanagari', 'iast'),
       t.shubhaTithau,
     );
+  } else {
+    // An ordinary day: "asyāṃ vartamānāyāṃ śubha tithau". Without this the
+    // sentence stops on an adjective with nothing for it to qualify.
+    parts.push(t.shubhaTithau);
   }
 
   return parts.filter(Boolean).join(' ');
@@ -247,3 +251,15 @@ export function renderPerson(
 
 /** Ganesha Chaturthi, for the occasion slot. */
 export const OCCASION_GANESHA_CHATURTHI = 'गणेश चतुर्थ्याम्';
+
+/**
+ * The festival a rite's sankalpam names at its close, by pooja id.
+ *
+ * Only a rite that IS a named festival day gets one. The engine used to default
+ * every rite to Ganesha Chaturthi, so the Varalakshmi sankalpam announced
+ * "ganesha caturthyām" on a Friday in Shravana. A rite missing from this table
+ * closes on "asyāṃ vartamānāyāṃ śubha tithau", which is right for any day.
+ */
+export const OCCASION_BY_POOJA: Record<string, string> = {
+  ganesha_standard: OCCASION_GANESHA_CHATURTHI,
+};
