@@ -2364,6 +2364,36 @@ await assert('the Ganesha Prana Pratishtha is untouched',
   `select count(*) from pooja_steps where pooja_id = 'ganesha_standard'
       and step_title_en = 'Prana Pratishtha' and philosophy_en like 'Everything before this prepares a seat%'`, 1);
 
+// --- 0060: nothing sends the reader somewhere else ---------------------------
+console.log('[9bw] 0060 no cross-references');
+const XREF_EN = `'as before|learnt from a teacher|return and continue|stands in its place|already done'`;
+const XREF_TA = `'நூலே|என நூல்|என்று நூல்|நூல் தெளிவாக|புத்தகமே|முன்பு போல|ஆசிரியரிட'`;
+const xrefCount = `select
+     (select count(*) from pooja_steps where instruction_en ~* ${XREF_EN} or philosophy_en ~* ${XREF_EN} or meaning_en ~* ${XREF_EN})
+   + (select count(*) from pooja_steps where instruction_ta ~ ${XREF_TA})
+   + (select count(*) from poojas where why_ta ~ ${XREF_TA})`;
+// Rows, not fields: six steps in English, five in Tamil, and two Tamil "why" texts.
+await assert('before 0060, 13 rows point elsewhere or cite the source', xrefCount, 13);
+const stepsBefore60 = await one(`select count(*) as n from pooja_steps`);
+await step('0060_no_cross_references.sql',
+  () => db.exec(sql(`${MIG}/0060_no_cross_references.sql`)));
+await step('0060 re-run',
+  () => db.exec(sql(`${MIG}/0060_no_cross_references.sql`)));
+await assert('afterwards none do', xrefCount, 0);
+await assert('the noon prarthana says what to do instead',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam' and step_number = 42
+      and instruction_en like '%Then lower the hands and recite the second part.'`, 1);
+await assert('the second achamanam describes the hand in full, as the first does',
+  `select count(*) from pooja_steps a join pooja_steps b on b.pooja_id = a.pooja_id
+    where a.pooja_id = 'sandhyavandanam' and a.step_number = 51 and b.step_number = 1
+      and position('Fold the forefinger of the right hand against the thumb' in a.instruction_en) > 0
+      and position('Fold the forefinger of the right hand against the thumb' in b.instruction_en) > 0`, 1);
+await assert('the Tamil namaskara now carries the postures',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam' and step_number = 23
+      and instruction_ta like '%ஒரு நமஸ்காரம் நிறைவு.%'`, 1);
+await assert('no step was added or lost',
+  `select count(*) from pooja_steps`, Number(stepsBefore60.n));
+
 
 
 

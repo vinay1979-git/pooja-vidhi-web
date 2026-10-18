@@ -377,6 +377,49 @@ const CITES_SOURCE = /\b(the book|this book|the edition|this edition|Bhavan|the 
   }
 }
 
+// --- nothing sends the reader somewhere else ---------------------------------
+//
+// docs/PROJECT-GUIDE.md §2.2: the book sends its reader back and forth -- "see
+// page 12", "perform steps 1 to 10", "as before" -- and the app must not, not
+// even once. 0060 took the last of these out; this keeps them out. A FAILURE,
+// like the citation gate above: the phrases have no innocent reading in text a
+// reader follows mid-rite.
+//
+// The Tamil gate also catches citations of the source, which the English-only
+// CITES_SOURCE gate let through until 0060 (six sentences, "the book itself
+// says so").
+const CROSS_REF_EN = /\b(as before|exactly as before|learnt from a teacher|learned from a teacher|return and continue|stands in its place|already done|see (above|below|page|step)|refer to|described (above|earlier)|page \d+|step \d+)\b/i;
+const CITE_OR_REF_TA = /(நூல்|நூலே|புத்தகமே)[^.]{0,40}(கூறு|சொல்)|என்று நூல்|என நூல்|முன்பு போல|முன்போல|ஆசிரியரிட/;
+{
+  const WATCH = [
+    [steps, ['instruction_en', 'meaning_en', 'philosophy_en', 'variant_note_en'], CROSS_REF_EN, (r) => `${r.pooja_id}/${r.step_title_en}`],
+    [steps, ['instruction_ta', 'philosophy_ta'], CITE_OR_REF_TA, (r) => `${r.pooja_id}/${r.step_title_en}`],
+    [poojas, ['why_en', 'description_en'], CROSS_REF_EN, (r) => r.id],
+    [poojas, ['why_ta', 'description_ta'], CITE_OR_REF_TA, (r) => r.id],
+    [naivedyam, ['recipe_note'], CROSS_REF_EN, (r) => `${r.pooja_id}/${r.name_en}`],
+    [naivedyam, ['recipe_note_ta'], CITE_OR_REF_TA, (r) => `${r.pooja_id}/${r.name_en}`],
+    [poojaModes, ['hint_en'], CROSS_REF_EN, (r) => `${r.pooja_id}/${r.mode}`],
+    [poojaModes, ['hint_ta'], CITE_OR_REF_TA, (r) => `${r.pooja_id}/${r.mode}`],
+  ];
+  for (const [rows, cols, re, label] of WATCH) {
+    for (const r of rows) {
+      for (const c of cols) {
+        const v = r[c];
+        if (typeof v !== 'string' || !re.test(v)) continue;
+        fail(`${label(r)}.${c}`, `says "${v.match(re)[0]}" -- the reader must never be sent elsewhere; say or show it here`);
+      }
+    }
+  }
+  // A blank the reader must fill from somewhere else is the same fault in a
+  // mantra. The two Abhivadanam lines are the known cases, kept visible as a
+  // warning until the gotra/pravara picker fills them (ux-seamless-flow §3.5).
+  for (const key of ELLIPSIS_IS_DELIBERATE) {
+    if (steps.some((s) => `${s.pooja_id}/${s.step_title_en}` === key && /\.{4,}|…/.test(s.mantra_sanskrit ?? ''))) {
+      warn(key, 'mantra leaves the gotra and pravara blank for the reader to supply -- pending the gotra picker');
+    }
+  }
+}
+
 // --- archana ----------------------------------------------------------------
 const byStep = new Map();
 for (const a of archana) {
