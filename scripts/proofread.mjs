@@ -388,8 +388,11 @@ const CITES_SOURCE = /\b(the book|this book|the edition|this edition|Bhavan|the 
 // The Tamil gate also catches citations of the source, which the English-only
 // CITES_SOURCE gate let through until 0060 (six sentences, "the book itself
 // says so").
-const CROSS_REF_EN = /\b(as before|exactly as before|learnt from a teacher|learned from a teacher|return and continue|stands in its place|already done|see (above|below|page|step)|refer to|described (above|earlier)|page \d+|step \d+)\b/i;
-const CITE_OR_REF_TA = /(நூல்|நூலே|புத்தகமே)[^.]{0,40}(கூறு|சொல்)|என்று நூல்|என நூல்|முன்பு போல|முன்போல|ஆசிரியரிட/;
+//
+// "as for the" (Tamil "செய்தது போல") since 0064: "Hold the hands as for the
+// Sankalpam" sent the reader back to a step done forty minutes earlier.
+const CROSS_REF_EN = /\b(as before|exactly as before|as for the|learnt from a teacher|learned from a teacher|return and continue|stands in its place|already done|see (above|below|page|step)|refer to|described (above|earlier)|page \d+|step \d+)\b/i;
+const CITE_OR_REF_TA = /(நூல்|நூலே|புத்தகமே)[^.]{0,40}(கூறு|சொல்)|என்று நூல்|என நூல்|முன்பு போல|முன்போல|ஆசிரியரிட|செய்தது போல/;
 {
   const WATCH = [
     [steps, ['instruction_en', 'meaning_en', 'philosophy_en', 'variant_note_en'], CROSS_REF_EN, (r) => `${r.pooja_id}/${r.step_title_en}`],
