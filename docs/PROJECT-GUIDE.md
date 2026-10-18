@@ -5,7 +5,7 @@ this first. It is loaded automatically into every Claude Code session through
 `CLAUDE.md`, so it survives a change of account or machine: everything needed to
 continue is in this repo, not in anyone's chat history.*
 
-*Last updated: 18 October 2026.*
+*Last updated: 18 October 2026 (end of session).*
 
 ---
 
@@ -139,36 +139,41 @@ Tamil and IAST are always **derived** from the Devanagari
 | `docs/sources.md` | History of sources (legacy video/web references) |
 | `docs/plans/` | Open plans (UX, guided mode, visuals) |
 
-## 5. State at last update
+## 5. State at last update (18 October 2026)
 
-Published: Ganesha Chaturthi, Varalakshmi Vratham, Navaratri Pooja, Saraswati
-Pooja (Pooja Vidhis); Nitya Panchayatana, Sandhyavandanam (Nitya Karmas).
-Planned cards: Samidadhanam, Brahma Yajnam, Bhojana Vidhi. Their book pages
-(after book p.48 of `6-sandhya-giri`, with the Gotra/Pravara tables to p.80) are
-photographed but **not yet transcribed**; the transcripts stop at book p.48.
+**Start with `docs/HANDOVER-2026-10-19.md`** — what is ready, the order to
+apply it, and the decisions waiting.
 
-Latest migration: `0059`. Today's Sankalpam page live at `/sankalpam`.
+**Live (main + database at 0059):** Ganesha Chaturthi, Varalakshmi Vratham,
+Navaratri Pooja, Saraswati Pooja (Pooja Vidhis); Nitya Panchayatana,
+Sandhyavandanam (Nitya Karmas); planned cards Samidadhanam, Brahma Yajnam,
+Bhojana Vidhi. Today's Sankalpam at `/sankalpam`. The phase-1 screen layout.
 
-Open review items: the Tamil prose written for 0055–0059 and the Navaratri and
-Saraswati rites has not been checked by a native reader.
+**On branch `next-steps`, not live:** migrations 0060–0065 and the code they
+need (section labels, the gotra picker, the cross-reference gates, the voice
+bake-off harness). Apply order and timing in the handover.
+
+**Transcription:** all seven books are transcribed except Giri Sandhyavandanam
+book pp.74–75 (missing from the photographs) and p.64 (probably blank).
+
+**Open review items:** native Tamil review of everything since 0055; the
+meanings written for the three daily rites (the book prints no gloss there);
+the "needs a human decision" lists in `docs/review/hand-positions.md`.
 
 ## 6. Backlog, in priority order
 
 Plans with detail live in `docs/plans/`.
 
-1. **Seamless flow (§2.2)** — `docs/plans/ux-seamless-flow.md`. Audit (18 Oct
-   2026): 55 steps across five rites bundle 2–16 offerings on one screen; on a
-   phone the mantra starts below the fold on almost every step because the
-   expanded "Why we do this" sits above it; the Sankalpam step shows the sentence
-   twice; Sandhyavandanam's Abhivadanam leaves the gotra/pravara blank.
-2. **Ground every rite in the book (§2.1)** — the shared purvangam steps
-   (Vighneshwara Dhyanam, Pranayamam, Kalasha, Ghanta, Anga Vandanam, Manjal
-   Pillaiyar) are still StotraNidhi/practice text in every rite; Ganesha has 16
-   non-book steps, Varalakshmi 12. Replace from `1-common` and the rite's own
-   section, inlined per the book's rubrics.
-3. **Guided mode** — an AI "Vidvaan Pandit" voice: instructions in the chosen
-   language, mantras always in Sanskrit, configurable pauses, optional
-   auto-advance. No hand-made sound files. `docs/plans/guided-mode.md`.
-4. **Visuals for actions** — short animations/diagrams for Anga Vandanam,
-   Achamanam, Pranayamam, nyasa, etc. `docs/plans/step-visuals.md`.
-5. Native Tamil review; more instruction languages.
+1. **Apply what is ready** — `docs/HANDOVER-2026-10-19.md`.
+2. **Seamless flow, remaining rites** — `docs/plans/ux-seamless-flow.md`.
+   Navaratri (0062) is the pattern: the book's full Purvanga inlined, one action
+   per screen, section labels. Still to do the same way: Saraswati, Varalakshmi,
+   Ganesha, Nitya Panchayatana (their bundled steps and their StotraNidhi
+   purvangam). Varalakshmi/Saraswati Prana Pratishtha should become the book's
+   full nyasa.
+3. **Guided mode** — `docs/plans/guided-mode.md`; the bake-off in
+   `scripts/tts-bakeoff/` needs API keys and a listener.
+4. **Visuals for actions** — `docs/plans/step-visuals.md`; blocked on the
+   human-decision items in `docs/review/hand-positions.md`.
+5. Yajnopaveeta Dharana as a rite of its own (transcribed, book pp.62–63).
+6. Native Tamil review; more instruction languages.
