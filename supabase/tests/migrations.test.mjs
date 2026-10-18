@@ -2401,8 +2401,81 @@ await step('0061 re-run', () => db.exec(sql(`${MIG}/0061_step_sections.sql`)));
 await assert('both columns exist and nothing is filled yet',
   `select count(*) from pooja_steps where section_en is not null or section_ta is not null`, 0);
 
+// --- 0064: what the hands do, as the book prints it ---------------------------
+console.log('[9by] 0064 hand positions from the book');
+const RITES64 = `pooja_id in ('ganesha_standard','varalakshmi_vratham','saraswati_pooja','nitya_panchayatana','sandhyavandanam')`;
+const PADMA_CHEST = `select count(*) from pooja_steps where ${RITES64} and step_title_en like 'Anga Vandanam%'
+     and (instruction_en ~* 'Padmanabhaya \\(Chest|heart' or instruction_ta ~ 'பத்மநாபாய \\(மார்பு|இதய' or philosophy_en ~* 'heart')`;
+const HOLD_WHOLE = `select count(*) from pooja_steps where ${RITES64} and step_title_en = 'Pranayamam'
+     and (instruction_en like '%hold breath and mentally chant the mantra%' or philosophy_en like '%on a held breath%')`;
+const AS_FOR = `select count(*) from pooja_steps
+   where instruction_en ~* '\\mas for the\\M' or philosophy_en ~* '\\mas for the\\M' or meaning_en ~* '\\mas for the\\M'
+      or instruction_ta like '%செய்தது போல%'`;
+const navaratriSum = `select md5(string_agg(row(s.*)::text, '|' order by step_number)) as h from pooja_steps s where pooja_id = 'navaratri_pooja'`;
+const mantraSum = `select md5(string_agg(concat_ws('|', mantra_sanskrit, mantra_tamil, mantra_translit, variant_mantra_sanskrit), '#' order by pooja_id, step_number)) as h from pooja_steps`;
+const countsSum = `select string_agg(pooja_id || ':' || n, ',' order by pooja_id) as h from (select pooja_id, count(*) n from pooja_steps group by 1) x`;
+await assert('before 0064, six Anga Vandanam steps put Padmanabha at the chest or heart (and three commentaries)', PADMA_CHEST, 7);
+await assert('before 0064, four pooja Pranayamam steps hold the breath through the whole mantra', HOLD_WHOLE, 4);
+await assert('before 0064, four sandhya steps say "as for the Sankalpam"', AS_FOR, 4);
+const nav64 = await one(navaratriSum), man64 = await one(mantraSum), cnt64 = await one(countsSum);
+await step('0064_hand_positions_from_the_book.sql',
+  () => db.exec(sql(`${MIG}/0064_hand_positions_from_the_book.sql`)));
+await step('0064 re-run',
+  () => db.exec(sql(`${MIG}/0064_hand_positions_from_the_book.sql`)));
+await assert('afterwards no instruction puts Padmanabha at the chest or heart', PADMA_CHEST, 0);
+await assert('every Anga Vandanam in the five rites names the navel',
+  `select count(*) from pooja_steps where ${RITES64} and step_title_en like 'Anga Vandanam%'
+     and instruction_en ~* 'navel' and instruction_ta like '%நாபி%'`, 7);
+await assert('no pooja Pranayamam holds the breath through the whole mantra', HOLD_WHOLE, 0);
+await assert('the four pooja Pranayamam steps split the breath, fold two fingers and touch the ear',
+  `select count(*) from pooja_steps where ${RITES64} and pooja_id <> 'sandhyavandanam' and step_title_en = 'Pranayamam'
+     and instruction_en like '%fold the index and middle fingers%' and instruction_en like '%HOLD the breath through om tat savitur%'
+     and instruction_en like '%touch the right ear%' and instruction_ta like '%வலது காதைத் தொடவும்%'`, 4);
+await assert('"as for the" is gone, in English and Tamil', AS_FOR, 0);
+await assert('the four pooja Achamanam steps give the hand shape and east or north',
+  `select count(*) from pooja_steps where ${RITES64} and step_title_en = 'Achamanam' and pooja_id <> 'sandhyavandanam'
+     and instruction_en like 'Sit facing east or north. Fold the forefinger%' and instruction_ta like '%ஆள்காட்டி விரலைக் கட்டைவிரலுடன்%'`, 4);
+await assert('no Ghanta Pooja worships the bell with akshatai; all put sandal on the handle',
+  `select count(*) from pooja_steps where ${RITES64} and step_title_en = 'Ghanta Pooja'
+     and instruction_en like 'Apply sandal paste to the handle of the bell%' and instruction_en not like '%akshatai%'
+     and instruction_ta like '%கைப்பிடியில் சந்தனம்%' and instruction_ta not like '%அக்ஷதை%'`, 4);
+await assert('every Vighneshwara Dhyanam taps five times',
+  `select count(*) from pooja_steps where ${RITES64} and step_title_en like 'Vighneshwara Dhyanam%'
+     and instruction_en ~* 'five times' and instruction_ta like '%ஐந்து முறை%'`, 6);
+await assert('every pooja Sankalpam crosses the right palm over the left on the right thigh, with akshatai',
+  `select count(*) from pooja_steps where ${RITES64} and pooja_id <> 'sandhyavandanam' and step_title_en = 'Sankalpam'
+     and instruction_en like '%in your left palm and rest it, palm up, on your right thigh. Cover it with your right palm, crossed over the left%'
+     and instruction_en like '%akshatai%'
+     and instruction_ta like '%இடது உள்ளங்கையில்%வலது உள்ளங்கையை அதன் மேல் குறுக்காக%'`, 4);
+await assert('Varalakshmi holds akshatai, not water, and releases akshatai',
+  `select count(*) from pooja_steps where pooja_id = 'varalakshmi_vratham' and step_title_en = 'Sankalpam'
+     and instruction_en !~* 'water' and instruction_ta not like '%ஜல%'
+     and instruction_en like '%release the akshatai and wash your hands.' and instruction_en like '%addressing Varalakshmi.%'`, 1);
+await assert('Ganesha #13 says the pranayama and the ear in Tamil too, and keeps the drop of water',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard' and step_number = 13
+     and instruction_ta like '%ப்ராணாயாமம்%வலது காதைத் தொடவும்%' and instruction_ta like '%ஒரு துளி நீரும்%'
+     and instruction_en like '%touching the right ear%' and instruction_en like '%a drop of water%'`, 1);
+await assert('Saraswati and Nitya still release the akshatai to the north',
+  `select count(*) from pooja_steps where pooja_id in ('saraswati_pooja','nitya_panchayatana') and step_title_en = 'Sankalpam'
+     and instruction_en like '%akshatai to the north%' and instruction_ta like '%வடக்%'`, 2);
+await assert('nobody prostrates "full length" for everyone; men eight limbs, women five',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard' and step_number = 33
+     and instruction_en not like '%full length%' and instruction_en like '%men with eight limbs%women with five%'
+     and instruction_ta like '%ஆண்கள் எட்டு அங்கங்கள்%பெண்கள் ஐந்து அங்கங்களுடன்%'`, 1);
+await assert('no pradakshina is done sitting, and each gives three rounds',
+  `select count(*) from pooja_steps where ${RITES64} and step_title_en ~ 'Pradakshina|Namaskaram'
+     and step_title_en <> 'Namaskaram & Varalakshmi Prarthana'
+     and (instruction_en ~* 'sitting' or instruction_ta like '%அமர்ந்த%' or instruction_en !~* 'three times')`, 0);
+await assert('the kara nyasa rolls the index finger along the thumb first',
+  `select count(*) from pooja_steps where pooja_id = 'ganesha_standard' and step_title_en = 'Prana Pratishtha'
+     and instruction_en like '%roll the index finger from the base of the thumb to its tip%'
+     and instruction_ta like '%கட்டைவிரலின் அடியிலிருந்து நுனி வரை ஆள்காட்டி விரலை உருட்டவும்%'`, 1);
+await assert('no mantra moved', `select (${mantraSum}) = '${man64.h}'`, true);
+await assert('Navaratri is untouched', `select (${navaratriSum}) = '${nav64.h}'`, true);
+await assert('no step was added or lost, in any rite', `select (${countsSum}) = '${cnt64.h}'`, true);
+
 // --- 0065: the gotra tables, and an Abhivadanam with no blanks ----------------
-console.log('[9by] 0065 gotra and pravara');
+console.log('[9bz] 0065 gotra and pravara');
 await assert('before 0065 the Abhivadanam is printed with blanks',
   `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'
       and step_title_en in ('Abhivadanam', 'Samarpanam') and mantra_sanskrit ~ '[.]{4,}'`, 2);
