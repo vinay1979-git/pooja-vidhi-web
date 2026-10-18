@@ -168,6 +168,14 @@ export interface PoojaStep {
   step_number: number;
   step_title_en: string;
   step_title_ta: string;
+  /**
+   * The group a step belongs to, e.g. "Shodashopachara". When a bundled step
+   * is split so each screen holds one offering, this label is what keeps the
+   * reader oriented: "Shodashopachara · 3 of 9". Null for a step that stands
+   * alone. Arrives with migration 0061.
+   */
+  section_en?: string | null;
+  section_ta?: string | null;
   instruction_en: string;
   instruction_ta: string;
   mantra_sanskrit?: string | null;

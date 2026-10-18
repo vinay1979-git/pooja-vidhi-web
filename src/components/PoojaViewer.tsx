@@ -949,6 +949,26 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
   const currentStep = steps[currentStepIndex];
 
+  /**
+   * Where the current step sits inside its section ("Shodashopachara · 3 of 9"),
+   * counted over the run of consecutive steps this performer and mode actually
+   * see that share the label. Null when the step has no section, or when the
+   * section is a single step and a count would say nothing.
+   */
+  const sectionPosition = useMemo(() => {
+    const label = currentStep?.section_en;
+    if (!label) return null;
+    const shown = steps.filter(isStepActive);
+    const at = shown.indexOf(currentStep);
+    if (at < 0) return null;
+    let start = at;
+    while (start > 0 && shown[start - 1].section_en === label) start--;
+    let end = at;
+    while (end < shown.length - 1 && shown[end + 1].section_en === label) end++;
+    if (end === start) return null;
+    return { at: at - start + 1, total: end - start + 1 };
+  }, [currentStep, steps, isStepActive]);
+
   // Where the current step sits among the ones this performer and mode actually
   // do. The raw index counts filtered-out steps, so it is wrong for the counter
   // and the progress bar: a woman doing the Varalakshmi main pooja walks 27 of
@@ -1908,6 +1928,22 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                     {t.stepOf(activePosition, availableSteps.length)}
                     <ChevronDown className="w-3.5 h-3.5" />
                   </button>
+
+                  {currentStep.section_en && (
+                    <p
+                      className={`text-xs font-bold uppercase tracking-wider text-amber-400/90 ${
+                        uiLang === 'ta' && currentStep.section_ta ? 'font-tamil normal-case' : ''
+                      }`}
+                    >
+                      {(uiLang === 'ta' && currentStep.section_ta) || currentStep.section_en}
+                      {sectionPosition && (
+                        <span className="tabular-nums text-stone-400">
+                          {' · '}
+                          {sectionPosition.at} / {sectionPosition.total}
+                        </span>
+                      )}
+                    </p>
+                  )}
 
                   <div>
                     {(() => {

@@ -215,8 +215,12 @@ export async function getPooja(poojaId: string): Promise<Pooja | null> {
 // and fall back to the older shape if Postgres says the column is not there
 // yet, so code and migration can land in either order. Selecting a missing
 // column fails the whole query, and last time that surfaced as a bare 404.
-const STEPS_SELECT = (withModes: boolean) => `
-  id, pooja_id, step_number, phase, step_title_en, step_title_ta,
+//
+// section_en/section_ta arrive with 0061 and get the same treatment: the
+// label above a step ("Shodashopachara") is orientation, not content, so a
+// database without it renders exactly as before.
+const STEPS_SELECT = (withModes: boolean, withSection = false) => `
+  id, pooja_id, step_number, phase, step_title_en, step_title_ta,${withSection ? ' section_en, section_ta,' : ''}
   instruction_en, instruction_ta, mantra_sanskrit, mantra_tamil,
   mantra_translit, meaning_en, philosophy_en, philosophy_ta,
   gender_rule, variant_mantra_sanskrit, variant_note_en,
@@ -229,9 +233,17 @@ const STEPS_SELECT = (withModes: boolean) => `
 export async function getSteps(poojaId: string): Promise<PoojaStep[]> {
   let { data, error } = await supabase
     .from('pooja_steps')
-    .select(STEPS_SELECT(true))
+    .select(STEPS_SELECT(true, true))
     .eq('pooja_id', poojaId)
     .order('step_number', { ascending: true });
+
+  if (error?.code === '42703') {
+    ({ data, error } = await supabase
+      .from('pooja_steps')
+      .select(STEPS_SELECT(true))
+      .eq('pooja_id', poojaId)
+      .order('step_number', { ascending: true }));
+  }
 
   if (error?.code === '42703') {
     ({ data, error } = await supabase
@@ -300,6 +312,8 @@ export async function getSteps(poojaId: string): Promise<PoojaStep[]> {
       phase: s.phase as PoojaStep['phase'],
       step_title_en: String(s.step_title_en ?? ''),
       step_title_ta: String(s.step_title_ta ?? ''),
+      section_en: (s.section_en as string) ?? null,
+      section_ta: (s.section_ta as string) ?? null,
       instruction_en: String(s.instruction_en ?? ''),
       instruction_ta: String(s.instruction_ta ?? ''),
       mantra_sanskrit: (s.mantra_sanskrit as string) ?? null,

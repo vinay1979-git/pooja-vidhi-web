@@ -2394,6 +2394,13 @@ await assert('the Tamil namaskara now carries the postures',
 await assert('no step was added or lost',
   `select count(*) from pooja_steps`, Number(stepsBefore60.n));
 
+// --- 0061: section labels ------------------------------------------------------
+console.log('[9bx] 0061 step sections');
+await step('0061_step_sections.sql', () => db.exec(sql(`${MIG}/0061_step_sections.sql`)));
+await step('0061 re-run', () => db.exec(sql(`${MIG}/0061_step_sections.sql`)));
+await assert('both columns exist and nothing is filled yet',
+  `select count(*) from pooja_steps where section_en is not null or section_ta is not null`, 0);
+
 
 
 
