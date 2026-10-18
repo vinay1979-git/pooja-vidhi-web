@@ -56,6 +56,16 @@ interface Preferences {
   setMantraScript: (v: MantraScript) => void;
   setTheme: (v: Theme) => void;
   toggleTheme: () => void;
+  /**
+   * Whether a step opens with its Meaning and its "Why we do this" showing.
+   * Both start closed: during the rite the screen is for what to do and what
+   * to say, and commentary between the two pushed the mantra below the fold on
+   * a phone. A reader who wants them open gets them open on every step.
+   */
+  showMeaning: boolean;
+  showWhy: boolean;
+  setShowMeaning: (v: boolean) => void;
+  setShowWhy: (v: boolean) => void;
   /** False until localStorage has been read, so callers can avoid flashing. */
   ready: boolean;
 }
@@ -71,6 +81,8 @@ const DEFAULTS = {
   // bootstrap in layout.tsx, both of which decide the same thing again and
   // must decide it the same way.
   theme: 'dark' as Theme,
+  showMeaning: false,
+  showWhy: false,
 };
 
 const Ctx = createContext<Preferences | null>(null);
@@ -91,6 +103,8 @@ function read(): typeof DEFAULTS {
       // unrecognised or missing value to light, which is the default this
       // project just stopped having.
       theme: p.theme === 'light' ? 'light' : 'dark',
+      showMeaning: p.showMeaning === true,
+      showWhy: p.showWhy === true,
     };
   } catch {
     // Private windows and blocked site data both throw here.
@@ -132,6 +146,8 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     setTheme: (v) => persist({ ...prefs, theme: v }),
     toggleTheme: () =>
       persist({ ...prefs, theme: prefs.theme === 'dark' ? 'light' : 'dark' }),
+    setShowMeaning: (v) => persist({ ...prefs, showMeaning: v }),
+    setShowWhy: (v) => persist({ ...prefs, showWhy: v }),
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

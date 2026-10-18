@@ -53,7 +53,24 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     setMantraScript: setMantraLang,
     theme,
     toggleTheme,
+    showMeaning,
+    setShowMeaning,
+    showWhy,
+    setShowWhy,
   } = usePreferences();
+
+  /**
+   * Preparation is two short screens rather than one long page: first the day,
+   * the karta and the Sankalpam details, then the samagri and naivedyam to
+   * gather. The single page ran to five phone screens, with the Begin button
+   * floating over all of it.
+   */
+  const [prepPage, setPrepPage] = useState<0 | 1>(0);
+  // The pooja's own "why", collapsed to its opening lines until asked for.
+  const [whyOpen, setWhyOpen] = useState(false);
+  // Which step's list is showing in full. Keyed by step id, so moving to the
+  // next step returns to the one-at-a-time view without an effect to reset it.
+  const [fullListFor, setFullListFor] = useState<string | null>(null);
   const [direction, setDirection] = useState<number>(1);
 
   /**
@@ -239,8 +256,6 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     () => pooja.modes?.[0]?.mode ?? 'main',
   );
 
-  // Philosophy Accordion Toggle State
-  const [showPhilosophy, setShowPhilosophy] = useState<boolean>(true);
 
   // Preparation Checklist State
   const [checkedSamagri, setCheckedSamagri] = useState<Record<string, boolean>>({});
@@ -683,7 +698,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.scrollTo({ top: 0, behavior: 'auto' });
-  }, [currentStepIndex]);
+  }, [currentStepIndex, prepPage]);
 
   // Parse Samagri items consistently
   const parsedSamagriList = useMemo(() => {
@@ -829,6 +844,9 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     }
     setDirection(newIndex > currentStepIndex ? 1 : -1);
     setCurrentStepIndex(newIndex);
+    // Arriving at preparation starts it from the top. handlePrevStep overrides
+    // this when stepping back from the first step, to land on the last screen.
+    if (newIndex === -1) setPrepPage(0);
     // Only ever grows. Going back to re-read a step must not un-do the ones
     // after it.
     setFurthestIndex((f) => Math.max(f, newIndex));
@@ -880,6 +898,11 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   const handleNextStep = () => {
     if (!resolvedGeo) return;
 
+    if (currentStepIndex === -1 && prepPage === 0) {
+      setPrepPage(1);
+      return;
+    }
+
     if (currentStepIndex === -1) {
       // Find first valid step
       const firstValidIdx = steps.findIndex(isStepActive);
@@ -901,8 +924,14 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   };
 
   const handlePrevStep = () => {
-    if (currentStepIndex <= 0) {
+    if (currentStepIndex === -1) {
+      setPrepPage(0);
+      return;
+    }
+    if (currentStepIndex === 0) {
+      // Back from the first step lands on the screen just before it.
       goToStep(-1);
+      setPrepPage(1);
       return;
     }
 
@@ -1237,6 +1266,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
             transition={{ duration: 0.4 }}
             className="space-y-8"
           >
+            {/* SCREEN 1 OF 2: the day, the karta and the Sankalpam details. */}
+            {prepPage === 0 && (<>
             {/* Intro Welcome Card */}
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-950/40 via-stone-900 to-stone-900 border border-amber-500/30 p-6 md:p-8 shadow-2xl">
               <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -1259,22 +1290,6 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 <p className="text-stone-300 text-sm md:text-base leading-relaxed">
                   {t.prepLede}
                 </p>
-                <ol className="grid gap-2 sm:grid-cols-3 pt-1">
-                  {[
-                    ['1', modesAreSittings
-                      ? (kartaMatters ? t.prepWhoSitting : t.prepSittingOnly)
-                      : t.prepWho],
-                    ...(needsSankalpamDetails ? [['2', t.prepWhere]] : []),
-                    [needsSankalpamDetails ? '3' : '2', t.prepWhat],
-                  ].map(([n, label]) => (
-                    <li key={n} className="flex items-start gap-2.5 text-sm text-stone-300">
-                      <span className="shrink-0 w-6 h-6 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center justify-center">
-                        {n}
-                      </span>
-                      <span className="leading-snug">{label}</span>
-                    </li>
-                  ))}
-                </ol>
               </div>
             </div>
 
@@ -1298,11 +1313,21 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 <p
                   className={`text-sm text-stone-300 leading-relaxed ${
                     uiLang === 'ta' && pooja.why_ta ? 'font-tamil' : ''
-                  }`}
+                  } ${whyOpen ? '' : 'line-clamp-3'}`}
                   lang={uiLang === 'ta' && pooja.why_ta ? 'ta' : 'en'}
                 >
                   {(uiLang === 'ta' && pooja.why_ta) || pooja.why_en}
                 </p>
+                {/* Collapsed to its opening lines. In full it was the longest
+                    thing on the first screen, above every question the reader
+                    actually has to answer. */}
+                <button
+                  onClick={() => setWhyOpen((v) => !v)}
+                  className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                >
+                  {whyOpen ? t.showLess : t.readMore}
+                  {whyOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
               </div>
             )}
 
@@ -1680,6 +1705,10 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               </div>
             </div>
 
+            </>)}
+
+            {/* SCREEN 2 OF 2: what to gather, then Begin in the footer. */}
+            {prepPage === 1 && (<>
             {/* Samagri Checklist Section */}
             <div className="rounded-2xl bg-stone-900/80 border border-stone-800 p-6 shadow-xl space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-800 pb-4">
@@ -1835,6 +1864,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               </div>
             </div>
 
+            </>)}
+
             {/* No Start button here either. The footer already carries one and
                 it is on screen the whole way down this page, so a second at the
                 end of the content was the same action twice. The footer is the
@@ -1855,10 +1886,10 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 animate="center"
                 exit="exit"
                 transition={{ duration: 0.35, ease: 'easeInOut' }}
-                className="space-y-6"
+                className="space-y-4"
               >
                 {/* Step Header Card */}
-                <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-stone-900 to-stone-950 border border-amber-500/30 p-6 shadow-2xl space-y-4">
+                <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-stone-900 to-stone-950 border border-amber-500/30 p-4 sm:p-6 shadow-2xl space-y-3">
                   {/* One tap to the whole rite, from the badge that already
                       says where you are.
 
@@ -1934,130 +1965,16 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   </div>
                 </div>
 
-                {/* PHILOSOPHY & SIGNIFICANCE EXPANDABLE ACCORDION CARD (FOR NOVICES)
-
-                    ENGLISH ONLY, ON PURPOSE. philosophy_ta exists as a column
-                    and is null on all 107 steps, and that is the decision rather
-                    than a backlog item: this prose is the long discursive
-                    "why are we doing this", written for someone meeting the rite
-                    rather than reciting it, and it stays in one language.
-
-                    So this reads philosophy_en unconditionally and does NOT
-                    print the "not translated yet" notice the instruction field
-                    uses -- that notice means "this is missing", and this is not
-                    missing. The heading above it still follows the reader's
-                    language, because the heading is a label and the app writes
-                    its own labels in both. */}
-                {currentStep.philosophy_en && (
-                  <div className="rounded-2xl bg-gradient-to-r from-amber-950/30 via-stone-900 to-stone-950 border border-amber-500/30 overflow-hidden shadow-xl">
-                    <button
-                      onClick={() => setShowPhilosophy(!showPhilosophy)}
-                      className="w-full px-6 py-4 flex items-center justify-between gap-3 text-left hover:bg-amber-950/20 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
-                          <Lightbulb className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-amber-200 text-sm md:text-base">
-                            {t.spiritualSignificance}
-                          </h4>
-                          <p className="text-xs text-stone-400">{t.spiritualSignificanceSub}</p>
-                        </div>
-                      </div>
-
-                      <div className="text-amber-400">
-                        {showPhilosophy ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                      </div>
-                    </button>
-
-                    <AnimatePresence>
-                      {showPhilosophy && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.3 }}
-                          className="px-6 pb-6 pt-2 border-t border-amber-500/20 text-stone-300 text-xs md:text-sm leading-relaxed italic"
-                        >
-                          <blockquote className="border-l-2 border-amber-400 pl-4 py-1 text-amber-100/90 font-serif">
-                            &quot;{currentStep.philosophy_en}&quot;
-                          </blockquote>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
-
-                {/* Dynamic Sankalpam Helper Card */}
-                {currentStep.is_dynamic_sankalpam && panchangamData && (
-                  <div className="rounded-2xl bg-amber-950/20 border border-amber-500/40 p-4 sm:p-6 shadow-xl space-y-4">
-                    <div className="flex flex-col items-start sm:flex-row sm:items-center sm:justify-between gap-2.5 border-b border-amber-500/20 pb-3">
-                      <div className="flex items-center gap-2 text-amber-400 font-bold text-base">
-                        <Flame className="w-5 h-5" /> {t.dynamicSankalpam}
-                      </div>
-                      <span className="text-xs text-amber-300 font-mono">
-                        {sankalpamData.devoteeName} ({sankalpamData.gotra})
-                      </span>
-                    </div>
-
-                    <div className="bg-stone-950 p-4 rounded-xl border border-amber-500/20 text-xs md:text-sm text-amber-200/90 font-serif italic leading-relaxed">
-                      &quot;
-                      {(() => {
-                        // The engine now renders the whole sentence, including
-                        // the yoga, the karana, and the second tithi when it
-                        // turns during the day. Previously this was hand-glued
-                        // from a few fields and left all three out.
-                        const core =
-                          mantraLang === 'tamil'
-                            ? panchangamData.core.tamil
-                            : panchangamData.core.sanskrit;
-                        return (
-                          <>
-                            <span
-                              className={mantraLang === 'tamil' ? 'font-tamil' : 'font-deva'}
-                              lang={mantraLang === 'tamil' ? 'ta' : 'sa'}
-                            >
-                              {core}
-                            </span>
-                            {(sankalpamData.gotra || sankalpamData.devoteeName) && (
-                              <>
-                                {' '}
-                                <span className="text-amber-400 underline font-bold">
-                                  {sankalpamData.gotra}
-                                </span>{' '}
-                                <span className="text-amber-400 underline font-bold">
-                                  {sankalpamData.devoteeName}
-                                </span>
-                              </>
-                            )}
-                          </>
-                        );
-                      })()}
-                      &quot;
-                    </div>
-
-                    {/* The roman sankalpam used to be reachable only by picking
-                        the "Eng" mantra script, which no longer exists. Carry it
-                        underneath instead, exactly as the mantra card does, so
-                        a reader of neither script can still say the sentence. */}
-                    {panchangamData.core.translit && (
-                      <p className="px-4 text-xs md:text-sm text-stone-400 italic leading-relaxed">
-                        {panchangamData.core.translit}
-                      </p>
-                    )}
-                  </div>
-                )}
-
                 {/* Mantra Presentation Section with Robust Language Fallbacks */}
                 {(currentStep.mantra_sanskrit || currentStep.mantra_tamil || currentStep.mantra_translit) && (
-                  <div className="rounded-2xl bg-gradient-to-br from-stone-900 to-amber-950/30 border border-amber-500/40 p-6 md:p-8 shadow-2xl space-y-6">
-                    <div className="flex flex-col items-start sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-amber-500/20 pb-4">
+                  <div className="rounded-2xl bg-gradient-to-br from-stone-900 to-amber-950/30 border border-amber-500/40 p-3 sm:p-6 md:p-8 shadow-2xl space-y-3 sm:space-y-5">
+                    {/* A label, not a banner. The heading row used to be a
+                        padded card of its own, and on a phone it was part of
+                        what pushed the words below the fold. */}
+                    <div className="flex items-center justify-between gap-3 px-1">
                       <div className="flex items-center gap-2">
-                        <span className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
-                          <Languages className="w-5 h-5" />
-                        </span>
-                        <h3 className="text-lg font-bold text-amber-200 uppercase tracking-wider">
+                        <Languages className="w-4 h-4 text-amber-400" />
+                        <h3 className="text-xs font-bold text-amber-200 uppercase tracking-wider">
                           {t.sacredMantra}
                         </h3>
                       </div>
@@ -2079,8 +1996,32 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       })()}
                     </div>
 
+                    {/* The Sankalpam names the day and the place, spliced into
+                        the sentence below. It used to be shown twice -- a card
+                        with the panchangam part, then the whole mantra -- so
+                        what to say appeared once above the fold and again
+                        below it. One rendering; this line just says what was
+                        filled in. */}
+                    {currentStep.is_dynamic_sankalpam && panchangamData && (
+                      <p className="px-1 text-xs text-amber-300/90 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                        <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>
+                          {new Date(`${sankalpamDate}T12:00:00`).toLocaleDateString(
+                            uiLang === 'ta' ? 'ta-IN' : 'en-IN',
+                            { day: 'numeric', month: 'long', year: 'numeric' },
+                          )}
+                        </span>
+                        {resolvedGeo && <span>· {resolvedGeo.displayName}</span>}
+                        {(sankalpamData.gotra || sankalpamData.devoteeName) && (
+                          <span>
+                            · {[sankalpamData.devoteeName, sankalpamData.gotra].filter(Boolean).join(', ')}
+                          </span>
+                        )}
+                      </p>
+                    )}
+
                     {/* Mantra Script Box */}
-                    <div className="p-6 md:p-8 rounded-xl bg-stone-950/90 border border-amber-500/30 text-center space-y-4 shadow-inner">
+                    <div className="p-4 sm:p-6 md:p-8 rounded-xl bg-stone-950/90 border border-amber-500/30 text-center space-y-3 sm:space-y-4 shadow-inner">
                       {(() => {
                         const r = resolveScript(mantraLang, currentStep);
                         const main = getDynamicMantra(r.text, r.shown ?? 'sanskrit');
@@ -2129,20 +2070,6 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                       })()}
 
                     </div>
-                  </div>
-                )}
-
-                {/* Meaning sits OUTSIDE the mantra card. It used to be inside,
-                    so the steps whose content is a namavali or an archana list
-                    -- which carry no step mantra -- could never show one. */}
-                {currentStep.meaning_en && (
-                  <div className="rounded-2xl bg-stone-900 border border-amber-500/25 p-6 shadow-xl">
-                    <p className="text-xs text-amber-400/80 font-bold uppercase tracking-widest mb-2">
-                      {t.meaning}
-                    </p>
-                    <p className="text-sm md:text-base text-stone-300 italic leading-relaxed">
-                      &quot;{currentStep.meaning_en}&quot;
-                    </p>
                   </div>
                 )}
 
@@ -2201,7 +2128,93 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                         </div>
                       )}
 
+                    {/* ONE AT A TIME. The list used to be the only view: a
+                        scrolling column of 108 rows, each with its own small
+                        Offer button, so the reader hunted for their place
+                        between every flower. Now the current name is large, the
+                        whole width is the button, and the next name takes its
+                        place. The full list is still one tap away, for going
+                        back or for reading ahead. */}
+                    {(() => {
+                      const list = currentStep.archana_list!;
+                      const keyOf = (i: number) => `${currentStep.id}::${i}`;
+                      const next = list.findIndex((_: ArchanaItem, i: number) => !archanaProgress[keyOf(i)]);
+                      const done = list.filter((_: ArchanaItem, i: number) => archanaProgress[keyOf(i)]).length;
+                      const repeated =
+                        !!list[0].offering_en &&
+                        list.every((o: ArchanaItem) => o.sanskrit === list[0].sanskrit);
+                      const offering = (item: ArchanaItem) =>
+                        uiLang === 'ta' && item.offering_ta ? item.offering_ta : item.offering_en;
+                      if (next === -1) {
+                        return (
+                          <div className="rounded-xl bg-amber-500/10 border border-amber-500/40 p-4 text-center text-sm font-semibold text-amber-200 flex items-center justify-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-amber-400" /> {t.allOffered}
+                          </div>
+                        );
+                      }
+                      const item = list[next];
+                      const tamilName = mantraLang === 'tamil' && item.tamil;
+                      return (
+                        <div className="rounded-xl bg-stone-950/80 border border-amber-500/30 p-4 sm:p-6 text-center space-y-3">
+                          <p className="text-xs font-mono font-bold text-amber-400/80 tabular-nums">
+                            #{item.number || next + 1} / {list.length}
+                          </p>
+                          {repeated ? (
+                            <p className="text-xl sm:text-2xl font-bold text-amber-100">{offering(item)}</p>
+                          ) : (
+                            <>
+                              <p
+                                className={`text-2xl sm:text-3xl leading-relaxed text-amber-300 whitespace-pre-line ${
+                                  tamilName ? 'font-tamil' : 'font-deva'
+                                }`}
+                                lang={tamilName ? 'ta' : 'sa'}
+                              >
+                                {tamilName ? item.tamil : item.sanskrit}
+                              </p>
+                              {item.translit && (
+                                <p className="text-sm text-stone-400 italic whitespace-pre-line">{item.translit}</p>
+                              )}
+                              {item.offering_en && (
+                                <p className="text-sm font-semibold text-amber-300/90">{offering(item)}</p>
+                              )}
+                            </>
+                          )}
+                          {item.botanical && (
+                            <p className="text-xs text-stone-500 italic">{item.botanical}</p>
+                          )}
+                          {item.is_substitutable && item.substitute_with && (
+                            <p className="text-xs text-stone-400">
+                              {uiLang === 'ta'
+                                ? t.ifUnavailable(item.substitute_with)
+                                : `If unavailable: ${item.substitute_with}`}
+                            </p>
+                          )}
+                          <button
+                            onClick={() => setArchanaProgress((prev) => ({ ...prev, [keyOf(next)]: true }))}
+                            className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-ink-inverse font-bold text-base shadow-md transition-colors"
+                          >
+                            🌸 {t.offerNext}
+                          </button>
+                          <div className="h-1.5 rounded-full bg-stone-800 overflow-hidden" aria-hidden>
+                            <div
+                              className="h-full bg-amber-500 transition-all"
+                              style={{ width: `${(done / list.length) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <button
+                      onClick={() => setFullListFor(fullListFor === currentStep.id ? null : currentStep.id)}
+                      className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                    >
+                      {fullListFor === currentStep.id ? t.hideFullList : t.showFullList}
+                      {fullListFor === currentStep.id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+
                     {/* Scrollable list */}
+                    {fullListFor === currentStep.id && (
                     <div className="max-h-96 overflow-y-auto pr-2 space-y-2.5 divide-y divide-stone-800/60">
                       {currentStep.archana_list.map((item: ArchanaItem, idx: number) => {
                         const key = `${currentStep.id}::${idx}`;
@@ -2325,6 +2338,51 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                         );
                       })}
                     </div>
+                    )}
+                  </div>
+                )}
+
+                {/* MEANING AND WHY, BELOW WHAT TO SAY. Both used to sit between
+                    the instruction and the mantra, the why open by default, so
+                    on a phone every step began with a scroll past commentary.
+                    They are here for whoever wants them, closed until asked
+                    for, and the choice is remembered across steps and visits.
+                    The why stays English-only by design (philosophy_ta is
+                    deliberately unused). */}
+                {(currentStep.meaning_en || currentStep.philosophy_en) && (
+                  <div className="rounded-2xl bg-stone-900 border border-amber-500/25 divide-y divide-amber-500/15 overflow-hidden">
+                    {([
+                      currentStep.meaning_en
+                        ? { id: 'meaning', label: t.meaning, icon: <BookOpen className="w-4 h-4" />, open: showMeaning, toggle: () => setShowMeaning(!showMeaning), text: currentStep.meaning_en, quote: false }
+                        : null,
+                      currentStep.philosophy_en
+                        ? { id: 'why', label: t.spiritualSignificance, icon: <Lightbulb className="w-4 h-4" />, open: showWhy, toggle: () => setShowWhy(!showWhy), text: currentStep.philosophy_en, quote: true }
+                        : null,
+                    ].filter(Boolean) as { id: string; label: string; icon: React.ReactNode; open: boolean; toggle: () => void; text: string; quote: boolean }[]).map((d) => (
+                      <div key={d.id}>
+                        <button
+                          onClick={d.toggle}
+                          aria-expanded={d.open}
+                          className="w-full px-4 sm:px-6 py-3 flex items-center justify-between gap-3 text-left hover:bg-amber-950/20 transition-colors"
+                        >
+                          <span className="flex items-center gap-2 text-sm font-bold text-amber-200">
+                            <span className="text-amber-400">{d.icon}</span> {d.label}
+                          </span>
+                          <span className="text-amber-400">
+                            {d.open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </span>
+                        </button>
+                        {d.open && (
+                          <p
+                            className={`px-4 sm:px-6 pb-4 text-sm leading-relaxed italic ${
+                              d.quote ? 'text-amber-100/90 font-serif border-l-2 border-amber-400 ml-4 sm:ml-6 pl-3' : 'text-stone-300'
+                            }`}
+                          >
+                            &quot;{d.text}&quot;
+                          </p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </motion.div>
@@ -2375,11 +2433,11 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           <button
             onClick={handlePrevStep}
-            disabled={currentStepIndex <= -1}
+            disabled={currentStepIndex === -1 && prepPage === 0}
             aria-label={currentStepIndex <= 0 ? 'Back to preparation' : 'Previous step'}
             title={currentStepIndex <= 0 ? 'Back to preparation' : 'Previous step'}
             className={`px-3 sm:px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 shrink-0 ${
-              currentStepIndex <= -1
+              currentStepIndex === -1 && prepPage === 0
                 ? 'opacity-40 bg-stone-800 text-stone-500 cursor-not-allowed'
                 : 'bg-stone-800 hover:bg-amber-950 text-amber-300 border border-amber-500/30'
             }`}
@@ -2400,10 +2458,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
               telling you how far through you were. */}
           <div className="text-xs font-semibold text-amber-400/90 text-center px-1">
             {currentStepIndex === -1 ? (
-              <>
-                <span className="hidden sm:inline">Preparation &amp; Settings</span>
-                <span className="sm:hidden">Prep</span>
-              </>
+              <span className="tabular-nums">{t.prepStage(prepPage + 1, 2)}</span>
             ) : (
               <>
                 <span className="hidden sm:inline">
@@ -2435,7 +2490,9 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                   Udvasanam is the final row but is udvasana-only -- the button
                   never said Complete. */}
               {currentStepIndex === -1
-                ? t.beginRite
+                ? prepPage === 0
+                  ? t.prepNext
+                  : t.beginRite
                 : activePosition >= availableSteps.length
                 ? t.completeRite
                 : t.nextStep}

@@ -65,6 +65,12 @@ export interface UiText {
   prepWho: string;
   prepWhere: string;
   prepWhat: string;
+  /** The footer button on the first preparation screen. */
+  prepNext: string;
+  /** Footer position while preparing: "Prep 1/2". */
+  prepStage: (n: number, total: number) => string;
+  readMore: string;
+  showLess: string;
   sankalpamSettings: string;
   whichDay: string;
   /** The same question for a rite whose modes are sittings, not days. */
@@ -115,6 +121,11 @@ export interface UiText {
   offer: string;
   offered: string;
   offeredCount: (done: number, total: number) => string;
+  /** The big button in the one-at-a-time list view. */
+  offerNext: string;
+  showFullList: string;
+  hideFullList: string;
+  allOffered: string;
   sameMantraEach: string;
   ifUnavailable: (what: string) => string;
   /** Sampoornam, with no "Pooja" in front of it. See beginRite. */
@@ -198,10 +209,14 @@ const en: UiText = {
   finish: 'Finish',
 
   ritualPreparation: 'Ritual Preparation',
-  prepLede: 'Work down this page before you begin. The button to start is at the end of it.',
+  prepLede: 'Two short screens, then you begin: first the day and the details, then the things to gather.',
   prepWho: 'The karta, and which day',
   prepWhere: 'Your location, for the Sankalpam',
   prepWhat: 'Samagri and naivedyam',
+  prepNext: 'Next',
+  prepStage: (n, total) => `Prep ${n}/${total}`,
+  readMore: 'Read more',
+  showLess: 'Show less',
   sankalpamSettings: 'Sankalpam & Location',
   whichDay: 'Which day?',
   whichSitting: 'Which sitting?',
@@ -233,6 +248,10 @@ const en: UiText = {
   offer: 'Offer',
   offered: 'Offered',
   offeredCount: (done, total) => `${done} of ${total} offered`,
+  offerNext: 'Offered — next',
+  showFullList: 'Show the full list',
+  hideFullList: 'Hide the full list',
+  allOffered: 'All offered. Press Next Step to continue.',
   sameMantraEach: 'The same mantra for each',
   ifUnavailable: (what) => `If unavailable: ${what}`,
   riteComplete: 'Sampoornam!',
@@ -276,10 +295,14 @@ const ta: UiText = {
 
   ritualPreparation: 'தயாரிப்பு',
   prepLede:
-    'பூஜையைத் தொடங்கும் முன் இந்தப் பக்கத்தை முழுவதும் பார்க்கவும். தொடங்கும் பொத்தான் இறுதியில் உள்ளது.',
+    'இரண்டு சிறு பக்கங்கள், பிறகு தொடங்கலாம்: முதலில் நாளும் விவரங்களும், பின் சேகரிக்க வேண்டிய பொருட்கள்.',
   prepWho: 'கர்த்தா, எந்த நாள்',
   prepWhere: 'இடம், சங்கல்பத்திற்கு',
   prepWhat: 'சாமக்ரி மற்றும் நைவேத்யம்',
+  prepNext: 'அடுத்து',
+  prepStage: (n, total) => `தயாரிப்பு ${n}/${total}`,
+  readMore: 'மேலும் படிக்க',
+  showLess: 'சுருக்கு',
   sankalpamSettings: 'சங்கல்பம் & இடம்',
   whichDay: 'எந்த நாள்?',
   whichSitting: 'எந்த வேளை?',
@@ -311,6 +334,10 @@ const ta: UiText = {
   offer: 'சமர்ப்பி',
   offered: 'சமர்ப்பித்தாயிற்று',
   offeredCount: (done, total) => `${total}-இல் ${done} சமர்ப்பித்தாயிற்று`,
+  offerNext: 'சமர்ப்பித்தேன் — அடுத்தது',
+  showFullList: 'முழுப் பட்டியலைக் காட்டு',
+  hideFullList: 'முழுப் பட்டியலை மறை',
+  allOffered: 'அனைத்தும் சமர்ப்பிக்கப்பட்டன. தொடர அடுத்த படியை அழுத்தவும்.',
   sameMantraEach: 'ஒவ்வொன்றுக்கும் இந்த மந்திரம்',
   ifUnavailable: (what) => `கிடைக்கவில்லையெனில்: ${what}`,
   riteComplete: 'பூர்த்தி!',
