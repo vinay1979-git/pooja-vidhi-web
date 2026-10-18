@@ -71,6 +71,16 @@ export interface UiText {
   prepStage: (n: number, total: number) => string;
   readMore: string;
   showLess: string;
+  /* the gotra picker, for the Abhivadanam */
+  gotraHeading: string;
+  gotraSub: string;
+  gotraSearch: string;
+  gotraNotListed: string;
+  gotraManualName: string;
+  gotraManualRishis: string;
+  gotraUse: string;
+  gotraChange: string;
+  kartaNameLabel: string;
   sankalpamSettings: string;
   whichDay: string;
   /** The same question for a rite whose modes are sittings, not days. */
@@ -217,6 +227,15 @@ const en: UiText = {
   prepStage: (n, total) => `Prep ${n}/${total}`,
   readMore: 'Read more',
   showLess: 'Show less',
+  gotraHeading: 'Your gotra',
+  gotraSub: 'For the Abhivadanam. Chosen once and remembered.',
+  gotraSearch: 'Type your gotra, e.g. Bharadwaja',
+  gotraNotListed: 'My gotra is not listed',
+  gotraManualName: 'Gotra',
+  gotraManualRishis: 'Pravara rishis, in order, separated by commas',
+  gotraUse: 'Use these',
+  gotraChange: 'Change',
+  kartaNameLabel: 'Your name',
   sankalpamSettings: 'Sankalpam & Location',
   whichDay: 'Which day?',
   whichSitting: 'Which sitting?',
@@ -303,6 +322,15 @@ const ta: UiText = {
   prepStage: (n, total) => `தயாரிப்பு ${n}/${total}`,
   readMore: 'மேலும் படிக்க',
   showLess: 'சுருக்கு',
+  gotraHeading: 'உங்கள் கோத்ரம்',
+  gotraSub: 'அபிவாதனத்திற்கு. ஒரு முறை தேர்ந்தெடுத்தால் நினைவில் வைக்கப்படும்.',
+  gotraSearch: 'உங்கள் கோத்ரத்தை எழுதவும், எ.கா. Bharadwaja',
+  gotraNotListed: 'என் கோத்ரம் பட்டியலில் இல்லை',
+  gotraManualName: 'கோத்ரம்',
+  gotraManualRishis: 'ப்ரவர ரிஷிகள், வரிசைப்படி, காற்புள்ளியால் பிரித்து',
+  gotraUse: 'இவற்றைப் பயன்படுத்து',
+  gotraChange: 'மாற்று',
+  kartaNameLabel: 'உங்கள் பெயர்',
   sankalpamSettings: 'சங்கல்பம் & இடம்',
   whichDay: 'எந்த நாள்?',
   whichSitting: 'எந்த வேளை?',

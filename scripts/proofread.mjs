@@ -389,7 +389,7 @@ const CITES_SOURCE = /\b(the book|this book|the edition|this edition|Bhavan|the 
 // CITES_SOURCE gate let through until 0060 (six sentences, "the book itself
 // says so").
 const CROSS_REF_EN = /\b(as before|exactly as before|learnt from a teacher|learned from a teacher|return and continue|stands in its place|already done|see (above|below|page|step)|refer to|described (above|earlier)|page \d+|step \d+)\b/i;
-const CITE_OR_REF_TA = /(நூல்|நூலே|புத்தகமே)[^.]{0,40}(கூறு|சொல்)|என்று நூல்|என நூல்|முன்பு போல|முன்போல|ஆசிரியரிட/;
+const CITE_OR_REF_TA = /(நூல்|நூலே|நூலும்|நூலில்|புத்தகமே|புத்தகத்தில்)[^.]{0,40}(கூறு|சொல்|விட்டிரு|உள்ள)|என்று நூல்|என நூல்|முன்பு போல|முன்போல|ஆசிரியரிட/;
 {
   const WATCH = [
     [steps, ['instruction_en', 'meaning_en', 'philosophy_en', 'variant_note_en'], CROSS_REF_EN, (r) => `${r.pooja_id}/${r.step_title_en}`],

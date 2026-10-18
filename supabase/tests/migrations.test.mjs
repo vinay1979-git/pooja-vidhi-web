@@ -2401,6 +2401,30 @@ await step('0061 re-run', () => db.exec(sql(`${MIG}/0061_step_sections.sql`)));
 await assert('both columns exist and nothing is filled yet',
   `select count(*) from pooja_steps where section_en is not null or section_ta is not null`, 0);
 
+// --- 0065: the gotra tables, and an Abhivadanam with no blanks ----------------
+console.log('[9by] 0065 gotra and pravara');
+await assert('before 0065 the Abhivadanam is printed with blanks',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'
+      and step_title_en in ('Abhivadanam', 'Samarpanam') and mantra_sanskrit ~ '[.]{4,}'`, 2);
+await step('0065_gotra_pravara.sql', () => db.exec(sql(`${MIG}/0065_gotra_pravara.sql`)));
+await step('0065 re-run', () => db.exec(sql(`${MIG}/0065_gotra_pravara.sql`)));
+await assert('380 gotra rows, as transcribed', `select count(*) from gotras`, 380);
+await assert('every row has as many pravaras as its count says',
+  `select count(*) from gotras where cardinality(pravaras_deva) <> pravara_count
+      or cardinality(pravaras_iast) <> pravara_count`, 0);
+await assert('Bharadvaja is there with its three rishis',
+  `select (count(*) >= 1)::int from gotras where gotra_iast like 'bhāradvāja%' and pravara_count = 3`, 1);
+await assert('both mantras carry the tokens in all three scripts, and no blanks',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam'
+      and step_title_en in ('Abhivadanam', 'Samarpanam')
+      and mantra_sanskrit like '%[PRAVARA_RISHIS]%[ARSHEYA]%[GOTRA]%[NAME]%'
+      and mantra_tamil like '%[PRAVARA_RISHIS]%[ARSHEYA]%[GOTRA]%[NAME]%'
+      and mantra_translit like '%[PRAVARA_RISHIS]%[ARSHEYA]%[GOTRA]%[NAME]%'
+      and mantra_sanskrit !~ '[.]{3,}'`, 2);
+await assert('the Samarpanam says the Abhivadanam in full, then its verses',
+  `select count(*) from pooja_steps where pooja_id = 'sandhyavandanam' and step_title_en = 'Samarpanam'
+      and mantra_sanskrit like 'अभिवादये [PRAVARA_RISHIS]%श्री कृष्ण कृष्ण कृष्ण'`, 1);
+
 
 
 

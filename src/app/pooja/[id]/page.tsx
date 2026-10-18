@@ -1,7 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { PoojaViewer } from '@/components/PoojaViewer';
-import { getPooja, getSteps } from '@/lib/queries';
+import { getPooja, getSteps, getGotras } from '@/lib/queries';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -21,9 +21,14 @@ export default async function PoojaDetailPage({ params }: PageProps) {
   // preparation screen and a Begin button for a rite with nothing to begin.
   if (!pooja || pooja.status === 'planned') notFound();
 
+  // Only a rite whose mantra asks for the reader's gotra loads the table.
+  const gotras = steps.some((s) => s.mantra_sanskrit?.includes('[GOTRA]'))
+    ? await getGotras()
+    : [];
+
   return (
     <div className="relative min-h-screen bg-stone-950">
-      <PoojaViewer pooja={pooja} steps={steps} />
+      <PoojaViewer pooja={pooja} steps={steps} gotras={gotras} />
     </div>
   );
 }

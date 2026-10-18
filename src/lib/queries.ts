@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import type { GotraRow } from '@/lib/abhivadanam';
 import type {
   Pooja, PoojaStep, ArchanaItem, SamagriItem, NaivedyamItem, KartaGender,
 } from '@/types/pooja';
@@ -331,4 +332,19 @@ export async function getSteps(poojaId: string): Promise<PoojaStep[]> {
       variant_note_en: (s.variant_note_en as string) ?? undefined,
     };
   });
+}
+
+/**
+ * The gotra/pravara table, for the Abhivadanam picker. Arrives with 0065;
+ * before that the table does not exist and the picker simply does not show --
+ * the Abhivadanam then renders with the book's own blanks, as it always has.
+ */
+export async function getGotras(): Promise<GotraRow[]> {
+  const { data, error } = await supabase
+    .from('gotras')
+    .select('id, gotra_deva, gotra_main_deva, gotra_alt_deva, gotra_iast, pravaras_deva, pravaras_iast, pravara_count, rishi_group, variant')
+    .order('book_page', { ascending: true })
+    .order('id', { ascending: true });
+  if (error) return [];
+  return (data ?? []) as GotraRow[];
 }

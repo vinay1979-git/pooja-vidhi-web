@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useState,
 } from 'react';
+import type { GotraChoice } from '@/lib/abhivadanam';
 
 /**
  * Preferences that must outlive a single page.
@@ -66,6 +67,15 @@ interface Preferences {
   showWhy: boolean;
   setShowMeaning: (v: boolean) => void;
   setShowWhy: (v: boolean) => void;
+  /**
+   * The reader's gotra and name, for the Abhivadanam. Asked once and kept: a
+   * lineage does not change between mornings, and asking it every day before
+   * the sandhyavandanam is the kind of friction this app exists to remove.
+   */
+  gotra: GotraChoice | null;
+  kartaName: string;
+  setGotra: (v: GotraChoice | null) => void;
+  setKartaName: (v: string) => void;
   /** False until localStorage has been read, so callers can avoid flashing. */
   ready: boolean;
 }
@@ -83,6 +93,8 @@ const DEFAULTS = {
   theme: 'dark' as Theme,
   showMeaning: false,
   showWhy: false,
+  gotra: null as GotraChoice | null,
+  kartaName: '',
 };
 
 const Ctx = createContext<Preferences | null>(null);
@@ -105,6 +117,15 @@ function read(): typeof DEFAULTS {
       theme: p.theme === 'light' ? 'light' : 'dark',
       showMeaning: p.showMeaning === true,
       showWhy: p.showWhy === true,
+      gotra:
+        p.gotra && typeof p.gotra.gotra === 'string' && Array.isArray(p.gotra.pravaras)
+          ? {
+              gotra: p.gotra.gotra,
+              pravaras: p.gotra.pravaras.filter((x): x is string => typeof x === 'string'),
+              rowId: typeof p.gotra.rowId === 'string' ? p.gotra.rowId : null,
+            }
+          : null,
+      kartaName: typeof p.kartaName === 'string' ? p.kartaName : '',
     };
   } catch {
     // Private windows and blocked site data both throw here.
@@ -148,6 +169,8 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       persist({ ...prefs, theme: prefs.theme === 'dark' ? 'light' : 'dark' }),
     setShowMeaning: (v) => persist({ ...prefs, showMeaning: v }),
     setShowWhy: (v) => persist({ ...prefs, showWhy: v }),
+    setGotra: (v) => persist({ ...prefs, gotra: v }),
+    setKartaName: (v) => persist({ ...prefs, kartaName: v }),
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

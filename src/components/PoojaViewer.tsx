@@ -8,6 +8,7 @@ import { Pooja, PoojaStep, ArchanaItem } from '@/types/pooja';
 import { fetchPanchangamData, PanchangamData } from '@/actions/getSankalpam';
 import { usePreferences, resolveScript, SCRIPT_LABEL, type InstructionLang, type MantraScript } from '@/lib/preferences';
 import { renderPerson, OCCASION_BY_POOJA } from '@/lib/sankalpam';
+import { fillAbhivadanam, looseRoman, type GotraRow } from '@/lib/abhivadanam';
 import { uiText, type UiText } from '@/lib/ui-text';
 import { LANGUAGES, SCRIPTS, coverageFor } from '@/lib/languages';
 import { SettingRow, SettingsPicker, type PickerOption } from '@/components/SettingsPicker';
@@ -21,6 +22,8 @@ import type { KartaGender, PoojaMode } from '@/types/pooja';
 interface PoojaViewerProps {
   pooja: Pooja;
   steps: PoojaStep[];
+  /** The gotra/pravara table, loaded only for a rite with an Abhivadanam. */
+  gotras?: GotraRow[];
 }
 
 // Suggestions start once the query is long enough to be worth a lookup.
@@ -40,7 +43,7 @@ const KARTA_CHOICES: { id: KartaGender; label: keyof Pick<UiText, 'male' | 'fema
   { id: 'couple', label: 'couple' },
 ];
 
-export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
+export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps, gotras = [] }) => {
   // Navigation & Language States
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(-1); // -1 = Samagri / Prep
   // Language and theme live in a persisted context, not here. Holding them in
@@ -57,7 +60,38 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
     setShowMeaning,
     showWhy,
     setShowWhy,
+    gotra,
+    setGotra,
+    kartaName,
+    setKartaName,
   } = usePreferences();
+
+  /**
+   * A rite whose mantra names the reader's own lineage (the Abhivadanam) asks
+   * for the gotra once, on the first preparation screen, from the book's own
+   * table. Without it the reader had to leave the screen to look it up.
+   */
+  const needsGotra = useMemo(
+    () => steps.some((s) => s.mantra_sanskrit?.includes('[GOTRA]')),
+    [steps],
+  );
+  const [gotraQuery, setGotraQuery] = useState('');
+  const [gotraManual, setGotraManual] = useState(false);
+  const [manualGotra, setManualGotra] = useState('');
+  const [manualRishis, setManualRishis] = useState('');
+  const gotraMatches = useMemo(() => {
+    const q = gotraQuery.trim();
+    if (q.length < 2) return [];
+    const loose = looseRoman(q);
+    return gotras
+      .filter((g) =>
+        g.gotra_deva.includes(q) ||
+        (loose.length >= 2 &&
+          (looseRoman(g.gotra_iast).includes(loose) ||
+            (g.gotra_alt_deva ? looseRoman(g.gotra_alt_deva).includes(loose) : false))),
+      )
+      .slice(0, 12);
+  }, [gotraQuery, gotras]);
 
   /**
    * Preparation is two short screens rather than one long page: first the day,
@@ -981,6 +1015,8 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
   const getDynamicMantra = useCallback(
     (originalText: string | null | undefined, script: 'sanskrit' | 'tamil' | 'translit') => {
       if (!originalText) return '';
+      // The Abhivadanam's lineage first; it needs no panchangam.
+      originalText = fillAbhivadanam(originalText, script, gotra, kartaName);
       if (!panchangamData) return originalText;
 
       const p = panchangamData;
@@ -1015,7 +1051,7 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
 
       return originalText;
     },
-    [panchangamData, sankalpamData, kartaGender]
+    [panchangamData, sankalpamData, kartaGender, gotra, kartaName]
   );
 
   // Slide Animation Variants for Framer Motion
@@ -1724,6 +1760,110 @@ export const PoojaViewer: React.FC<PoojaViewerProps> = ({ pooja, steps }) => {
                 </div>
               </div>
             </div>
+
+            {/* YOUR GOTRA, for a rite with an Abhivadanam. From the book's own
+                table, searched by name in roman or Devanagari; or typed in when
+                it is not listed. Remembered, so it is asked once. */}
+            {needsGotra && (
+              <div className="rounded-2xl bg-gradient-to-br from-stone-900 via-amber-950/20 to-stone-950 border border-amber-500/40 p-4 sm:p-6 shadow-xl space-y-4">
+                <div>
+                  <h3 className="text-xl font-bold text-amber-200 flex items-center gap-2">
+                    <Flame className="w-5 h-5 text-amber-400" /> {t.gotraHeading}
+                  </h3>
+                  <p className="text-xs text-stone-400">{t.gotraSub}</p>
+                </div>
+
+                {gotra ? (
+                  <div className="rounded-xl bg-stone-950 border border-amber-500/30 px-4 py-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-deva text-lg text-amber-200" lang="sa">{gotra.gotra}</p>
+                      <p className="text-xs text-stone-400">{gotra.pravaras.join(' · ')}</p>
+                    </div>
+                    <button
+                      onClick={() => { setGotra(null); setGotraQuery(''); }}
+                      className="shrink-0 text-xs font-bold text-amber-400 hover:text-amber-300"
+                    >
+                      {t.gotraChange}
+                    </button>
+                  </div>
+                ) : gotraManual ? (
+                  <div className="space-y-2">
+                    <input
+                      value={manualGotra}
+                      onChange={(e) => setManualGotra(e.target.value)}
+                      placeholder={t.gotraManualName}
+                      className="w-full px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                    />
+                    <input
+                      value={manualRishis}
+                      onChange={(e) => setManualRishis(e.target.value)}
+                      placeholder={t.gotraManualRishis}
+                      className="w-full px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                    />
+                    <button
+                      disabled={!manualGotra.trim() || !manualRishis.trim()}
+                      onClick={() =>
+                        setGotra({
+                          gotra: manualGotra.trim(),
+                          pravaras: manualRishis.split(/[,،、]/).map((x) => x.trim()).filter(Boolean),
+                          rowId: null,
+                        })
+                      }
+                      className="px-4 py-2 rounded-xl bg-amber-500 text-ink-inverse text-xs font-bold disabled:opacity-50"
+                    >
+                      {t.gotraUse}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      value={gotraQuery}
+                      onChange={(e) => setGotraQuery(e.target.value)}
+                      placeholder={t.gotraSearch}
+                      autoComplete="off"
+                      className="w-full px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                    />
+                    {gotraMatches.length > 0 && (
+                      <ul className="rounded-xl border border-amber-500/30 bg-stone-950 divide-y divide-stone-800 max-h-72 overflow-y-auto">
+                        {gotraMatches.map((g) => (
+                          <li key={g.id}>
+                            <button
+                              onClick={() => setGotra({ gotra: g.gotra_main_deva, pravaras: g.pravaras_deva, rowId: g.id })}
+                              className="w-full text-left px-4 py-2.5 hover:bg-stone-800 transition-colors"
+                            >
+                              <span className="font-deva text-amber-200" lang="sa">{g.gotra_deva}</span>
+                              <span className="text-xs text-stone-400"> · {g.gotra_iast}</span>
+                              <span className="block text-xs text-stone-400">
+                                {g.pravaras_iast.join(' · ')}
+                                {g.variant ? ` ${g.variant}` : ''}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <button
+                      onClick={() => setGotraManual(true)}
+                      className="text-xs font-bold text-amber-400 hover:text-amber-300"
+                    >
+                      {t.gotraNotListed}
+                    </button>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                    <User className="w-4 h-4 text-amber-400" /> {t.kartaNameLabel}
+                  </label>
+                  <input
+                    value={kartaName}
+                    onChange={(e) => setKartaName(e.target.value)}
+                    placeholder="e.g. Krishna"
+                    className="w-full px-4 py-2.5 rounded-xl bg-stone-950 border border-amber-500/30 text-stone-100 text-sm focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+            )}
 
             </>)}
 
