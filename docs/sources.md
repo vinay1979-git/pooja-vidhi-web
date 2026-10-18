@@ -1,5 +1,10 @@
 # Ritual sources
 
+> **Superseded, October 2026.** The printed Giri books are now the golden source
+> for every rite (see `docs/PROJECT-GUIDE.md` §2.1). The video and web sources
+> below are kept as history: they explain where legacy content came from and are
+> being replaced by the book wherever the book has the text.
+
 ## Primary: Sathya Vadyar (Sri Sathyanarayana Vadyar, Mumbai)
 
 YouTube channel **Sathya Vadyar**. Tamil Smartha (Iyer) practice, step by step,

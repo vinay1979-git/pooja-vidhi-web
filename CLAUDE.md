@@ -1,1 +1,2 @@
 @AGENTS.md
+@docs/PROJECT-GUIDE.md
