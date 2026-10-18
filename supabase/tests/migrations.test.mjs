@@ -2401,6 +2401,91 @@ await step('0061 re-run', () => db.exec(sql(`${MIG}/0061_step_sections.sql`)));
 await assert('both columns exist and nothing is filled yet',
   `select count(*) from pooja_steps where section_en is not null or section_ta is not null`, 0);
 
+// --- 0063: Samidadhanam, Brahma Yajnam and Bhojana Vidhi, from the book ---------
+//
+// The three rites 0043 listed as planned get their steps and are published.
+// "Nothing else changed" is checked by fingerprinting every row that does not
+// belong to them, before and after, rather than by counting: a count does not
+// notice an UPDATE.
+console.log('[9by] 0063 nitya karmas from the book');
+const NK = `('samidadhanam', 'brahma_yajnam', 'bhojana_vidhi')`;
+const fingerprint63 = async () => JSON.stringify(await one(`select
+  (select md5(coalesce(string_agg(t::text, '|' order by t.id), '')) from pooja_steps t where t.pooja_id not in ${NK}) as steps,
+  (select md5(coalesce(string_agg(t::text, '|' order by t.id), '')) from poojas t where t.id not in ${NK}) as poojas,
+  (select md5(coalesce(string_agg(t::text, '|' order by t.id), '')) from archana_items t
+     where t.pooja_step_id not in (select id from pooja_steps where pooja_id in ${NK})) as archana,
+  (select md5(coalesce(string_agg(t::text, '|' order by t.id), '')) from samagri_items t where t.pooja_id not in ${NK}) as samagri,
+  (select md5(coalesce(string_agg(t::text, '|' order by t.pooja_id, t.mode), '')) from pooja_modes t where t.pooja_id not in ${NK}) as modes,
+  (select md5(coalesce(string_agg(t::text, '|' order by t.id), '')) from deities t where t.id <> 'brahma') as deities,
+  (select md5(coalesce(string_agg(t::text, '|' order by t.id), '')) from naivedyam_items t) as naivedyam`));
+const before63 = await fingerprint63();
+await assert('before: all three are planned and empty',
+  `select count(*) from poojas p where p.id in ${NK} and p.status = 'planned'
+      and not exists (select 1 from pooja_steps s where s.pooja_id = p.id)`, 3);
+await step('0063_nitya_karmas_from_the_book.sql',
+  () => db.exec(sql(`${MIG}/0063_nitya_karmas_from_the_book.sql`)));
+await step('0063 re-run', () => db.exec(sql(`${MIG}/0063_nitya_karmas_from_the_book.sql`)));
+await assert('nothing outside the three rites changed', `select ${(await fingerprint63()) === before63 ? 1 : 0}`, 1);
+await assert('all three published, nitya, with a deity that exists and a why',
+  `select count(*) from poojas p join deities d on d.id = p.deity_id
+    where p.id in ${NK} and p.status = 'published' and p.ritual_class = 'nitya'
+      and coalesce(p.why_en, '') <> '' and coalesce(p.why_ta, '') <> ''`, 3);
+for (const [pid, n] of [['samidadhanam', 35], ['brahma_yajnam', 26], ['bhojana_vidhi', 9]]) {
+  await assert(`${pid} has ${n} steps`, `select count(*) from pooja_steps where pooja_id = '${pid}'`, n);
+  await assert(`${pid} steps are dense 1..${n}`,
+    `select count(*) from generate_series(1, ${n}) g
+      where not exists (select 1 from pooja_steps where pooja_id = '${pid}' and step_number = g)`, 0);
+}
+for (const [pid, mode, n] of [['samidadhanam', 'pratah', 33], ['samidadhanam', 'sayam', 33],
+                              ['brahma_yajnam', 'main', 26],
+                              ['bhojana_vidhi', 'day', 8], ['bhojana_vidhi', 'night', 8]]) {
+  await assert(`${pid}/${mode} walks ${n} steps`,
+    `select count(*) from pooja_steps where pooja_id = '${pid}' and '${mode}' = any(modes)`, n);
+}
+await assert('every mode a step claims is declared',
+  `select count(*) from pooja_steps s, unnest(s.modes) m
+    where s.pooja_id in ${NK}
+      and not exists (select 1 from pooja_modes pm where pm.pooja_id = s.pooja_id and pm.mode = m)`, 0);
+await assert('every declared mode has steps',
+  `select count(*) from pooja_modes pm where pm.pooja_id in ${NK}
+      and not exists (select 1 from pooja_steps s where s.pooja_id = pm.pooja_id and pm.mode = any(s.modes))`, 0);
+await assert('the clock picks the sitting: morning from 0, evening from 12; day from 0, night from 18',
+  `select string_agg(pooja_id || '/' || mode || '@' || coalesce(from_hour::text, '-'), ' ' order by pooja_id, seq)
+     from pooja_modes where pooja_id in ${NK}`,
+  'bhojana_vidhi/day@0 bhojana_vidhi/night@18 brahma_yajnam/main@- samidadhanam/pratah@0 samidadhanam/sayam@12');
+// ONE ACTION PER SCREEN, as far as a regex can see it: no instruction names
+// more than one offering verb. There are no deliberate exceptions.
+await assert('no step asks for more than one offering',
+  String.raw`select count(*) from pooja_steps s where s.pooja_id in ${NK}
+      and (select count(*) from regexp_matches(s.instruction_en, '\m(offer|pour|sprinkle|sip|swallow)\M', 'gi')) > 1`, 0);
+await assert('and that regex does see the verbs it counts (one per step that has one)',
+  String.raw`select (count(*) > 20)::int from pooja_steps s where s.pooja_id in ${NK}
+      and (select count(*) from regexp_matches(s.instruction_en, '\m(offer|pour|sprinkle|sip|swallow)\M', 'gi')) = 1`, 1);
+await assert('the homa is twelve screens under one section label',
+  `select count(*) from pooja_steps where pooja_id = 'samidadhanam' and section_en = 'Homa'`, 12);
+await assert('no instruction sends the reader elsewhere',
+  String.raw`select count(*) from pooja_steps where pooja_id in ${NK}
+      and instruction_en ~* '\m(as before|see (above|below|page|step)|refer to|page \d+|already done)\M'`, 0);
+await assert('no mantra carries a blank to fill in',
+  `select count(*) from pooja_steps where pooja_id in ${NK} and mantra_sanskrit ~ '\\.\\.\\.|…'`, 0);
+await assert('the opening pair is done twice, the closing pair once, in both rites that print them',
+  `select count(*) from pooja_steps where pooja_id in ('samidadhanam', 'brahma_yajnam')
+      and step_title_en ~ '^(Achamanam|Anga Vandanam)'`, 12);
+for (const [title, n] of [['Raksha Mantra', 7], ['Deva Tarpanam', 5], ['Rishi Tarpanam', 14],
+                          ['Rishi Tarpanam — the Vedas', 9], ['Pitru Tarpanam', 5], ['Pranahuti', 6]]) {
+  await assert(`${title} has ${n} lines`,
+    `select count(*) from archana_items a join pooja_steps s on s.id = a.pooja_step_id
+      where s.pooja_id in ${NK} and s.step_title_en = '${title}'`, n);
+}
+await assert('the samidha repair is in and the misprint is out',
+  `select count(*) from pooja_steps where pooja_id = 'samidadhanam' and mantra_sanskrit like '%समिधमाहार्षं%'
+      and mantra_sanskrit not like '%समिध-माहार्षं%'`, 1);
+await assert('Brahma Yajnam no longer prints the sankalpa blank; the p.19 stem fills it',
+  `select count(*) from pooja_steps where pooja_id = 'brahma_yajnam' and step_title_en = 'Sankalpam'
+      and mantra_sanskrit like 'ममोपात्त%ब्रह्मयज्ञं करिष्ये%'`, 1);
+await assert('Yajnopaveeta Dharana is not published as a rite',
+  `select count(*) from poojas where id ilike '%yajnopav%'`, 0);
+
 
 
 

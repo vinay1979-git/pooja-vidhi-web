@@ -319,8 +319,11 @@ for (const field of ['instruction_en', 'meaning_en', 'philosophy_en']) {
     const v = s[field];
     if (!v || v.length < DUP_MIN_LENGTH) continue;
     const prev = seen.get(v);
+    // A repeat of a shared step is shared too: "Achamanam (closing)" in two
+    // rites carries the same text for the same reason "Achamanam" does. 0063
+    // put the opening pair, twice, and the closing pair into two rites.
     if (prev && !disjointModes(prev, s) && !sameRepeatFamily(prev, s) &&
-        !(SHARED_OK.has(s.step_title_en) && SHARED_OK.has(prev.step_title_en))) {
+        !(SHARED_OK.has(repeatBase(s.step_title_en)) && SHARED_OK.has(repeatBase(prev.step_title_en)))) {
       warn(`${field}`, `identical text on "${prev.pooja_id}/${prev.step_title_en}" and "${s.pooja_id}/${s.step_title_en}"`);
     }
     seen.set(v, s);
@@ -488,6 +491,15 @@ const EXPECT_ARCHANA = {
   'navaratri_pooja/Navadurga Pooja': 9,
   'navaratri_pooja/Navakanya Pooja': 9,
   'saraswati_pooja/Anga Pooja': 20,
+  // 0063. Samidadhanam's seven ash marks, the three tarpanams of Brahma Yajnam
+  // (the rishi list split where one offering takes a different gesture), and
+  // the six pranahutis of Bhojana Vidhi.
+  'samidadhanam/Raksha Mantra': 7,
+  'brahma_yajnam/Deva Tarpanam': 5,
+  'brahma_yajnam/Rishi Tarpanam': 14,
+  'brahma_yajnam/Rishi Tarpanam — the Vedas': 9,
+  'brahma_yajnam/Pitru Tarpanam': 5,
+  'bhojana_vidhi/Pranahuti': 6,
 };
 // A TITLE is a few words. A mantra has dandas and runs to hundreds of
 // characters. 0025 put the Tamil mantra into step_title_ta on twelve steps and
@@ -626,6 +638,14 @@ const EXPECT_PROSE_COUNT = {
   'navaratri_pooja/Navadurga Pooja': 'nine',
   'navaratri_pooja/Navakanya Pooja': 'nine',
   'saraswati_pooja/Anga Pooja': 'twenty',
+
+  // 0063.
+  'samidadhanam/Raksha Mantra': 'seven',
+  'brahma_yajnam/Deva Tarpanam': 'five',
+  'brahma_yajnam/Rishi Tarpanam': 'fourteen',
+  'brahma_yajnam/Rishi Tarpanam — the Vedas': 'nine',
+  'brahma_yajnam/Pitru Tarpanam': 'five',
+  'bhojana_vidhi/Pranahuti': 'six',
 };
 for (const s of steps) {
   const key = `${s.pooja_id}/${s.step_title_en}`;
@@ -747,6 +767,8 @@ const SHOPPABLE = new RegExp(String.raw`\b(` + [
   'mixture', 'paste', 'powder', 'nut', 'pea', 'screwpine', 'marjoram',
   'gooseberry', 'oleander', 'calotropis', 'shami', 'mango', 'durva', 'sesame',
   'strand', 'strands', 'knot', 'knots', 'set', 'bunch',
+  // 0063: what a homa fire is built from.
+  'sticks', 'husk', 'dung', 'charcoal',
   // Borrowed into English and in the dictionaries, so glossing it as "cloth"
   // would be less precise rather than more.
   'dhoti',
