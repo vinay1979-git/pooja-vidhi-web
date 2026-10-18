@@ -254,6 +254,10 @@ const SHARED_OK = new Set([
   'Achamanam', 'Anga Vandanam', 'Vighneshwara Dhyanam', 'Pranayamam',
   'Kalasha Pooja', 'Ghanta Pooja',
   'Asana Pooja', 'Shankha Pooja', 'Atma Pooja', 'Peetha Pooja', 'Guru Dhyanam',
+  // 0062 carries the book's whole Purvanga into Navaratri, and these steps keep
+  // the Ganesha rite's prose where the mantra is the same.
+  'Sakala Devata Vandanam', 'Deepa Pooja', 'Vighneshwara Sankalpam',
+  'Vighneshwara Shodasha Nama Archana',
   // Sandhyavandanam opens BOTH its halves by tapping the temples for Ganesha,
   // so the same verse and the same rubric appear twice in one rite. Two
   // moments, one text, and the app carries it twice on purpose -- see 0049.
@@ -488,6 +492,8 @@ const EXPECT_ARCHANA = {
   'navaratri_pooja/Navadurga Pooja': 9,
   'navaratri_pooja/Navakanya Pooja': 9,
   'saraswati_pooja/Anga Pooja': 20,
+  // 0062: the Purvanga's Vighneshwara pooja, inlined into Navaratri.
+  'navaratri_pooja/Vighneshwara Shodasha Nama Archana': 16,
 };
 // A TITLE is a few words. A mantra has dandas and runs to hundreds of
 // characters. 0025 put the Tamil mantra into step_title_ta on twelve steps and
@@ -626,6 +632,7 @@ const EXPECT_PROSE_COUNT = {
   'navaratri_pooja/Navadurga Pooja': 'nine',
   'navaratri_pooja/Navakanya Pooja': 'nine',
   'saraswati_pooja/Anga Pooja': 'twenty',
+  'navaratri_pooja/Vighneshwara Shodasha Nama Archana': 'sixteen',
 };
 for (const s of steps) {
   const key = `${s.pooja_id}/${s.step_title_en}`;

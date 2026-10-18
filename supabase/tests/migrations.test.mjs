@@ -2401,6 +2401,97 @@ await step('0061 re-run', () => db.exec(sql(`${MIG}/0061_step_sections.sql`)));
 await assert('both columns exist and nothing is filled yet',
   `select count(*) from pooja_steps where section_en is not null or section_ta is not null`, 0);
 
+// --- 0062: Navaratri from the book, one action per screen --------------------
+console.log('[9by] 0062 Navaratri from the book');
+const NAV62 = `pooja_id = 'navaratri_pooja'`;
+const OTHERS62 = `select md5(string_agg(to_jsonb(s)::text, '|' order by pooja_id, step_number))
+     from pooja_steps s where pooja_id <> 'navaratri_pooja'`;
+const OTHER_ARCHANA62 = `select md5(string_agg(to_jsonb(a)::text, '|' order by a.pooja_step_id, a.seq))
+     from archana_items a join pooja_steps s on s.id = a.pooja_step_id where s.pooja_id <> 'navaratri_pooja'`;
+const others62 = await one(`select (${OTHERS62}) as steps, (${OTHER_ARCHANA62}) as archana`);
+await assert('before 0062 Navaratri is 31 steps: main 29, punar 26, udvasana 11',
+  `select count(*) || ':' || count(*) filter (where 'main' = any(modes)) || '/'
+        || count(*) filter (where 'punar' = any(modes)) || '/' || count(*) filter (where 'udvasana' = any(modes))
+     from pooja_steps where ${NAV62}`, '31:29/26/11');
+await step('0062_navaratri_from_the_book.sql',
+  () => db.exec(sql(`${MIG}/0062_navaratri_from_the_book.sql`)));
+await step('0062 re-run',
+  () => db.exec(sql(`${MIG}/0062_navaratri_from_the_book.sql`)));
+await assert('112 steps, numbered 1..112',
+  `select count(*) from pooja_steps where ${NAV62} and step_number between 1 and 112`, 112);
+await assert('First Day 109, Days 2 to 9 99, Vijayadashami 22',
+  `select count(*) filter (where 'main' = any(modes)) || '/'
+        || count(*) filter (where 'punar' = any(modes)) || '/' || count(*) filter (where 'udvasana' = any(modes))
+     from pooja_steps where ${NAV62}`, '109/99/22');
+// One upachara per screen. Four steps keep two verbs because the book puts
+// both under one rubric (TWO_VERBS_ONE_RUBRIC in the generator).
+const VERBS62 = `'(समर्पयामि|दर्शयामि|आघ्रापयामि|निवेदयामि|धारयामि|पूजयामि)'`;
+await assert('no screen carries more than one offering verb, but the four one-rubric pairs',
+  `select count(*) from pooja_steps s where ${NAV62}
+      and (select count(*) from regexp_matches(coalesce(s.mantra_sanskrit, ''), ${VERBS62}, 'g')) > 1
+      and s.step_title_en not in ('Vighneshwara Gandham', 'Vighneshwara Pushpam', 'Kalasha Gandham', 'Pushpam')`, 0);
+await assert('and those four carry exactly two',
+  `select count(*) from pooja_steps s where ${NAV62}
+      and (select count(*) from regexp_matches(s.mantra_sanskrit, ${VERBS62}, 'g')) = 2
+      and s.step_title_en in ('Vighneshwara Gandham', 'Vighneshwara Pushpam', 'Kalasha Gandham', 'Pushpam')`, 4);
+await assert('every step has a section, in both languages',
+  `select count(*) from pooja_steps where ${NAV62} and (section_en is null or section_ta is null)`, 0);
+// Ten runs of eight sections: Purvangam is broken by the Vighneshwara pooja,
+// and Uttaranga by the Navakanya pooja before the Vijayadashami release.
+await assert('eight sections in ten runs',
+  `select count(distinct section_en) || '/' || count(*) filter (where section_en is distinct from prev)
+     from (select section_en, lag(section_en) over (order by step_number) as prev
+             from pooja_steps where ${NAV62}) x`, '8/10');
+await assert('the dynamic sankalpam is there once, with its one slot, in every mode',
+  `select count(*) from pooja_steps where ${NAV62} and is_dynamic_sankalpam
+      and modes = '{main,punar,udvasana}'
+      and array_length(string_to_array(mantra_sanskrit, '[DYNAMIC_PANCHANGAM_DATA]'), 1) = 2
+      and mantra_sanskrit like 'ममोपात्त%' and mantra_sanskrit like '%तदङ्गं कलश पूजां च करिष्ये।'`, 1);
+await assert('the Goddess is installed only on the first day: dhyanam to the milk, ten steps',
+  `select count(*) from pooja_steps where ${NAV62} and modes = '{main}'
+      and step_number between (select step_number from pooja_steps where ${NAV62} and step_title_en = 'Dhyanam')
+                          and (select step_number from pooja_steps where ${NAV62} and step_title_en = 'Ksheera Naivedyam')`, 10);
+await assert('Prana Pratishtha speaks to a goddess: the devi column, no svami forms',
+  `select count(*) from pooja_steps where ${NAV62} and step_title_en = 'Avahita Bhava'
+      and mantra_sanskrit like '%आवाहिता भव%' and mantra_sanskrit like '%देवि सर्वजगन्नायिके%'
+      and mantra_sanskrit not like '%तो भव%' and mantra_sanskrit not like '%स्वामिन्%'`, 1);
+await assert('both pranayamams are for men only, and nothing else is filtered',
+  `select string_agg(step_title_en, ',' order by step_number) from pooja_steps
+    where ${NAV62} and gender_rule <> 'all'`, 'Pranayamam,Pranayamam (again)');
+await assert('the shankha screens say they may be skipped',
+  `select count(*) from pooja_steps where ${NAV62} and step_title_en like 'Shankha%'
+      and instruction_en like 'If there is no conch%' and instruction_ta like '%ஶங்கு இல்லையென்றால்%'`, 2);
+await assert('the Vijayadashami walk keeps its composition, each part as the book has it',
+  `select string_agg(step_title_en, ',' order by step_number) from pooja_steps
+    where ${NAV62} and 'udvasana' = any(modes)`,
+  'Achamanam,Ghanta Pooja,Sankalpam,Durga Ashtottara Shatanamavali,Patra Pushpa Samarpanam,' +
+  'Dhoopam,Deepam,Dhoopa Deepa Achamaniyam,Naivedya Prokshanam,Parishechanam,Amritopastaranam,' +
+  'Pranahuti,Mahanaivedyam,Amritapaniyam,Achamaniyam after Naivedyam,Tambulam,' +
+  'Karpura Neerajanam,Achamaniyam after Neerajanam,Pushpanjali,Pradakshina & Namaskaram,' +
+  'Prarthana,Punah Pooja & Yathasthanam');
+await assert('archana rows: Vighneshwara 16, Anga 18, Navadurga 9, Navakanya 9',
+  `select string_agg(s.step_title_en || '=' || n, ',' order by s.step_number) from pooja_steps s
+     join (select pooja_step_id, count(*) n from archana_items group by 1) a on a.pooja_step_id = s.id
+    where s.${NAV62}`,
+  'Vighneshwara Shodasha Nama Archana=16,Anga Pooja=18,Navadurga Pooja=9,Navakanya Pooja=9');
+await assert('the three ashtottarams still point at their namavalis',
+  `select count(*) from pooja_steps where ${NAV62} and namavali_id in
+      ('durga_ashtottara_108', 'lakshmi_ashtottara_108', 'saraswati_ashtottara_108')`, 3);
+await assert('titles unique, at most 60 characters, every step complete',
+  `select count(*) from pooja_steps s where ${NAV62} and (
+      length(step_title_en) > 60 or length(step_title_ta) > 60
+      or exists (select 1 from pooja_steps t where t.pooja_id = s.pooja_id and t.id <> s.id and t.step_title_en = s.step_title_en)
+      or coalesce(instruction_en, '') = '' or coalesce(instruction_ta, '') = ''
+      or coalesce(meaning_en, '') = '' or coalesce(philosophy_en, '') = '' or source_ref is null
+      or (mantra_sanskrit is null and namavali_id is null
+          and not exists (select 1 from archana_items a where a.pooja_step_id = s.id))
+      or (mantra_sanskrit is not null and (mantra_tamil is null or mantra_translit is null)))`, 0);
+await assert('no other rite was touched, steps or archana rows',
+  `select (${OTHERS62}) = '${others62.steps}' and (${OTHER_ARCHANA62}) = '${others62.archana}'`, true);
+await assert('the modes are as they were: Vijayadashami – Punah Pooja',
+  `select string_agg(mode || '=' || label_en, ',' order by seq) from pooja_modes where ${NAV62}`,
+  'main=First Day,punar=Days 2 to 9,udvasana=Vijayadashami – Punah Pooja');
+
 
 
 
