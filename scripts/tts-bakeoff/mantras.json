@@ -1,0 +1,74 @@
+{
+  "_about": "The 5 test texts for the Sanskrit TTS bake-off (docs/plans/guided-mode.md §4.5). Each text is copied verbatim from the live database (Supabase pooja_steps / namavali_items, read 18 Oct 2026 with the anon key), never retyped. 'excerpt' says which part of the stored mantra was taken.",
+  "mantras": [
+    {
+      "id": "gayatri",
+      "label": "Gayatri",
+      "kind": "vedic",
+      "tests": "visarga, conjuncts (त्स, र्ग), ओं",
+      "source": {
+        "table": "pooja_steps",
+        "pooja_id": "sandhyavandanam",
+        "step_number": 14,
+        "step_title_en": "Arghya Pradanam — morning",
+        "excerpt": "whole mantra_sanskrit"
+      },
+      "text": "ओं भूर्भुवः सुवः।\nतत्सवितुर्वरेण्यं भर्गो देवस्य धीमहि।\nधियो यो नः प्रचोदयात्।"
+    },
+    {
+      "id": "asunite",
+      "label": "Rigveda — असुनीते (RV 10.59.6)",
+      "kind": "vedic",
+      "tests": "long Vedic line, vocalic ṛ (मृडया, अमृतम्), conjuncts (क्प, ह्व), visarga mid-line",
+      "source": {
+        "table": "pooja_steps",
+        "pooja_id": "varalakshmi_vratham",
+        "step_number": 13,
+        "step_title_en": "Prana Pratishtha",
+        "excerpt": "first 6 lines, up to the first ॥ (the Avahana lines after it are left out)"
+      },
+      "text": "ॐ असुनीते पुनरस्मासु चक्षुः\nपुनः प्राणमिह नो धेहि भोगम् ।\nज्योक्पश्येम सूर्यमुच्चरन्त\nमनुमते मृडया नः स्वस्ति ।\nअमृतं वै प्राणा अमृतमापः\nप्राणानेव यथास्थानमुपह्वयते ॥"
+    },
+    {
+      "id": "apo-va-idam",
+      "label": "Taittiriya — आपो वा इदꣳ सर्वम्",
+      "kind": "vedic",
+      "tests": "ꣳ read as 'gum' (5 occurrences), long run of visargas",
+      "source": {
+        "table": "pooja_steps",
+        "pooja_id": "sandhyavandanam",
+        "step_number": 8,
+        "step_title_en": "Jala Prarthana",
+        "excerpt": "first 5 lines; line 6 (…भूर्भुवस्सुवराप) runs on into the Keshava line in storage, so it is left out rather than cut mid-word"
+      },
+      "text": "आपो वा इदꣳ सर्वं विश्वा भूतान्यापः\nप्राणा वा आपः पशव आपः\nअन्नमापः अमृतमापः सम्राडापः\nविराडापः स्वराडापः छन्दाꣳस्यापः\nज्योतीꣳष्यापः यजूꣳष्यापः सत्यमापः"
+    },
+    {
+      "id": "shuklambaradharam",
+      "label": "Anushtubh shloka — शुक्लाम्बरधरं",
+      "kind": "shloka",
+      "tests": "anusvara before a stop (-धरं वि-, -वर्णं च-), meter rhythm, schwa retention",
+      "source": {
+        "table": "pooja_steps",
+        "pooja_id": "sandhyavandanam",
+        "step_number": 3,
+        "step_title_en": "Vighneshwara Dhyanam",
+        "excerpt": "whole mantra_sanskrit"
+      },
+      "text": "शुक्लाम्बरधरं विष्णुं शशिवर्णं चतुर्भुजम्।\nप्रसन्नवदनं ध्यायेत् सर्वविघ्नोपशान्तये॥"
+    },
+    {
+      "id": "lakshmi-names",
+      "label": "108 names — Lakshmi Ashtottaram 1–5",
+      "kind": "names",
+      "tests": "short-clip consistency, 'namaḥ' endings, dative -यै",
+      "source": {
+        "table": "namavali_items",
+        "namavali_id": "lakshmi_ashtottara_108",
+        "used_by": "varalakshmi_vratham step 19, Lakshmi Ashtottara Shatanamavali",
+        "excerpt": "seq 1–5, name_deva"
+      },
+      "text": "ॐ प्रकृत्यै नमः\nॐ विकृत्यै नमः\nॐ विद्यायै नमः\nॐ सर्वभूतहितप्रदायै नमः\nॐ श्रद्धायै नमः"
+    }
+  ]
+}
