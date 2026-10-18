@@ -1,0 +1,229 @@
+<!doctype html>
+<!--
+  Blind A/B page for the Sanskrit TTS bake-off. This file is a template:
+  run.mjs copies it to out/ab.html with the manifest filled in, next to the
+  audio it plays. Open out/ab.html straight from disk; no server needed.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanskrit voice bake-off</title>
+<style>
+  :root {
+    --bg: #fbf8f3; --fg: #1d1b18; --muted: #6b645a; --card: #fff; --line: #e4ddd2;
+    --accent: #9a3412; --accent-fg: #fff; --chip: #f3ede4; --warn: #b45309;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #171512; --fg: #ece7df; --muted: #a39b8f; --card: #211e1a; --line: #3a352e;
+      --accent: #f59e66; --accent-fg: #1d1b18; --chip: #2c2823; --warn: #f5b041; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.4rem; margin: 8px 0 4px; }
+  h2 { font-size: 1.15rem; margin: 0 0 4px; }
+  p { margin: 6px 0; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .bar { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line);
+    padding: 10px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .bar input { flex: 1 1 160px; min-width: 0; }
+  input[type=text], textarea { width: 100%; font: inherit; color: var(--fg); background: var(--card);
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  textarea { min-height: 2.6em; resize: vertical; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  section.mantra { margin: 28px 0; }
+  .text { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 8px 0 12px; }
+  .text ol { margin: 0; padding-left: 1.6em; }
+  .text li { margin: 4px 0; }
+  .deva { font-family: "Noto Sans Devanagari", "Nirmala UI", "Mangal", serif; font-size: 1.15rem; }
+  .knda { font-family: "Noto Sans Kannada", "Nirmala UI", "Tunga", serif; }
+  .iast { font-style: italic; color: var(--muted); }
+  .clip { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin: 10px 0; }
+  .clip.done { border-color: var(--accent); }
+  .clip header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .clip .tag { font-weight: 700; font-size: 1.1rem; min-width: 2.2em; }
+  .lines { display: flex; flex-wrap: wrap; gap: 6px; }
+  .lines button { padding: 4px 10px; }
+  .lines button.playing, button.playing { outline: 2px solid var(--accent); }
+  .scores { display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; align-items: center; margin: 10px 0; }
+  .scale { display: flex; flex-wrap: wrap; gap: 4px; }
+  .scale label { display: inline-flex; align-items: center; justify-content: center; min-width: 2.2em; height: 2.2em;
+    border: 1px solid var(--line); border-radius: 8px; cursor: pointer; user-select: none; }
+  .scale input { position: absolute; opacity: 0; pointer-events: none; }
+  .scale input:checked + span { font-weight: 700; }
+  .scale label:has(input:checked) { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .scale label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .reveal { display: none; font-size: .85rem; color: var(--muted); }
+  body.revealed .reveal { display: block; }
+  .warn { color: var(--warn); font-size: .9rem; }
+  .empty { padding: 40px 0; }
+  @media (max-width: 520px) { .scores { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sanskrit voice bake-off</h1>
+  <p class="muted">Each mantra below was read by several synthetic voices. They are labelled A, B, C… in a random order, so you do not know which is which. Listen to each one, then rate it. Your ratings are kept in this browser; press <b>Download</b> when you are done and send the file back.</p>
+  <ul class="muted">
+    <li><b>Pronunciation</b> 1–5: 5 = every syllable correct (aspirates, long vowels, visarga, ṛ, conjuncts, no dropped "a").</li>
+    <li><b>Voice</b> 1–5: 5 = sounds like a calm, reverent pandit you would follow in a pooja.</li>
+    <li><b>Mistakes</b>: one per line, "word — what was wrong", e.g. <span class="deva">धीमहि</span> — said "dhimhi".</li>
+  </ul>
+  <div class="bar">
+    <input type="text" id="rater" placeholder="Your name" aria-label="Your name">
+    <span id="progress" class="muted"></span>
+    <button id="dl-json" class="primary">Download JSON</button>
+    <button id="dl-csv">Download CSV</button>
+    <button id="reveal" title="Shows which provider is behind each letter. Do this only after rating.">Reveal</button>
+  </div>
+  <div id="app"></div>
+</main>
+<script>
+const DATA = /*__BAKEOFF_DATA__*/ null;
+
+(function () {
+  const app = document.getElementById('app');
+  if (!DATA) {
+    app.innerHTML = '<p class="empty">This is the template. Run <code>node scripts/tts-bakeoff/run.mjs</code> with at least one API key, then open <code>scripts/tts-bakeoff/out/ab.html</code>.</p>';
+    return;
+  }
+  const { seed, manifest } = DATA;
+  const STORE = 'tts-bakeoff:' + seed;
+  const GAP_MS = 700;
+
+  let state = { rater: '', ratings: {} };
+  try { state = Object.assign(state, JSON.parse(localStorage.getItem(STORE) || '{}')); } catch (e) { /* private window */ }
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* ignore */ } };
+
+  // Deterministic shuffle from the page's seed, so a reload keeps the letters.
+  function rng(s) { return function () { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function shuffle(a, r) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+  const variantById = Object.fromEntries(manifest.variants.map(v => [v.id, v]));
+  const el = (tag, attrs, ...kids) => { const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) { if (k === 'class') n.className = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); }
+    for (const k of kids) if (k != null) n.append(k); return n; };
+
+  const audio = new Audio();
+  let playToken = 0;
+  function stop() { playToken++; audio.pause(); document.querySelectorAll('.playing').forEach(b => b.classList.remove('playing')); }
+  function playOne(src, btn) { return new Promise(res => {
+    audio.src = src; btn && btn.classList.add('playing');
+    const done = () => { btn && btn.classList.remove('playing'); audio.onended = audio.onerror = null; res(); };
+    audio.onended = done; audio.onerror = done; audio.play().catch(done); }); }
+  async function playAll(items, allBtn) {
+    stop(); const token = playToken; allBtn.classList.add('playing');
+    for (const [i, it] of items.entries()) {
+      if (token !== playToken) return;
+      await playOne(it.src, it.btn);
+      if (i < items.length - 1) await new Promise(r => setTimeout(r, GAP_MS));
+    }
+    if (token === playToken) allBtn.classList.remove('playing');
+  }
+
+  const cards = [];
+  manifest.mantras.forEach((m, mi) => {
+    const byVariant = {};
+    for (const c of manifest.clips) if (c.mantra === m.id && c.file) (byVariant[c.variant] ||= []).push(c);
+    const ids = Object.keys(byVariant);
+    if (!ids.length) return;
+    const order = shuffle(ids.sort(), rng(seed + mi * 7919));
+
+    const sec = el('section', { class: 'mantra' },
+      el('h2', {}, m.label),
+      el('p', { class: 'muted' }, 'Listen for: ' + m.tests),
+      el('div', { class: 'text' }, el('ol', {}, ...m.lines.map(l => el('li', {},
+        el('div', { class: 'deva', lang: 'sa' }, l.deva),
+        el('div', { class: 'knda', lang: 'sa-Knda' }, l.kannada),
+        el('div', { class: 'iast', lang: 'sa-Latn' }, l.iast))))));
+
+    order.forEach((vid, k) => {
+      const letter = String.fromCharCode(65 + k);
+      const key = m.id + '|' + vid;
+      const r = state.ratings[key] ||= {};
+      const clips = byVariant[vid].sort((a, b) => a.line - b.line);
+      const missing = m.lines.length - clips.length;
+      const items = [];
+      const lineBtns = clips.map(c => { const b = el('button', { type: 'button', title: c.deva, onclick: () => { stop(); playOne(c.file, b); } }, String(c.line + 1));
+        items.push({ src: c.file, btn: b }); return b; });
+      const allBtn = el('button', { type: 'button', class: 'primary', onclick: () => playAll(items, allBtn) }, '▶ Play all');
+      const card = el('div', { class: 'clip' });
+      const refresh = () => { card.classList.toggle('done', !!(r.pronunciation && r.voice)); updateProgress(); };
+
+      const scale = (field, label) => el('div', { class: 'scale', role: 'radiogroup', 'aria-label': label },
+        ...[1, 2, 3, 4, 5].map(n => { const inp = el('input', { type: 'radio', name: key + field, value: String(n) });
+          if (r[field] === n) inp.checked = true;
+          inp.addEventListener('change', () => { r[field] = n; save(); refresh(); });
+          return el('label', {}, inp, el('span', {}, String(n))); }));
+      const area = (field, ph) => { const t = el('textarea', { placeholder: ph, 'aria-label': ph }); t.value = r[field] || '';
+        t.addEventListener('input', () => { r[field] = t.value; save(); }); return t; };
+
+      const v = variantById[vid] || { id: vid };
+      [
+        el('header', {}, el('span', { class: 'tag' }, letter), allBtn, el('button', { type: 'button', onclick: stop }, '■ Stop'),
+          el('span', { class: 'muted' }, 'lines:'), el('div', { class: 'lines' }, ...lineBtns)),
+        missing > 0 ? el('p', { class: 'warn' }, missing + ' line(s) missing for this voice.') : null,
+        el('div', { class: 'scores' },
+          el('span', {}, 'Pronunciation'), scale('pronunciation', 'Pronunciation 1 to 5'),
+          el('span', {}, 'Voice'), scale('voice', 'Voice 1 to 5')),
+        area('mistakes', 'Mistakes: word — what was wrong (one per line)'),
+        el('div', { style: 'height:6px' }),
+        area('notes', 'Notes'),
+        el('p', { class: 'reveal' }, letter + ' = ' + v.id + ' · ' + [v.provider, v.model, v.voice, v.script].filter(Boolean).join(' · ')),
+      ].forEach(n => n && card.append(n));
+      sec.append(card);
+      cards.push({ m, vid, letter, key, clips, card, refresh });
+    });
+    app.append(sec);
+  });
+  if (!cards.length) app.innerHTML = '<p class="empty">The manifest has no audio clips.</p>';
+
+  function updateProgress() {
+    const done = cards.filter(c => { const r = state.ratings[c.key]; return r && r.pronunciation && r.voice; }).length;
+    document.getElementById('progress').textContent = done + ' / ' + cards.length + ' rated';
+  }
+  cards.forEach(c => c.refresh());
+
+  const rater = document.getElementById('rater');
+  rater.value = state.rater || '';
+  rater.addEventListener('input', () => { state.rater = rater.value; save(); });
+  document.getElementById('reveal').addEventListener('click', () => {
+    if (!document.body.classList.contains('revealed') && !confirm('Show which voice is which? Do this only after you have finished rating.')) return;
+    document.body.classList.toggle('revealed');
+  });
+
+  function rows() {
+    return cards.map(c => { const r = state.ratings[c.key] || {}; const v = variantById[c.vid] || {};
+      const lat = c.clips.map(x => x.latency_ms).filter(x => x != null);
+      return {
+        rater: state.rater || '', mantra: c.m.id, letter: c.letter, variant: c.vid,
+        provider: v.provider || '', model: v.model || '', voice: v.voice || '', script: v.script || '',
+        pronunciation: r.pronunciation || '', voice_score: r.voice || '',
+        mistakes: r.mistakes || '', notes: r.notes || '',
+        lines: c.clips.length, duration_s: +c.clips.reduce((s, x) => s + (x.duration_s || 0), 0).toFixed(2),
+        avg_latency_ms: lat.length ? Math.round(lat.reduce((a, b) => a + b, 0) / lat.length) : '',
+        est_cost_usd: +c.clips.reduce((s, x) => s + (x.est_cost_usd || 0), 0).toFixed(5),
+      }; });
+  }
+  function download(name, type, text) {
+    const a = el('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name });
+    document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  const stamp = () => (state.rater || 'rater').replace(/[^\w-]+/g, '_') + '-' + new Date().toISOString().slice(0, 10);
+  document.getElementById('dl-json').addEventListener('click', () => download('bakeoff-ratings-' + stamp() + '.json', 'application/json',
+    JSON.stringify({ rater: state.rater, seed, generated_at: manifest.generated_at, exported_at: new Date().toISOString(),
+      normalizer_version: manifest.normalizer_version, variants: manifest.variants, ratings: rows() }, null, 2)));
+  document.getElementById('dl-csv').addEventListener('click', () => { const rs = rows(); if (!rs.length) return;
+    const cols = Object.keys(rs[0]); const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+    download('bakeoff-ratings-' + stamp() + '.csv', 'text/csv;charset=utf-8',
+      '﻿' + [cols.join(','), ...rs.map(r => cols.map(c => q(r[c])).join(','))].join('\r\n')); });
+})();
+</script>
+</body>
+</html>

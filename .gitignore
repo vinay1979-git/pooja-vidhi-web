@@ -62,3 +62,6 @@ DB Extract/
 
 # Python bytecode from the book-transcription scripts
 __pycache__/
+
+# Sanskrit TTS bake-off: generated audio, manifest and A/B page (local only)
+scripts/tts-bakeoff/out/
